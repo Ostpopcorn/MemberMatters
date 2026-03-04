@@ -1,3 +1,4 @@
+import re
 import sentry_sdk
 from django.contrib.auth import (
     authenticate,
@@ -439,10 +440,17 @@ class ProfileDetail(generics.GenericAPIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        phone = body.get("phone")
+        if phone and not re.match(r"^\+?\d{9,15}$", phone):
+            return Response(
+                {"message": "error.invalidPhoneNumber"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         request.user.email = body.get("email")
         p.first_name = body.get("firstName")
         p.last_name = body.get("lastName")
-        p.phone = body.get("phone")
+        p.phone = phone
         p.screen_name = body.get("screenName")
         p.vehicle_registration_plate = body.get("vehicleRegistrationPlate")
 
@@ -651,6 +659,13 @@ class Register(APIView):
             return Response(
                 {"message": "error.screenNameAlreadyExists"},
                 status=status.HTTP_409_CONFLICT,
+            )
+
+        mobile = body.get("mobile")
+        if mobile and not re.match(r"^\+?\d{9,15}$", mobile):
+            return Response(
+                {"message": "error.invalidPhoneNumber"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_user = User.objects.create(

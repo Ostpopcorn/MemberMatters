@@ -1,4 +1,5 @@
 import json
+import re
 
 import stripe
 from asgiref.sync import async_to_sync
@@ -572,11 +573,18 @@ class MemberProfile(APIView):
         if member.profile.rfid != body.get("rfidCard"):
             rfid_changed = True
 
+        phone = body.get("phone")
+        if phone and not re.match(r"^\+?\d{9,15}$", phone):
+            return Response(
+                {"message": "error.invalidPhoneNumber"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         member.email = body.get("email")
         member.profile.first_name = body.get("firstName")
         member.profile.last_name = body.get("lastName")
         member.profile.rfid = body.get("rfidCard")
-        member.profile.phone = body.get("phone")
+        member.profile.phone = phone
         member.profile.screen_name = body.get("screenName")
         member.profile.vehicle_registration_plate = body.get("vehicleRegistrationPlate")
         member.profile.exclude_from_email_export = body.get("excludeFromEmailExport")
