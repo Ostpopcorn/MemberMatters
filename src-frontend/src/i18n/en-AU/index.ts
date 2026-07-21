@@ -31,6 +31,7 @@ export default {
     pendingInvoices: 'Pending Invoices',
     signupPreview: 'Signup Preview',
     manageDashboard: 'Dashboard Cards',
+    email: 'Email',
 
     memberTools: 'Member Tools',
     reportIssue: 'Report Issue',

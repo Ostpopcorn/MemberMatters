@@ -152,6 +152,14 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         component: () => import('pages/AdminTools/ManageDashboard.vue'),
       },
       {
+        icon: icons.email,
+        to: '/manage/email',
+        name: 'email',
+        loggedIn: true,
+        admin: true,
+        component: () => import('pages/AdminTools/Email.vue'),
+      },
+      {
         icon: icons.interlocks,
         to: '/manage/devices',
         name: 'devices',
