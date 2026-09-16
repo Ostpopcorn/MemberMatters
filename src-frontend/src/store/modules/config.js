@@ -14,7 +14,7 @@ export default {
     siteOwner: 'MemberMatters',
     siteLocaleCurrency: 'en-AU',
     contact: {},
-    homepageCards: {},
+    dashboardCards: [],
     webcamLinks: {},
     keys: {},
     features: {},
@@ -28,7 +28,7 @@ export default {
     siteOwner: (state) => state.siteOwner,
     siteLocaleCurrency: (state) => state.siteLocaleCurrency,
     contact: (state) => state.contact,
-    homepageCards: (state) => state.homepageCards,
+    dashboardCards: (state) => state.dashboardCards,
     webcamLinks: (state) => state.webcamLinks,
     keys: (state) => state.keys,
     features: (state) => state.features,
@@ -50,8 +50,8 @@ export default {
     setContact(state, payload) {
       state.contact = payload;
     },
-    setHomepageCards(state, payload) {
-      state.homepageCards = payload;
+    setDashboardCards(state, payload) {
+      state.dashboardCards = payload;
     },
     setWebcamLinks(state, payload) {
       state.webcamLinks = payload;
@@ -88,7 +88,7 @@ export default {
               result.data.general.siteLocaleCurrency
             );
             commit('setContact', result.data.contact);
-            commit('setHomepageCards', result.data.homepageCards);
+            commit('setDashboardCards', result.data.dashboardCards);
             commit('setWebcamLinks', result.data.webcamLinks);
             commit('setKeys', result.data.keys);
             commit('setFeatures', result.data.features);

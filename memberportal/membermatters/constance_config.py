@@ -78,31 +78,9 @@ CONSTANCE_CONFIG = {
         """[["Example", "https://brisbanemaker.space/wp-content/uploads/2021/10/BMS-Logo-ONLY.png"]]""",
         "A JSON serialised array of URLs to pull webcam images from.",
     ),
-    "HOME_PAGE_CARDS": (
-        """[
-            {
-                "title": "Example Card",
-                "description": "Tap below to see a calendar with all of our upcoming events and workshops.",
-                "icon": "mdi-calendar-multiselect",
-                "url": "https://brisbanemaker.space",
-                "btn_text": "View Calendar"
-            },
-            {
-                "title": "Example 2",
-                "description": "This is an example card with an icon! And it links to another page using a Vue route!",
-                "icon": "mdi-link-variant",
-                "routerLink": {
-                "name": "reportIssue"
-                },
-                "btn_text": "Go to route"
-            }
-           ]
-        """,
-        "You can specify cards that go on the home page with JSON. See https://github.com/MemberMatters/MemberMatters/blob/master/GETTING_STARTED.md.",
-    ),
     "WELCOME_EMAIL_CARDS": (
         "[]",
-        "Same syntax as HOME_PAGE_CARDS but icons are not used. If nothing is specified we will use HOME_PAGE_CARDS.",
+        'A JSON array of cards shown in the welcome email. Each card: {"title": "...", "description": "<p>...</p>", "url": "https://...", "btn_text": "..."}. Leave blank to use the dashboard\'s Member Resources cards, which are edited in Admin Tools -> Dashboard.',
     ),
     "TERMS_ACCEPTANCE_CARDS": (
         "[]",
@@ -708,7 +686,6 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
             (
                 "MEMBERBUCKS_NAME",
                 "WEBCAM_PAGE_URLS",
-                "HOME_PAGE_CARDS",
                 "WELCOME_EMAIL_CARDS",
             ),
         ),

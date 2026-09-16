@@ -43,6 +43,7 @@ from profile.models import (
     CancelTriggeredBy,
     User,
     UserEventLog,
+    welcome_email_cards,
 )
 from profile.phone import to_e164
 from profile.templatetags.email_extras import clean_html
@@ -1549,14 +1550,10 @@ class SignupPreview(APIView):
     permission_classes = (permissions.IsAdminUser,)
 
     def get(self, request):
-        # Mirror Profile.email_welcome()'s card source so the preview matches.
-        raw_cards = config.WELCOME_EMAIL_CARDS or config.HOME_PAGE_CARDS
-        try:
-            cards = json.loads(raw_cards)
-        except (ValueError, TypeError):
-            cards = []
-
-        email_vars = {"title": f"Welcome to {config.SITE_OWNER}", "cards": cards}
+        email_vars = {
+            "title": f"Welcome to {config.SITE_OWNER}",
+            "cards": welcome_email_cards(),
+        }
         welcome_email_html = render_to_string(
             "email_welcome.html", {"email": email_vars, "config": config}
         )

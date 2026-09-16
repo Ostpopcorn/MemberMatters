@@ -75,6 +75,17 @@ class DashboardCard(ExportModelOperationsMixin("dashboard-card"), models.Model):
             "links": self.links,
         }
 
+    def get_email_object(self):
+        # The welcome email has a single button and can't open a portal page,
+        # so it uses the first link with a URL.
+        link = next((link for link in self.links if link.get("url")), {})
+        return {
+            "title": self.title,
+            "description": self.description,
+            "url": link.get("url", ""),
+            "btn_text": link.get("label", ""),
+        }
+
     def get_admin_object(self):
         return {
             **self.get_object(),

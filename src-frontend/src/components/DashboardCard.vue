@@ -24,35 +24,15 @@
       <div class="full-width">
         <q-separator dark />
 
-        <q-card-actions v-if="Platform.is.electron">
-          <q-btn v-if="routerLink" :to="routerLink" flat>
-            {{ linkText }}
-          </q-btn>
-          <q-btn v-else :href="linkLocation" target="_blank" flat>
-            {{ linkLocation }}
-          </q-btn>
-        </q-card-actions>
-
-        <q-card-actions v-else>
-          <q-btn v-if="routerLink" :to="routerLink" flat>
-            {{ linkText }}
-          </q-btn>
-          <q-btn
-            v-else-if="linkLocation"
-            :href="linkLocation"
-            target="_blank"
-            flat
-          >
-            {{ linkText }}
-          </q-btn>
-          <div v-else>
-            <template :key="link.url" v-for="link in links">
-              <q-btn :href="link.url" target="_blank" flat>
-                {{ link.btn_text }}
-              </q-btn>
-              <q-separator v-if="link.newLine" vertical />
-            </template>
-          </div>
+        <q-card-actions>
+          <template v-for="(link, index) in visibleLinks" :key="index">
+            <q-btn v-if="link.route" :to="{ name: link.route }" flat>
+              {{ link.label }}
+            </q-btn>
+            <q-btn v-else :href="link.url" target="_blank" flat>
+              {{ Platform.is.electron ? link.url : link.label }}
+            </q-btn>
+          </template>
         </q-card-actions>
       </div>
     </q-card>
@@ -78,30 +58,22 @@ export default {
       type: String,
       required: true,
     },
-    linkText: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    linkLocation: {
-      type: [String, Object],
-      required: false,
-      default: null,
-    },
+    // [{ label, url }] for a website or [{ label, route }] for a portal page.
     links: {
       type: Array,
       required: false,
       default: () => [],
     },
-    routerLink: {
-      type: [Object, Boolean],
-      required: false,
-      default: null,
-    },
   },
   computed: {
     Platform() {
       return Platform;
+    },
+    visibleLinks() {
+      // A link to a page that no longer exists would throw when resolved.
+      return this.links.filter(
+        (link) => !link.route || this.$router.hasRoute(link.route)
+      );
     },
     sanitizedDescription() {
       // Allow links (with target/rel) so cards can link out; everything
