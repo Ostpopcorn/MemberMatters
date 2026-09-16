@@ -649,30 +649,60 @@ def handle_subscription_deleted(ctx):
     transaction.on_commit(_on_commit_complete_cancel)
 
 
-def overdue_reminder_copy(invoice_data):
+def overdue_reminder_copy(user, invoice_data):
     """Returns (subject, message) for a membership invoice past its due date.
 
     Bank transfer and cash payments are recorded by an admin by hand, so the
     copy allows for a member who has paid but is not yet marked as paid.
     """
-    amount_text = (
-        f" for {format_invoice_amount(invoice_data, prefer='due')}"
-        if invoice_data.get("amount_due") is not None
-        else ""
-    )
-    due_date = format_invoice_due_date(invoice_data)
-    due_text = f" was due on {due_date}" if due_date else " is past its due date"
-    hosted_url = invoice_data.get("hosted_invoice_url")
-    pay_here = f" Otherwise, you can pay it here: {hosted_url}." if hosted_url else ""
+    with member_email_translation(user):
+        amount = (
+            format_invoice_amount(invoice_data, prefer="due")
+            if invoice_data.get("amount_due") is not None
+            else None
+        )
+        due_date = format_invoice_due_date(invoice_data)
+        hosted_url = invoice_data.get("hosted_invoice_url")
+        pay_here = (
+            gettext("Otherwise, you can pay it here: %(url)s.") % {"url": hosted_url}
+            if hosted_url
+            else None
+        )
 
-    return (
-        "Reminder: your membership invoice is overdue",
-        f"Your membership invoice{amount_text}{due_text}, and we haven't "
-        "registered a payment yet. If you have paid in another way than through "
-        "the invoice link, for example by bank transfer, we may not have had time "
-        "to register your payment yet. Please make sure the payment has been "
-        f"made.{pay_here} If you have further questions, contact us.",
-    )
+        if amount and due_date:
+            opening = gettext(
+                "Your membership invoice for %(amount)s was due on %(due_date)s, "
+                "and we haven't registered a payment yet."
+            )
+        elif amount:
+            opening = gettext(
+                "Your membership invoice for %(amount)s is past its due date, and "
+                "we haven't registered a payment yet."
+            )
+        elif due_date:
+            opening = gettext(
+                "Your membership invoice was due on %(due_date)s, and we haven't "
+                "registered a payment yet."
+            )
+        else:
+            opening = gettext(
+                "Your membership invoice is past its due date, and we haven't "
+                "registered a payment yet."
+            )
+
+        subject = gettext("Reminder: your membership invoice is overdue")
+        sentences = [
+            opening % {"amount": amount, "due_date": due_date},
+            gettext(
+                "If you have paid in another way than through the invoice link, for "
+                "example by bank transfer, we may not have had time to register "
+                "your payment yet. Please make sure the payment has been made."
+            ),
+            pay_here,
+            gettext("If you have further questions, contact us."),
+        ]
+
+    return subject, " ".join(sentence for sentence in sentences if sentence)
 
 
 def handle_subscription_updated(ctx):
@@ -718,7 +748,7 @@ def handle_subscription_updated(ctx):
         if invoice_data and invoice_data.get("status") != "open":
             return
 
-        subject, message = overdue_reminder_copy(invoice_data)
+        subject, message = overdue_reminder_copy(user, invoice_data)
         try:
             user.email_notification(subject, message)
             user.log_event("Overdue-invoice reminder email sent.", "email")

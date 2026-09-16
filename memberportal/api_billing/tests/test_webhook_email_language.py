@@ -11,7 +11,7 @@ import pytest
 from django.utils import timezone, translation
 
 from api_billing.stripe_utils import format_invoice_due_date
-from api_billing.webhook_handlers import payment_failed_copy
+from api_billing.webhook_handlers import overdue_reminder_copy, payment_failed_copy
 from tests.factories import PaymentPlanFactory, ProfileFactory
 
 from .conftest import CUSTOMER_ID, SUBSCRIPTION_ID, build_event, build_invoice
@@ -233,3 +233,120 @@ class TestPaymentFailedCopy:
         assert (
             message["Subject"] == "Betalningen av din medlemsfaktura gick inte igenom"
         )
+
+
+OVERDUE_INVOICE = {
+    "id": "in_overdue",
+    "status": "open",
+    "amount_due": 5500,
+    "currency": "aud",
+    "due_date": PAST,
+    "hosted_invoice_url": PAY_URL,
+}
+
+# (invoice fields, English opening, Swedish opening) for each shape of the
+# reminder's first sentence.
+OVERDUE_OPENINGS = {
+    "amount_and_date": (
+        {"amount_due": 5500, "currency": "aud", "due_date": PAST},
+        "Your membership invoice for 55.00 AUD was due on 14 November 2023, and we "
+        "haven't registered a payment yet.",
+        "Din medlemsfaktura på 55.00 AUD förföll 14 november 2023, och vi har inte "
+        "registrerat någon betalning ännu.",
+    ),
+    "amount_only": (
+        {"amount_due": 5500, "currency": "aud"},
+        "Your membership invoice for 55.00 AUD is past its due date, and we haven't "
+        "registered a payment yet.",
+        "Din medlemsfaktura på 55.00 AUD har passerat förfallodagen, och vi har inte "
+        "registrerat någon betalning ännu.",
+    ),
+    "date_only": (
+        {"due_date": PAST},
+        "Your membership invoice was due on 14 November 2023, and we haven't "
+        "registered a payment yet.",
+        "Din medlemsfaktura förföll 14 november 2023, och vi har inte registrerat "
+        "någon betalning ännu.",
+    ),
+    "neither": (
+        {},
+        "Your membership invoice is past its due date, and we haven't registered a "
+        "payment yet.",
+        "Din medlemsfaktura har passerat förfallodagen, och vi har inte registrerat "
+        "någon betalning ännu.",
+    ),
+}
+
+
+class TestOverdueReminderCopy:
+    @pytest.mark.parametrize(
+        "invoice, english, _swedish",
+        OVERDUE_OPENINGS.values(),
+        ids=OVERDUE_OPENINGS.keys(),
+    )
+    def test_the_english_sentences_join_as_before(
+        self, member, utc, invoice, english, _swedish
+    ):
+        _, message = overdue_reminder_copy(member.user, invoice)
+
+        assert message == (
+            f"{english} If you have paid in another way than through the invoice "
+            "link, for example by bank transfer, we may not have had time to register "
+            "your payment yet. Please make sure the payment has been made. If you "
+            "have further questions, contact us."
+        )
+
+    @swedish()
+    @pytest.mark.parametrize(
+        "invoice, _english, swedish_opening",
+        OVERDUE_OPENINGS.values(),
+        ids=OVERDUE_OPENINGS.keys(),
+    )
+    def test_each_opening_in_swedish(
+        self, member, utc, invoice, _english, swedish_opening
+    ):
+        _, message = overdue_reminder_copy(member.user, invoice)
+
+        assert message.startswith(swedish_opening + " ")
+
+    @swedish()
+    def test_the_full_reminder_in_swedish(self, member, utc):
+        subject, message = overdue_reminder_copy(member.user, OVERDUE_INVOICE)
+
+        assert subject == "Påminnelse: din medlemsfaktura är förfallen"
+        assert message == (
+            "Din medlemsfaktura på 55.00 AUD förföll 14 november 2023, och vi har inte "
+            "registrerat någon betalning ännu. Om du har betalat på annat sätt än via "
+            "fakturalänken, till exempel med banköverföring, har vi kanske inte hunnit "
+            "registrera din betalning ännu. Se till att betalningen har gjorts. Annars "
+            f"kan du betala den här: {PAY_URL}. Om du har fler frågor, kontakta oss."
+        )
+
+    @swedish()
+    def test_the_webhook_sends_it(self, send_webhook, stripe_api, outbox):
+        stripe_api.invoices["in_overdue"] = dict(OVERDUE_INVOICE)
+        profile = ProfileFactory(
+            active=True,
+            subscription_active=True,
+            billing_method="invoice",
+            stripe_customer_id=CUSTOMER_ID,
+            stripe_subscription_id=SUBSCRIPTION_ID,
+            membership_plan=PaymentPlanFactory(),
+        )
+
+        send_webhook(
+            build_event(
+                "customer.subscription.updated",
+                {
+                    "id": SUBSCRIPTION_ID,
+                    "customer": CUSTOMER_ID,
+                    "status": "past_due",
+                    "collection_method": "send_invoice",
+                    "latest_invoice": "in_overdue",
+                },
+                previous_attributes={"status": "active"},
+            )
+        )
+
+        [message] = mail_to(outbox, profile)
+        assert message["Subject"] == "Påminnelse: din medlemsfaktura är förfallen"

@@ -187,6 +187,60 @@ msgstr ""
 "var vårt sista automatiska försök, så ditt medlemskap kan avslutas om "
 "betalningen inte går igenom. Uppdatera ditt kort på %(site_url)s."
 
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "Otherwise, you can pay it here: %(url)s."
+msgstr "Annars kan du betala den här: %(url)s."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Your membership invoice for %(amount)s was due on %(due_date)s, and we "
+"haven't registered a payment yet."
+msgstr ""
+"Din medlemsfaktura på %(amount)s förföll %(due_date)s, och vi har inte "
+"registrerat någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Your membership invoice for %(amount)s is past its due date, and we haven't "
+"registered a payment yet."
+msgstr ""
+"Din medlemsfaktura på %(amount)s har passerat förfallodagen, och vi har inte "
+"registrerat någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Your membership invoice was due on %(due_date)s, and we haven't registered a "
+"payment yet."
+msgstr ""
+"Din medlemsfaktura förföll %(due_date)s, och vi har inte registrerat någon "
+"betalning ännu."
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"Your membership invoice is past its due date, and we haven't registered a "
+"payment yet."
+msgstr ""
+"Din medlemsfaktura har passerat förfallodagen, och vi har inte registrerat "
+"någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+msgid "Reminder: your membership invoice is overdue"
+msgstr "Påminnelse: din medlemsfaktura är förfallen"
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"If you have paid in another way than through the invoice link, for example "
+"by bank transfer, we may not have had time to register your payment yet. "
+"Please make sure the payment has been made."
+msgstr ""
+"Om du har betalat på annat sätt än via fakturalänken, till exempel med "
+"banköverföring, har vi kanske inte hunnit registrera din betalning ännu. Se "
+"till att betalningen har gjorts."
+
 #: api_general/views.py
 #, python-format
 msgid "Action Required: %(site_owner)s New Member Signup"
