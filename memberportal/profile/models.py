@@ -672,17 +672,20 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
 
                 if locked.subscription_status == "pending":
                     if not locked.pending_signup_email_sent:
-                        pending_subject = (
-                            "Your signup has been received — awaiting payment"
-                        )
-                        pending_message = (
-                            f"Hi {locked.first_name}, thanks for signing "
-                            f"up to {config.SITE_OWNER}! We've received your "
-                            "signup and you'll receive an invoice from Stripe "
-                            "shortly. Once it's paid, your access will be "
-                            "enabled automatically and we'll send you a "
-                            "welcome email."
-                        )
+                        with member_email_translation(locked.user):
+                            pending_subject = gettext(
+                                "Your signup has been received — awaiting payment"
+                            )
+                            pending_message = gettext(
+                                "Hi %(first_name)s, thanks for signing up to "
+                                "%(site_owner)s! We've received your signup and "
+                                "you'll receive an invoice from Stripe shortly. "
+                                "Once it's paid, your access will be enabled "
+                                "automatically and we'll send you a welcome email."
+                            ) % {
+                                "first_name": locked.first_name,
+                                "site_owner": config.SITE_OWNER,
+                            }
 
                         def _on_commit_pending_signup(
                             user=locked.user,
@@ -803,13 +806,14 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
                 # pre-staged default-access rows here.
                 locked.remove_default_access()
                 if triggered_by == CancelTriggeredBy.SUBSCRIPTION_DELETED:
-                    lapsed_subject = "Your membership signup has lapsed"
-                    lapsed_message = (
-                        "We weren't able to collect your membership payment "
-                        "in time, so your pending signup has been cancelled. "
-                        "You can sign up again at any time from the member "
-                        "portal."
-                    )
+                    with member_email_translation(locked.user):
+                        lapsed_subject = gettext("Your membership signup has lapsed")
+                        lapsed_message = gettext(
+                            "We weren't able to collect your membership payment "
+                            "in time, so your pending signup has been cancelled. "
+                            "You can sign up again at any time from the member "
+                            "portal."
+                        )
 
                     def _on_commit_lapsed(
                         user=locked.user,

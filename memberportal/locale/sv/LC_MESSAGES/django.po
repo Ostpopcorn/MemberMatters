@@ -127,6 +127,36 @@ msgid ""
 msgstr ""
 "Goda nyheter, %(first_name)s! Din åtkomst till %(site_owner)s har aktiverats."
 
+#: profile/models.py
+msgid "Your signup has been received — awaiting payment"
+msgstr "Vi har tagit emot din registrering – väntar på betalning"
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Hi %(first_name)s, thanks for signing up to %(site_owner)s! We've received "
+"your signup and you'll receive an invoice from Stripe shortly. Once it's "
+"paid, your access will be enabled automatically and we'll send you a welcome "
+"email."
+msgstr ""
+"Hej %(first_name)s, tack för att du registrerade dig hos %(site_owner)s! Vi "
+"har tagit emot din registrering och du får snart en faktura från Stripe. När "
+"den är betald aktiveras din åtkomst automatiskt och vi skickar ett "
+"välkomstmeddelande till dig."
+
+#: profile/models.py
+msgid "Your membership signup has lapsed"
+msgstr "Din medlemsregistrering har gått ut"
+
+#: profile/models.py
+msgid ""
+"We weren't able to collect your membership payment in time, so your pending "
+"signup has been cancelled. You can sign up again at any time from the member "
+"portal."
+msgstr ""
+"Vi fick inte in din medlemsbetalning i tid, så din påbörjade registrering "
+"har avbrutits. Du kan registrera dig igen när som helst via medlemsportalen."
+
 #: profile/templates/email_password_reset.html
 #, python-format
 msgid ""
