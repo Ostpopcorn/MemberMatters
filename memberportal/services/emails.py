@@ -27,9 +27,7 @@ def send_single_email(
     logger.debug("Using template vars: " + json.dumps(template_vars))
 
     if template_vars.get("message"):
-        template_vars["message"] = escape(template_vars["message"]).replace(
-            "~br~", "<br>"
-        )
+        template_vars["message"] = escape(template_vars["message"])
     if template_vars.get("title"):
         template_vars["title"] = escape(template_vars["title"])
 
