@@ -1,0 +1,108 @@
+# Swedish translations of MemberMatters member emails.
+#
+# Regenerate with makemessages; see the backend tests workflow for the exact
+# command. Entries marked fuzzy are left out of the compiled catalog, so the
+# email falls back to English until the translation has been reviewed.
+msgid ""
+msgstr ""
+"Project-Id-Version: MemberMatters\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-17 04:17+1000\n"
+"PO-Revision-Date: 2026-09-17 04:15+1000\n"
+"Last-Translator: \n"
+"Language-Team: Swedish\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: profile/templates/email_password_reset.html:76
+#, python-format
+msgid ""
+"Someone requested a password reset for your %(site_owner)s account. Click "
+"the link in this email to reset it."
+msgstr ""
+"Någon har begärt att lösenordet till ditt konto hos %(site_owner)s ska "
+"återställas. Klicka på länken i det här e-postmeddelandet för att återställa "
+"det."
+
+#: profile/templates/email_password_reset.html:115
+msgid "Password Reset"
+msgstr "Lösenordsåterställning"
+
+#: profile/templates/email_password_reset.html:139
+#, python-format
+msgid ""
+"Someone has just initiated a password reset for your %(site_owner)s account. "
+"If this wasn't you, there's no need to worry. Simply ignore this email and "
+"nothing will happen."
+msgstr ""
+"Någon har just begärt att lösenordet till ditt konto hos %(site_owner)s ska "
+"återställas. Om det inte var du behöver du inte oroa dig – ignorera bara det "
+"här e-postmeddelandet så händer ingenting."
+
+#: profile/templates/email_password_reset.html:154
+msgid "Reset Password"
+msgstr "Återställ lösenord"
+
+#: profile/templates/email_password_reset.html:165
+#: profile/templates/email_with_button.html:162
+msgid ""
+"If that doesn't work, copy and paste the following link in your browser:"
+msgstr ""
+"Om det inte fungerar kan du kopiera och klistra in följande länk i din "
+"webbläsare:"
+
+#: profile/templates/email_password_reset.html:177
+#: profile/templates/email_with_button.html:174
+#: profile/templates/email_without_button.html:146
+msgid ""
+"If you have any questions, just reply to this email — we're always happy to "
+"help out."
+msgstr ""
+"Om du har några frågor är det bara att svara på det här e-postmeddelandet – "
+"vi hjälper gärna till."
+
+#: profile/templates/email_password_reset.html:183
+#: profile/templates/email_welcome.html:331
+#: profile/templates/email_with_button.html:180
+#: profile/templates/email_without_button.html:152
+msgid "Cheers,"
+msgstr "Vänliga hälsningar,"
+
+#: profile/templates/email_password_reset.html:212
+#: profile/templates/email_welcome.html:362
+#: profile/templates/email_with_button.html:209
+#: profile/templates/email_without_button.html:181
+#, python-format
+msgid ""
+"Sent by <a href=\"%(site_url)s\">%(site_name)s</a> on behalf of "
+"%(site_owner)s at %(site_address)s."
+msgstr ""
+"Skickat av <a href=\"%(site_url)s\">%(site_name)s</a> på uppdrag av "
+"%(site_owner)s, %(site_address)s."
+
+#: profile/templates/email_welcome.html:133
+#, python-format
+msgid ""
+"Welcome to %(site_owner)s. Please read this email as it contains some "
+"important information about how to get started."
+msgstr ""
+"Välkommen till %(site_owner)s. Läs det här e-postmeddelandet, det innehåller "
+"viktig information om hur du kommer igång."
+
+#: profile/templates/email_welcome.html:206
+#, python-format
+msgid "Welcome to %(site_owner)s"
+msgstr "Välkommen till %(site_owner)s"
+
+#: profile/templates/email_welcome.html:238
+#, python-format
+msgid ""
+"Thanks for finishing your %(site_owner)s member induction. Now that you're "
+"part of our community here are a few things to get you started."
+msgstr ""
+"Tack för att du har genomfört din introduktion hos %(site_owner)s. Nu när du "
+"är en del av vår gemenskap kommer här några saker som hjälper dig att komma "
+"igång."

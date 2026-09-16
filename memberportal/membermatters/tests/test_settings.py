@@ -72,6 +72,11 @@ def test_throttling_is_disabled_by_default():
     assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]
 
 
+def test_language_code_ignores_the_environment():
+    # Otherwise a local run inherits MM_LANGUAGE_CODE from .env.
+    assert settings.LANGUAGE_CODE == "en-au"
+
+
 def test_channel_layer_is_in_memory():
     # Device commands are asserted by draining this layer, not by mocking.
     backend = settings.CHANNEL_LAYERS["default"]["BACKEND"]

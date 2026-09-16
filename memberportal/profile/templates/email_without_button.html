@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html>
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{{ LANGUAGE_CODE }}">
 <head>
 <title></title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -143,13 +143,13 @@
               <!-- COPY -->
               <tr>
                 <td bgcolor="#ffffff" align="left" style="padding: 0px 30px 20px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;" >
-                  <p style="margin: 0;">If you have any questions, just reply to this email — we're always happy to help out.</p>
+                  <p style="margin: 0;">{% translate "If you have any questions, just reply to this email — we're always happy to help out." %}</p>
                 </td>
               </tr>
               <!-- COPY -->
               <tr>
                 <td bgcolor="#ffffff" align="left" style="padding: 0px 30px 40px 30px; border-radius: 0px 0px 4px 4px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;" >
-                  <p style="margin: 0;">Cheers,<br>{{config.SITE_NAME}}</p>
+                  <p style="margin: 0;">{% translate "Cheers," %}<br>{{config.SITE_NAME}}</p>
                 </td>
               </tr>
             </table>
@@ -178,7 +178,7 @@
               <!-- ADDRESS -->
               <tr>
                 <td bgcolor="#f4f4f4" align="left" style="padding: 0px 30px 30px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;" >
-                    <p style="margin: 0;">Sent by <a href="{{config.SITE_URL}}">{{config.SITE_NAME}}</a> on behalf of {{config.SITE_OWNER}} at {{config.SITE_MAIL_ADDRESS}}.</p>
+                    <p style="margin: 0;">{% blocktranslate trimmed with site_url=config.SITE_URL site_name=config.SITE_NAME site_owner=config.SITE_OWNER site_address=config.SITE_MAIL_ADDRESS %}Sent by <a href="{{ site_url }}">{{ site_name }}</a> on behalf of {{ site_owner }} at {{ site_address }}.{% endblocktranslate %}</p>
                 </td>
               </tr>
             </table>
