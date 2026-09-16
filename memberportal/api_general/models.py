@@ -50,6 +50,42 @@ class SiteSession(ExportModelOperationsMixin("site-session"), models.Model):
         return f"{self.user.profile.get_full_name()} - in: {self.signin_date} out: {self.signout_date}"
 
 
+class DashboardCard(ExportModelOperationsMixin("dashboard-card"), models.Model):
+    """A card in the "Member Resources" section of the member dashboard."""
+
+    id = models.AutoField(primary_key=True)
+    position = models.PositiveIntegerField("Position", default=0)
+    enabled = models.BooleanField("Shown on the dashboard", default=True)
+    title = models.CharField("Title", max_length=255)
+    icon = models.CharField("Icon", max_length=100)
+    description = models.TextField("Description (HTML)", blank=True)
+    # [{"label": str, "url": str}] for an external link or
+    # [{"label": str, "route": str}] for a portal page, by Vue route name.
+    links = models.JSONField("Links", default=list, blank=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def get_object(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "icon": self.icon,
+            "description": self.description,
+            "links": self.links,
+        }
+
+    def get_admin_object(self):
+        return {
+            **self.get_object(),
+            "enabled": self.enabled,
+            "position": self.position,
+        }
+
+    def __str__(self):
+        return self.title
+
+
 class EmailVerificationToken(
     ExportModelOperationsMixin("email-verification-token"), models.Model
 ):
