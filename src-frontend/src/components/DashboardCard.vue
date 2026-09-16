@@ -26,7 +26,7 @@
 
         <q-card-actions>
           <template v-for="(link, index) in visibleLinks" :key="index">
-            <q-btn v-if="link.route" :to="{ name: link.route }" flat>
+            <q-btn v-if="link.route" :to="link.to" flat>
               {{ link.label }}
             </q-btn>
             <q-btn v-else :href="link.url" target="_blank" flat>
@@ -42,6 +42,8 @@
 <script>
 import { Platform } from 'quasar';
 import DOMPurify from 'dompurify';
+import PageAndRouteConfig from '../pages/pageAndRouteConfig';
+import { portalPages } from '../utils/portalPages';
 
 export default {
   name: 'DashboardCard',
@@ -70,10 +72,16 @@ export default {
       return Platform;
     },
     visibleLinks() {
-      // A link to a page that no longer exists would throw when resolved.
-      return this.links.filter(
-        (link) => !link.route || this.$router.hasRoute(link.route)
-      );
+      // Resolving a page that no longer exists, or is missing its route
+      // parameters, would throw, so those links are hidden.
+      const pages = portalPages(PageAndRouteConfig);
+      return this.links.flatMap((link) => {
+        if (!link.route) return [link];
+        const page = pages.find((p) => p.name === link.route);
+        return page
+          ? [{ ...link, to: { name: page.name, params: page.params } }]
+          : [];
+      });
     },
     sanitizedDescription() {
       // Allow links (with target/rel) so cards can link out; everything

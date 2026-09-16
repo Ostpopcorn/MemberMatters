@@ -56,6 +56,8 @@ export default {
   remove: 'mdi-trash-can',
   up: 'mdi-chevron-down',
   down: 'mdi-chevron-up',
+  moveUp: 'mdi-arrow-up',
+  moveDown: 'mdi-arrow-down',
   edit: 'mdi-pencil',
   delete: 'mdi-delete',
   billing: 'mdi-credit-card',

@@ -30,6 +30,7 @@ export default {
     kiosks: 'Kiosks',
     pendingInvoices: 'Pending Invoices',
     signupPreview: 'Signup Preview',
+    manageDashboard: 'Dashboard Cards',
 
     memberTools: 'Member Tools',
     reportIssue: 'Report Issue',
