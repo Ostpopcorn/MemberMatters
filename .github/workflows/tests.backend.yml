@@ -65,7 +65,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: membermatters.settings_test
         run: |
-          python manage.py makemessages -l sv --keep-pot \
+          python manage.py makemessages -l sv --keep-pot --no-obsolete --add-location=file \
             --ignore=membermatters/oidc_provider_settings.py \
             --ignore='membermatters/static/*'
           msgcmp locale/sv/LC_MESSAGES/django.po locale/django.pot
