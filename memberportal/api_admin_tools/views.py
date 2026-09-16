@@ -13,6 +13,7 @@ from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.response import Response
@@ -43,6 +44,7 @@ from profile.models import (
 from profile.phone import to_e164
 from services import sms
 from services.emails import send_email_to_admin
+from services.email_i18n import member_email_translation
 from .models import MemberTier, PaymentPlan
 
 
@@ -1551,10 +1553,15 @@ class SignupPreview(APIView):
         except (ValueError, TypeError):
             cards = []
 
-        email_vars = {"title": f"Welcome to {config.SITE_OWNER}", "cards": cards}
-        welcome_email_html = render_to_string(
-            "email_welcome.html", {"email": email_vars, "config": config}
-        )
+        # Rendered in the member email language, as members receive it.
+        with member_email_translation():
+            title = gettext("Welcome to %(site_owner)s") % {
+                "site_owner": config.SITE_OWNER
+            }
+            welcome_email_html = render_to_string(
+                "email_welcome.html",
+                {"email": {"title": title, "cards": cards}, "config": config},
+            )
 
         try:
             terms_cards = json.loads(config.TERMS_ACCEPTANCE_CARDS)

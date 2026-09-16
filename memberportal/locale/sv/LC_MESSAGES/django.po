@@ -17,6 +17,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: api_admin_tools/views.py profile/models.py
+#: profile/templates/email_welcome.html
+#, python-format
+msgid "Welcome to %(site_owner)s"
+msgstr "Välkommen till %(site_owner)s"
+
 #: api_general/views.py
 #, python-format
 msgid "Action Required: %(site_owner)s New Member Signup"
@@ -63,6 +69,63 @@ msgstr "Verifiera din e-postadress för att aktivera ditt konto."
 #: profile/models.py
 msgid "Verify Now"
 msgstr "Verifiera nu"
+
+#: profile/models.py
+msgid "Your membership application has been submitted"
+msgstr "Din medlemsansökan har skickats in"
+
+#: profile/models.py
+msgid ""
+"Thanks for submitting your membership application! Your membership "
+"application has been submitted and you are now a 'member applicant'. Your "
+"membership will be officially accepted shortly, but we have granted site "
+"access immediately. You will receive an email confirming that your access "
+"card has been enabled. If for some reason your membership is rejected within "
+"this period, you will receive an email with further information."
+msgstr ""
+"Tack för att du skickade in din medlemsansökan! Din ansökan har skickats in "
+"och du är nu 'ansökande medlem'. Ditt medlemskap godkänns inom kort, men vi "
+"har redan gett dig åtkomst till lokalen. Du får ett e-postmeddelande som "
+"bekräftar att ditt nyckelkort har aktiverats. Om ditt medlemskap av någon "
+"anledning avslås under den här perioden får du ett e-postmeddelande med mer "
+"information."
+
+#: profile/models.py
+#, python-format
+msgid "Your %(site_owner)s site access has been disabled."
+msgstr "Din åtkomst till %(site_owner)s har inaktiverats."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Your access to %(site_owner)s has been disabled. If this is unexpected, "
+"please let us know."
+msgstr ""
+"Din åtkomst till %(site_owner)s har inaktiverats. Hör av dig till oss om det "
+"kommer oväntat."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Your access to %(site_owner)s has been disabled because your membership "
+"subscription has ended. This is usually due to a failed membership payment. "
+"If this is unexpected, please let us know."
+msgstr ""
+"Din åtkomst till %(site_owner)s har inaktiverats eftersom din "
+"medlemsprenumeration har upphört. Det beror oftast på en misslyckad "
+"medlemsbetalning. Hör av dig till oss om det kommer oväntat."
+
+#: profile/models.py
+#, python-format
+msgid "Your %(site_owner)s site access has been enabled."
+msgstr "Din åtkomst till %(site_owner)s har aktiverats."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Great news %(first_name)s, your %(site_owner)s site access has been enabled."
+msgstr ""
+"Goda nyheter, %(first_name)s! Din åtkomst till %(site_owner)s har aktiverats."
 
 #: profile/templates/email_password_reset.html
 #, python-format
@@ -138,11 +201,6 @@ msgid ""
 msgstr ""
 "Välkommen till %(site_owner)s. Läs det här e-postmeddelandet, det innehåller "
 "viktig information om hur du kommer igång."
-
-#: profile/templates/email_welcome.html
-#, python-format
-msgid "Welcome to %(site_owner)s"
-msgstr "Välkommen till %(site_owner)s"
 
 #: profile/templates/email_welcome.html
 #, python-format

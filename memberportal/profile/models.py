@@ -276,8 +276,17 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
     def email_membership_application(self):
         if config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL:
-            subject = "Your membership application has been submitted"
-            message = "Thanks for submitting your membership application! Your membership application has been submitted and you are now a 'member applicant'. Your membership will be officially accepted shortly, but we have granted site access immediately. You will receive an email confirming that your access card has been enabled. If for some reason your membership is rejected within this period, you will receive an email with further information."
+            with member_email_translation(self):
+                subject = gettext("Your membership application has been submitted")
+                message = gettext(
+                    "Thanks for submitting your membership application! Your "
+                    "membership application has been submitted and you are now a "
+                    "'member applicant'. Your membership will be officially accepted "
+                    "shortly, but we have granted site access immediately. You will "
+                    "receive an email confirming that your access card has been "
+                    "enabled. If for some reason your membership is rejected within "
+                    "this period, you will receive an email with further information."
+                )
 
             self.email_notification(subject, message)
 
@@ -297,7 +306,10 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         )
         cards = json.loads(cards)
 
-        subject = f"Welcome to {config.SITE_OWNER}"
+        with member_email_translation(self):
+            subject = gettext("Welcome to %(site_owner)s") % {
+                "site_owner": config.SITE_OWNER
+            }
         template_vars = {"title": subject, "cards": cards}
 
         if self.__send_email(
@@ -310,26 +322,41 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         return False
 
     def email_disable_member_access(self):
-        return self.email_notification(
-            f"Your {config.SITE_OWNER} site access has been disabled.",
-            f"Your access to {config.SITE_OWNER} has been disabled. "
-            f"If this is unexpected, please let us know.",
-        )
+        placeholders = {"site_owner": config.SITE_OWNER}
+        with member_email_translation(self):
+            subject = gettext("Your %(site_owner)s site access has been disabled.")
+            message = gettext(
+                "Your access to %(site_owner)s has been disabled. If this is "
+                "unexpected, please let us know."
+            )
+
+        return self.email_notification(subject % placeholders, message % placeholders)
 
     def email_subscription_ended(self):
-        return self.email_notification(
-            f"Your {config.SITE_OWNER} site access has been disabled.",
-            f"Your access to {config.SITE_OWNER} has been disabled because "
-            "your membership subscription has ended. This is usually due to "
-            "a failed membership payment. If this is unexpected, please let "
-            "us know.",
-        )
+        placeholders = {"site_owner": config.SITE_OWNER}
+        with member_email_translation(self):
+            subject = gettext("Your %(site_owner)s site access has been disabled.")
+            message = gettext(
+                "Your access to %(site_owner)s has been disabled because your "
+                "membership subscription has ended. This is usually due to a failed "
+                "membership payment. If this is unexpected, please let us know."
+            )
+
+        return self.email_notification(subject % placeholders, message % placeholders)
 
     def email_enable_member_access(self):
-        message = f"Great news {self.profile.first_name}, your {config.SITE_OWNER} site access has been enabled."
-        subject = f"Your {config.SITE_OWNER} site access has been enabled."
+        placeholders = {
+            "first_name": self.profile.first_name,
+            "site_owner": config.SITE_OWNER,
+        }
+        with member_email_translation(self):
+            subject = gettext("Your %(site_owner)s site access has been enabled.")
+            message = gettext(
+                "Great news %(first_name)s, your %(site_owner)s site access has "
+                "been enabled."
+            )
 
-        return self.email_notification(subject, message)
+        return self.email_notification(subject % placeholders, message % placeholders)
 
     def reset_password(self):
         with transaction.atomic():
