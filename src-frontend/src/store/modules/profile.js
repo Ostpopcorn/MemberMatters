@@ -70,15 +70,20 @@ export default {
       });
     },
     getProfile({ commit }) {
-      return new Promise((resolve) => {
-        api.get('/api/profile/').then((response) => {
-          response.data.firstJoined = dayjs(response.data.firstJoined).format(
-            'D MMMM YYYY'
-          );
-          commit('setProfile', response.data);
-          commit('setLoggedIn', true);
-          resolve();
-        });
+      return new Promise((resolve, reject) => {
+        api
+          .get('/api/profile/')
+          .then((response) => {
+            response.data.firstJoined = dayjs(response.data.firstJoined).format(
+              'D MMMM YYYY'
+            );
+            commit('setProfile', response.data);
+            commit('setLoggedIn', true);
+            resolve();
+          })
+          .catch((error) => {
+            reject(error);
+          });
       });
     },
     getLoggedIn({ commit }) {
