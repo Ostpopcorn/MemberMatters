@@ -17,6 +17,53 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: api_general/views.py
+#, python-format
+msgid "Action Required: %(site_owner)s New Member Signup"
+msgstr "Åtgärd krävs: ny medlemsregistrering hos %(site_owner)s"
+
+#: api_general/views.py
+msgid "Next Step: Register for an Induction"
+msgstr "Nästa steg: anmäl dig till en introduktion"
+
+#: api_general/views.py
+#, python-format
+msgid ""
+"Hi %(first_name)s, thanks for signing up! The next step to becoming a fully "
+"fledged member is to book in for an induction. During this induction we will "
+"go over the basic safety and operational aspects of %(site_owner)s. To book "
+"in, click the link below."
+msgstr ""
+"Hej %(first_name)s, tack för att du registrerade dig! Nästa steg för att bli "
+"fullvärdig medlem är att boka en introduktion. Under introduktionen går vi "
+"igenom grundläggande säkerhet och hur %(site_owner)s fungerar. Klicka på "
+"länken nedan för att boka."
+
+#: api_general/views.py
+msgid "Register for Induction"
+msgstr "Anmäl dig till introduktion"
+
+#: profile/models.py
+#, python-format
+msgid "Reset your %(site_owner)s password"
+msgstr "Återställ ditt lösenord hos %(site_owner)s"
+
+#: profile/models.py
+msgid "Action Required: Verify Email"
+msgstr "Åtgärd krävs: verifiera din e-postadress"
+
+#: profile/models.py
+msgid "Verify Email"
+msgstr "Verifiera e-postadress"
+
+#: profile/models.py
+msgid "Please verify your email address to activate your account."
+msgstr "Verifiera din e-postadress för att aktivera ditt konto."
+
+#: profile/models.py
+msgid "Verify Now"
+msgstr "Verifiera nu"
+
 #: profile/templates/email_password_reset.html
 #, python-format
 msgid ""

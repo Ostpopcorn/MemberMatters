@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django.utils.timezone import make_aware
+from django.utils.translation import gettext
 import datetime
 from pytz import UTC as utc
 from profile.models import User, Profile
@@ -26,6 +27,7 @@ from .models import Kiosk, SiteSession, EmailVerificationToken
 from services.discord import post_kiosk_swipe_to_discord
 from services.slack import post_kiosk_swipe_to_slack
 from services.captcha import verify_captcha, captcha_enabled
+from services.email_i18n import member_email_translation
 import base64
 from urllib.parse import parse_qs, urlencode
 import hmac
@@ -295,13 +297,7 @@ class Login(APIView):
 
                     def _send_verification_email(user=user, url=verify_url):
                         try:
-                            user.email_link(
-                                "Action Required: Verify Email",
-                                "Verify Email",
-                                "Please verify your email address to activate your account.",
-                                url,
-                                "Verify Now",
-                            )
+                            user.email_verification(url)
                         except Exception as e:
                             sentry_sdk.capture_exception(e)
 
@@ -982,13 +978,7 @@ def _send_register_emails(new_user, profile, verification_token):
 
     def _send_verification_email():
         try:
-            new_user.email_link(
-                "Action Required: Verify Email",
-                "Verify Email",
-                "Please verify your email address to activate your account.",
-                verification_url,
-                "Verify Now",
-            )
+            new_user.email_verification(verification_url)
         except Exception as e:
             sentry_sdk.capture_exception(e)
 
@@ -1002,17 +992,20 @@ def _send_register_emails(new_user, profile, verification_token):
     transaction.on_commit(_send_admin_notification)
 
     if not config.ENABLE_STRIPE_MEMBERSHIP_PAYMENTS:
-        induction_subject = f"Action Required: {config.SITE_OWNER} New Member Signup"
-        induction_title = "Next Step: Register for an Induction"
-        induction_message = (
-            f"Hi {profile.first_name}, thanks for signing up! The next step "
-            "to becoming a fully fledged member is to book in for an "
-            "induction. During this induction we will go over the basic "
-            f"safety and operational aspects of {config.SITE_OWNER}. To book "
-            "in, click the link below."
-        )
+        with member_email_translation(new_user):
+            induction_subject = gettext(
+                "Action Required: %(site_owner)s New Member Signup"
+            ) % {"site_owner": config.SITE_OWNER}
+            induction_title = gettext("Next Step: Register for an Induction")
+            induction_message = gettext(
+                "Hi %(first_name)s, thanks for signing up! The next step to "
+                "becoming a fully fledged member is to book in for an induction. "
+                "During this induction we will go over the basic safety and "
+                "operational aspects of %(site_owner)s. To book in, click the "
+                "link below."
+            ) % {"first_name": profile.first_name, "site_owner": config.SITE_OWNER}
+            induction_btn = gettext("Register for Induction")
         induction_link = config.POST_INDUCTION_URL
-        induction_btn = "Register for Induction"
 
         def _send_induction_email():
             try:

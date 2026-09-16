@@ -3,6 +3,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 import pytz
 from django.utils.timezone import make_aware
+from django.utils.translation import gettext
 from django.contrib.auth.models import (
     BaseUserManager,
     AbstractBaseUser,
@@ -19,7 +20,11 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from services.emails import send_single_email, send_email_to_admin
-from services.email_i18n import ADMIN_EMAIL_LANGUAGE, member_email_language
+from services.email_i18n import (
+    ADMIN_EMAIL_LANGUAGE,
+    member_email_language,
+    member_email_translation,
+)
 from services import sms
 from sentry_sdk import capture_exception
 from django_prometheus.models import ExportModelOperationsMixin
@@ -248,12 +253,26 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
     def email_password_reset(self, link: str):
         template_vars = {"link": link}
+        with member_email_translation(self):
+            subject = gettext("Reset your %(site_owner)s password") % {
+                "site_owner": config.SITE_OWNER
+            }
 
         return self.__send_email(
-            f"Reset your {config.SITE_OWNER} password",
+            subject,
             template_vars,
             template_name="email_password_reset.html",
         )
+
+    def email_verification(self, link: str):
+        with member_email_translation(self):
+            return self.email_link(
+                gettext("Action Required: Verify Email"),
+                gettext("Verify Email"),
+                gettext("Please verify your email address to activate your account."),
+                link,
+                gettext("Verify Now"),
+            )
 
     def email_membership_application(self):
         if config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL:
