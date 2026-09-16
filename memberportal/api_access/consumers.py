@@ -11,6 +11,7 @@ from access.models import (
     AccessControlledDeviceAPIKey,
 )
 from services.discord import post_purchase_to_discord
+from services.email_i18n import ENGLISH
 from memberbucks.models import (
     MemberBucks,
     MemberbucksProductPurchaseLog,
@@ -546,7 +547,9 @@ class MemberbucksConsumer(AccessDeviceConsumer):
                 f"successful. You currently have ${profile.memberbucks_balance}. If this wasn't you, please let us know "
                 f"immediately."
 
-                User.objects.get(profile=profile).email_notification(subject, message)
+                User.objects.get(profile=profile).email_notification(
+                    subject, message, language=ENGLISH
+                )
 
                 self.send_json(
                     {
@@ -615,7 +618,9 @@ class MemberbucksConsumer(AccessDeviceConsumer):
                 f"${profile.memberbucks_balance}. If this wasn't you, or you believe there "
                 f"has been an error, please let us know."
 
-                User.objects.get(profile=profile).email_notification(subject, message)
+                User.objects.get(profile=profile).email_notification(
+                    subject, message, language=ENGLISH
+                )
 
                 profile.user.log_event(
                     f"{command}ed ${amount} from {config.MEMBERBUCKS_NAME} account.",

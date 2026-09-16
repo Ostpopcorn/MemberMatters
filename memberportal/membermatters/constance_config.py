@@ -1,5 +1,16 @@
 from collections import OrderedDict
 
+# Languages member emails can be written in. The codes match the frontend's
+# locales. Each one other than English needs a catalog under memberportal/locale/.
+EMAIL_LANGUAGES = (("en-AU", "English"), ("sv-SE", "Svenska"))
+
+CONSTANCE_ADDITIONAL_FIELDS = {
+    "email_language": [
+        "django.forms.fields.ChoiceField",
+        {"widget": "django.forms.Select", "choices": EMAIL_LANGUAGES},
+    ],
+}
+
 CONSTANCE_CONFIG = {
     # General site info
     "SITE_NAME": (
@@ -32,6 +43,11 @@ CONSTANCE_CONFIG = {
     "EMAIL_DEFAULT_FROM": (
         '"MemberMatters Portal" <example@example.org>',
         "The default email that outbound messages are sent from.",
+    ),
+    "EMAIL_LANGUAGE": (
+        "en-AU",
+        "The language of emails sent to members. Emails to admins are always in English.",
+        "email_language",
     ),
     "SITE_MAIL_ADDRESS": (
         "123 Example St, Nowhere",
@@ -689,6 +705,7 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "EMAIL_SYSADMIN",
                 "EMAIL_ADMIN",
                 "EMAIL_DEFAULT_FROM",
+                "EMAIL_LANGUAGE",
                 "SITE_MAIL_ADDRESS",
             ),
         ),

@@ -16,7 +16,11 @@ import json
 from datetime import timedelta
 from multiprocessing import Process
 import logging
-from .constance_config import CONSTANCE_CONFIG_FIELDSETS, CONSTANCE_CONFIG
+from .constance_config import (
+    CONSTANCE_ADDITIONAL_FIELDS,
+    CONSTANCE_CONFIG_FIELDSETS,
+    CONSTANCE_CONFIG,
+)
 
 logger = logging.getLogger("settings.py")
 
@@ -434,6 +438,7 @@ CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
 CONSTANCE_BACKEND = "membermatters.constance_backend.DatabaseBackend"
 CONSTANCE_CONFIG = CONSTANCE_CONFIG
 CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS
+CONSTANCE_ADDITIONAL_FIELDS = CONSTANCE_ADDITIONAL_FIELDS
 
 OIDC_USERINFO = "membermatters.oidc_provider_settings.userinfo"
 OIDC_EXTRA_SCOPE_CLAIMS = "membermatters.oidc_provider_settings.CustomScopeClaims"

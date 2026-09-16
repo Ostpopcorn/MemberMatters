@@ -31,6 +31,7 @@ from services.moodle_integration import (
     moodle_get_user_from_email,
 )
 from services.emails import send_email_to_admin
+from services.email_i18n import ENGLISH
 from constance import config
 from django.db import transaction, IntegrityError
 from django.db.utils import OperationalError
@@ -186,6 +187,7 @@ class MemberBucksAddCard(StripeAPIView):
                 "with Stripe and are not on our servers. You "
                 "can remove this card at any time via the "
                 f"{config.SITE_NAME}.",
+                language=ENGLISH,
             )
         except Exception as e:
             capture_exception(e)

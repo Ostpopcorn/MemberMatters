@@ -19,6 +19,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from services.emails import send_single_email, send_email_to_admin
+from services.email_i18n import ADMIN_EMAIL_LANGUAGE, member_email_language
 from services import sms
 from sentry_sdk import capture_exception
 from django_prometheus.models import ExportModelOperationsMixin
@@ -204,17 +205,26 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             description=description, logtype=event_type, user=self, data=data
         ).save()
 
-    def __send_email(self, subject, template_vars, template_name=None):
+    def __send_email(self, subject, template_vars, template_name=None, language=None):
         return send_single_email(
             to_email=self.email,
             subject=subject,
             template_vars=template_vars,
             user=self,
             template_name=template_name,
+            # TODO: per-member language. member_email_language() still returns
+            # the site-wide EMAIL_LANGUAGE and ignores the member.
+            language=language or member_email_language(self),
         )
 
     def email_link(
-        self, subject: str, title: str, message: str, link: str, btn_text: str
+        self,
+        subject: str,
+        title: str,
+        message: str,
+        link: str,
+        btn_text: str,
+        language=None,
     ):
         template_vars = {
             "title": title,
@@ -227,11 +237,14 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             subject=subject,
             template_vars=template_vars,
             template_name="email_with_button.html",
+            language=language,
         )
 
-    def email_notification(self, subject: str, message: str):
+    def email_notification(self, subject: str, message: str, language=None):
         template_vars = {"title": subject, "message": message}
-        return self.__send_email(subject, template_vars=template_vars)
+        return self.__send_email(
+            subject, template_vars=template_vars, language=language
+        )
 
     def email_password_reset(self, link: str):
         template_vars = {"link": link}
@@ -955,6 +968,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             template_vars=template_vars,
             user=self.user,
             reply_to=self.user.email,
+            language=ADMIN_EMAIL_LANGUAGE,
         )
 
     def get_logs(self):
