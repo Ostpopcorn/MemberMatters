@@ -8,6 +8,7 @@ from datetime import datetime
 from datetime import timezone as dt_timezone
 
 from django.utils import timezone
+from django.utils.formats import date_format
 
 
 def invoice_subscription_id(invoice_data):
@@ -51,7 +52,8 @@ def invoice_is_past_due(invoice_data, now=None):
 
 
 def format_invoice_due_date(invoice_data):
-    """Render an invoice due date in the site's timezone, or None.
+    """Render an invoice due date in the site's timezone and the active
+    language, e.g. "14 November 2023", or None.
 
     Stripe sends unix seconds; rendering them naively would show a date a day
     out for members east of UTC.
@@ -61,7 +63,7 @@ def format_invoice_due_date(invoice_data):
         return None
 
     utc = datetime.fromtimestamp(due_date, tz=dt_timezone.utc)
-    return timezone.localtime(utc).strftime("%d %b %Y")
+    return date_format(timezone.localtime(utc), "j F Y")
 
 
 def format_invoice_amount(invoice_data, prefer="paid", fallback="your membership fee"):

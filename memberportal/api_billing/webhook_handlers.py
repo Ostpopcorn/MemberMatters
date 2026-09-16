@@ -413,48 +413,78 @@ def payment_failed_copy(profile, invoice_data, now=None):
     one, so for an invoice-billed member this event means a payment they
     started — on the hosted invoice page, or a bank debit — did not go
     through. They need the amount, the due date and a link to pay again.
+
+    The message is built from whole sentences, each translated on its own, so a
+    translation never has to fit a clause into another sentence.
     """
-    amount = format_invoice_amount(invoice_data, prefer="due")
-    hosted_url = invoice_data.get("hosted_invoice_url")
-    pay_here = f" You can pay it here: {hosted_url}" if hosted_url else ""
-
-    if profile.billing_method == "invoice":
+    with member_email_translation(profile.user):
+        amount = format_invoice_amount(
+            invoice_data, prefer="due", fallback=gettext("your membership fee")
+        )
         due_date = format_invoice_due_date(invoice_data)
-
-        if invoice_is_past_due(invoice_data, now=now):
-            due_text = f" It was due on {due_date}." if due_date else ""
-            return (
-                "Your membership invoice is overdue",
-                f"A payment towards your membership invoice for {amount} "
-                f"didn't go through, and the invoice is now overdue.{due_text} "
-                "Please pay it to keep your membership active. If you have "
-                f"further questions, contact us.{pay_here}",
-            )
-
-        due_text = f" It's due on {due_date}." if due_date else ""
-        return (
-            "Your membership invoice payment didn't go through",
-            f"A payment towards your membership invoice for {amount} didn't go "
-            f"through, so the invoice is still outstanding.{due_text} Please "
-            f"pay it before the due date to keep your membership active.{pay_here}",
+        hosted_url = invoice_data.get("hosted_invoice_url")
+        pay_here = (
+            gettext("You can pay it here: %(url)s") % {"url": hosted_url}
+            if hosted_url
+            else None
         )
+        contact_us = gettext("If you have further questions, contact us.")
+        is_invoice = profile.billing_method == "invoice"
 
-    if invoice_will_retry(invoice_data):
-        return (
-            "Your membership payment failed",
-            f"We tried to collect your membership payment of {amount} but "
-            "weren't successful. We'll try again automatically, so there may "
-            "be nothing for you to do — but it's worth checking the card we "
-            f"have on file is still current at {config.SITE_URL}.",
-        )
+        if is_invoice and invoice_is_past_due(invoice_data, now=now):
+            subject = gettext("Your membership invoice is overdue")
+            sentences = [
+                gettext(
+                    "A payment towards your membership invoice for %(amount)s "
+                    "didn't go through, and the invoice is now overdue."
+                )
+                % {"amount": amount},
+                due_date
+                and gettext("It was due on %(due_date)s.") % {"due_date": due_date},
+                gettext("Please pay it to keep your membership active."),
+                contact_us,
+                pay_here,
+            ]
+        elif is_invoice:
+            subject = gettext("Your membership invoice payment didn't go through")
+            sentences = [
+                gettext(
+                    "A payment towards your membership invoice for %(amount)s "
+                    "didn't go through, so the invoice is still outstanding."
+                )
+                % {"amount": amount},
+                due_date
+                and gettext("It's due on %(due_date)s.") % {"due_date": due_date},
+                gettext(
+                    "Please pay it before the due date to keep your membership active."
+                ),
+                pay_here,
+            ]
+        elif invoice_will_retry(invoice_data):
+            subject = gettext("Your membership payment failed")
+            sentences = [
+                gettext(
+                    "We tried to collect your membership payment of %(amount)s but "
+                    "weren't successful. We'll try again automatically, so there may "
+                    "be nothing for you to do — but it's worth checking the card we "
+                    "have on file is still current at %(site_url)s."
+                )
+                % {"amount": amount, "site_url": config.SITE_URL},
+            ]
+        else:
+            subject = gettext("Action needed: your membership payment failed")
+            sentences = [
+                gettext(
+                    "We tried to collect your membership payment of %(amount)s and "
+                    "weren't successful. That was our last automatic attempt, so your "
+                    "membership may be cancelled unless the payment goes through. "
+                    "Please update your card at %(site_url)s."
+                )
+                % {"amount": amount, "site_url": config.SITE_URL},
+                contact_us,
+            ]
 
-    return (
-        "Action needed: your membership payment failed",
-        f"We tried to collect your membership payment of {amount} and weren't "
-        "successful. That was our last automatic attempt, so your membership "
-        "may be cancelled unless the payment goes through. Please update your "
-        f"card at {config.SITE_URL}. If you have further questions, contact us.",
-    )
+    return subject, " ".join(sentence for sentence in sentences if sentence)
 
 
 def handle_invoice_payment_failed(ctx):

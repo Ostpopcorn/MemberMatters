@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 05:44+1000\n"
+"POT-Creation-Date: 2026-09-17 05:45+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -100,6 +100,92 @@ msgstr ""
 "åtkomst är inte aktiverad ännu eftersom du fortfarande behöver genomföra din "
 "introduktion. Logga in på %(site_url)s och slutför introduktionssteget för "
 "att aktivera ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "You can pay it here: %(url)s"
+msgstr "Du kan betala den här: %(url)s"
+
+#: api_billing/webhook_handlers.py
+msgid "If you have further questions, contact us."
+msgstr "Om du har fler frågor, kontakta oss."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership invoice is overdue"
+msgstr "Din medlemsfaktura är förfallen"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"A payment towards your membership invoice for %(amount)s didn't go through, "
+"and the invoice is now overdue."
+msgstr ""
+"En betalning av din medlemsfaktura på %(amount)s gick inte igenom, och "
+"fakturan är nu förfallen."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "It was due on %(due_date)s."
+msgstr "Förfallodagen var %(due_date)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Please pay it to keep your membership active."
+msgstr "Betala den för att behålla ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership invoice payment didn't go through"
+msgstr "Betalningen av din medlemsfaktura gick inte igenom"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"A payment towards your membership invoice for %(amount)s didn't go through, "
+"so the invoice is still outstanding."
+msgstr ""
+"En betalning av din medlemsfaktura på %(amount)s gick inte igenom, så "
+"fakturan är fortfarande obetald."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "It's due on %(due_date)s."
+msgstr "Förfallodagen är %(due_date)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Please pay it before the due date to keep your membership active."
+msgstr "Betala den före förfallodagen för att behålla ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership payment failed"
+msgstr "Din medlemsbetalning misslyckades"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"We tried to collect your membership payment of %(amount)s but weren't "
+"successful. We'll try again automatically, so there may be nothing for you "
+"to do — but it's worth checking the card we have on file is still current at "
+"%(site_url)s."
+msgstr ""
+"Vi försökte dra din medlemsbetalning på %(amount)s men det gick inte. Vi "
+"försöker igen automatiskt, så du behöver kanske inte göra något – men "
+"kontrollera gärna att kortet vi har sparat fortfarande gäller på "
+"%(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Action needed: your membership payment failed"
+msgstr "Åtgärd krävs: din medlemsbetalning misslyckades"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"We tried to collect your membership payment of %(amount)s and weren't "
+"successful. That was our last automatic attempt, so your membership may be "
+"cancelled unless the payment goes through. Please update your card at "
+"%(site_url)s."
+msgstr ""
+"Vi försökte dra din medlemsbetalning på %(amount)s men det gick inte. Det "
+"var vårt sista automatiska försök, så ditt medlemskap kan avslutas om "
+"betalningen inte går igenom. Uppdatera ditt kort på %(site_url)s."
 
 #: api_general/views.py
 #, python-format
