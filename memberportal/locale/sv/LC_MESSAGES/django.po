@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 05:06+1000\n"
+"POT-Creation-Date: 2026-09-17 05:44+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -22,6 +22,84 @@ msgstr ""
 #, python-format
 msgid "Welcome to %(site_owner)s"
 msgstr "Välkommen till %(site_owner)s"
+
+#: api_billing/webhook_handlers.py
+msgid "your membership fee"
+msgstr "din medlemsavgift"
+
+#: api_billing/webhook_handlers.py
+msgid "Your final membership payment"
+msgstr "Din sista medlemsbetalning"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s. Your "
+"membership is still set to end at the end of your current billing period, as "
+"you requested. You can review your membership at any time at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s. Ditt medlemskap "
+"avslutas fortfarande vid slutet av din nuvarande faktureringsperiod, som du "
+"har begärt. Du kan se ditt medlemskap när som helst på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership has been renewed"
+msgstr "Ditt medlemskap har förnyats"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s and your "
+"membership continues as normal. You can review your membership at any time "
+"at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s och ditt "
+"medlemskap fortsätter som vanligt. Du kan se ditt medlemskap när som helst "
+"på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership payment was received"
+msgstr "Vi har tagit emot din medlemsbetalning"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s. You can "
+"review your membership at any time at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s. Du kan se ditt "
+"medlemskap när som helst på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your payment was successful."
+msgstr "Din betalning har genomförts."
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"Thanks for making a membership payment using our online payment system. "
+"You've already met all of the requirements for activating your site access. "
+"Please check for another email message confirming this was successful."
+msgstr ""
+"Tack för din medlemsbetalning via vårt betalningssystem på nätet. Du "
+"uppfyller redan alla krav för att få åtkomst till lokalen. Håll utkik efter "
+"ytterligare ett e-postmeddelande som bekräftar att det har gått igenom."
+
+#: api_billing/webhook_handlers.py
+msgid "Your payment was received — additional steps needed"
+msgstr "Vi har tagit emot din betalning – fler steg krävs"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks for making a membership payment using our online payment system. Your "
+"access isn't enabled yet because you still need to complete your induction. "
+"Please log in to %(site_url)s and finish the induction step to activate your "
+"membership."
+msgstr ""
+"Tack för din medlemsbetalning via vårt betalningssystem på nätet. Din "
+"åtkomst är inte aktiverad ännu eftersom du fortfarande behöver genomföra din "
+"introduktion. Logga in på %(site_url)s och slutför introduktionssteget för "
+"att aktivera ditt medlemskap."
 
 #: api_general/views.py
 #, python-format

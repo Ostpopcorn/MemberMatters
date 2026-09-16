@@ -17,9 +17,11 @@ import stripe
 from constance import config
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext
 from sentry_sdk import capture_exception
 
 from profile.models import CancelTriggeredBy, SignupTriggeredBy
+from services.email_i18n import member_email_translation
 from services.emails import send_email_to_admin
 
 from .stripe_utils import (
@@ -250,41 +252,48 @@ def handle_invoice_paid(ctx):
         # default, so send our own — otherwise a member who has just been
         # charged hears nothing either way.
         billing_reason = invoice_billing_reason(data)
-        amount = format_invoice_amount(data)
         profile.user.log_event(
             f"Payment recorded (billing_reason={billing_reason}); "
             "membership already active.",
             "stripe",
         )
 
-        if profile.subscription_status == "cancelling":
-            # The same case the status re-assert above excludes: the final
-            # invoice of a member who cancelled at period end. They are owed a
-            # receipt, but not one telling them their membership carries on.
-            receipt_subject = "Your final membership payment"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount}. "
-                "Your membership is still set to end at the end of your current "
-                "billing period, as you requested. You can review your "
-                f"membership at any time at {config.SITE_URL}."
-            )
-        elif billing_reason == "subscription_cycle":
-            receipt_subject = "Your membership has been renewed"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount} "
-                "and your membership continues as normal. You can review your "
-                f"membership at any time at {config.SITE_URL}."
-            )
-        else:
-            # Not a renewal. Usually the first invoice of a card signup:
-            # PaymentPlanSignup activates the member within the request, so
-            # this webhook tends to land after they are already active.
-            receipt_subject = "Your membership payment was received"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount}. "
-                "You can review your membership at any time at "
-                f"{config.SITE_URL}."
-            )
+        with member_email_translation(profile.user):
+            placeholders = {
+                "amount": format_invoice_amount(
+                    data, fallback=gettext("your membership fee")
+                ),
+                "site_url": config.SITE_URL,
+            }
+            if profile.subscription_status == "cancelling":
+                # The same case the status re-assert above excludes: the final
+                # invoice of a member who cancelled at period end. They are owed
+                # a receipt, but not one telling them their membership carries on.
+                receipt_subject = gettext("Your final membership payment")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s. Your membership is still set to end at the end of "
+                    "your current billing period, as you requested. You can review "
+                    "your membership at any time at %(site_url)s."
+                )
+            elif billing_reason == "subscription_cycle":
+                receipt_subject = gettext("Your membership has been renewed")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s and your membership continues as normal. You can "
+                    "review your membership at any time at %(site_url)s."
+                )
+            else:
+                # Not a renewal. Usually the first invoice of a card signup:
+                # PaymentPlanSignup activates the member within the request, so
+                # this webhook tends to land after they are already active.
+                receipt_subject = gettext("Your membership payment was received")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s. You can review your membership at any time at "
+                    "%(site_url)s."
+                )
+        receipt_message %= placeholders
 
         def _on_commit_receipt_email(
             user=profile.user,
@@ -310,14 +319,14 @@ def handle_invoice_paid(ctx):
         # Registered before the activation callback so it arrives ahead of
         # activate()'s welcome email, which is the "another email message"
         # the body below refers to.
-        paid_subject = "Your payment was successful."
-        paid_message = (
-            "Thanks for making a membership payment using our "
-            "online payment system. You've already met all of "
-            "the requirements for activating your site access. "
-            "Please check for another email message confirming "
-            "this was successful."
-        )
+        with member_email_translation(profile.user):
+            paid_subject = gettext("Your payment was successful.")
+            paid_message = gettext(
+                "Thanks for making a membership payment using our online payment "
+                "system. You've already met all of the requirements for "
+                "activating your site access. Please check for another email "
+                "message confirming this was successful."
+            )
 
         def _on_commit_paid_email(
             user=profile.user,
@@ -351,14 +360,16 @@ def handle_invoice_paid(ctx):
             "stripe",
         )
 
-        paid_subject = "Your payment was received — additional steps needed"
-        paid_message = (
-            "Thanks for making a membership payment using our "
-            "online payment system. Your access isn't enabled yet "
-            "because you still need to complete your induction. "
-            f"Please log in to {config.SITE_URL} and finish the "
-            "induction step to activate your membership."
-        )
+        with member_email_translation(profile.user):
+            paid_subject = gettext(
+                "Your payment was received — additional steps needed"
+            )
+            paid_message = gettext(
+                "Thanks for making a membership payment using our online payment "
+                "system. Your access isn't enabled yet because you still need to "
+                "complete your induction. Please log in to %(site_url)s and finish "
+                "the induction step to activate your membership."
+            ) % {"site_url": config.SITE_URL}
         # Capture at decision time — state may shift before on_commit fires.
         notify_admin = profile.state != "noob"
 

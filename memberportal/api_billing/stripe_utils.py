@@ -64,7 +64,7 @@ def format_invoice_due_date(invoice_data):
     return timezone.localtime(utc).strftime("%d %b %Y")
 
 
-def format_invoice_amount(invoice_data, prefer="paid"):
+def format_invoice_amount(invoice_data, prefer="paid", fallback="your membership fee"):
     """Render an invoice total for member-facing copy, e.g. "12.50 AUD".
 
     Pass prefer="due" for an invoice that has not been paid: Stripe reports
@@ -72,7 +72,8 @@ def format_invoice_amount(invoice_data, prefer="paid"):
     "0.00" for what is still owed.
 
     Falls back to a bare description when the payload carries no usable
-    amount, so an email is still sent rather than one reading "$None".
+    amount, so an email is still sent rather than one reading "$None". Member
+    copy passes the description in the member's language.
     """
     fields = (
         ("amount_due", "amount_paid")
@@ -84,7 +85,7 @@ def format_invoice_amount(invoice_data, prefer="paid"):
         None,
     )
     if amount is None:
-        return "your membership fee"
+        return fallback
 
     currency = (invoice_data.get("currency") or "").upper()
     formatted = f"{amount / 100:.2f}"
