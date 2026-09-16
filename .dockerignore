@@ -5,3 +5,5 @@ frontend/dist
 frontend/src-*
 **/*.sqlite3
 **/*.log
+# Compiled translations are built inside the image, never copied in
+**/*.mo

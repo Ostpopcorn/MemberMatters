@@ -56,6 +56,20 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r memberportal/requirements-dev.txt
 
+      # makemessages merges new or changed email strings into the Swedish
+      # catalog, marking a changed one fuzzy, and msgcmp fails unless every
+      # string has a reviewed translation. A fuzzy entry would otherwise ship
+      # silently: compilemessages leaves it out and the email goes out in English.
+      - name: Check email translations are complete
+        working-directory: memberportal
+        env:
+          DJANGO_SETTINGS_MODULE: membermatters.settings_test
+        run: |
+          python manage.py makemessages -l sv --keep-pot \
+            --ignore=membermatters/oidc_provider_settings.py \
+            --ignore='membermatters/static/*'
+          msgcmp locale/sv/LC_MESSAGES/django.po locale/django.pot
+
       - name: Run tests
         working-directory: memberportal
         env:
