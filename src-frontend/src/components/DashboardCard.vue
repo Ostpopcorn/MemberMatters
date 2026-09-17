@@ -84,11 +84,25 @@ export default {
       });
     },
     sanitizedDescription() {
-      // Allow links (with target/rel) so cards can link out; everything
-      // else falls back to DOMPurify's safe defaults. Matches the policy
-      // used by the terms-acceptance and welcome-email cards.
+      // The tags and attributes the API keeps when a card is saved
+      // (clean_html in email_extras.py), so the admin preview matches the
+      // saved card.
       return DOMPurify.sanitize(this.description, {
-        ADD_ATTR: ['target', 'rel'],
+        ALLOWED_TAGS: [
+          'a',
+          'b',
+          'br',
+          'div',
+          'em',
+          'i',
+          'li',
+          'ol',
+          'p',
+          'span',
+          'strong',
+          'ul',
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'rel'],
       });
     },
   },
