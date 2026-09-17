@@ -244,70 +244,37 @@ OVERDUE_INVOICE = {
     "hosted_invoice_url": PAY_URL,
 }
 
-# (invoice fields, English opening, Swedish opening) for each shape of the
-# reminder's first sentence.
+GENERIC_OPENING = (
+    "Your membership invoice is past its due date, and we haven't registered a "
+    "payment yet."
+)
+
+# (invoice fields, English opening). The amount and due date are only named
+# when the invoice carries both.
 OVERDUE_OPENINGS = {
     "amount_and_date": (
         {"amount_due": 5500, "currency": "aud", "due_date": PAST},
         "Your membership invoice for 55.00 AUD was due on 14 November 2023, and we "
         "haven't registered a payment yet.",
-        "Din medlemsfaktura på 55.00 AUD förföll 14 november 2023, och vi har inte "
-        "registrerat någon betalning ännu.",
     ),
-    "amount_only": (
-        {"amount_due": 5500, "currency": "aud"},
-        "Your membership invoice for 55.00 AUD is past its due date, and we haven't "
-        "registered a payment yet.",
-        "Din medlemsfaktura på 55.00 AUD har passerat förfallodagen, och vi har inte "
-        "registrerat någon betalning ännu.",
-    ),
-    "date_only": (
-        {"due_date": PAST},
-        "Your membership invoice was due on 14 November 2023, and we haven't "
-        "registered a payment yet.",
-        "Din medlemsfaktura förföll 14 november 2023, och vi har inte registrerat "
-        "någon betalning ännu.",
-    ),
-    "neither": (
-        {},
-        "Your membership invoice is past its due date, and we haven't registered a "
-        "payment yet.",
-        "Din medlemsfaktura har passerat förfallodagen, och vi har inte registrerat "
-        "någon betalning ännu.",
-    ),
+    "amount_only": ({"amount_due": 5500, "currency": "aud"}, GENERIC_OPENING),
+    "neither": ({}, GENERIC_OPENING),
 }
 
 
 class TestOverdueReminderCopy:
     @pytest.mark.parametrize(
-        "invoice, english, _swedish",
-        OVERDUE_OPENINGS.values(),
-        ids=OVERDUE_OPENINGS.keys(),
+        "invoice, opening", OVERDUE_OPENINGS.values(), ids=OVERDUE_OPENINGS.keys()
     )
-    def test_the_english_sentences_join_as_before(
-        self, member, utc, invoice, english, _swedish
-    ):
+    def test_the_english_sentences_join(self, member, utc, invoice, opening):
         _, message = overdue_reminder_copy(member.user, invoice)
 
         assert message == (
-            f"{english} If you have paid in another way than through the invoice "
+            f"{opening} If you have paid in another way than through the invoice "
             "link, for example by bank transfer, we may not have had time to register "
             "your payment yet. Please make sure the payment has been made. If you "
             "have further questions, contact us."
         )
-
-    @swedish()
-    @pytest.mark.parametrize(
-        "invoice, _english, swedish_opening",
-        OVERDUE_OPENINGS.values(),
-        ids=OVERDUE_OPENINGS.keys(),
-    )
-    def test_each_opening_in_swedish(
-        self, member, utc, invoice, _english, swedish_opening
-    ):
-        _, message = overdue_reminder_copy(member.user, invoice)
-
-        assert message.startswith(swedish_opening + " ")
 
     @swedish()
     def test_the_full_reminder_in_swedish(self, member, utc):

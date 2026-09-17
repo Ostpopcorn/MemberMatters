@@ -654,13 +654,11 @@ def overdue_reminder_copy(user, invoice_data):
 
     Bank transfer and cash payments are recorded by an admin by hand, so the
     copy allows for a member who has paid but is not yet marked as paid.
+
+    A send_invoice invoice from Stripe always carries its amount and due date.
+    The opening without them covers an invoice that could not be fetched.
     """
     with member_email_translation(user):
-        amount = (
-            format_invoice_amount(invoice_data, prefer="due")
-            if invoice_data.get("amount_due") is not None
-            else None
-        )
         due_date = format_invoice_due_date(invoice_data)
         hosted_url = invoice_data.get("hosted_invoice_url")
         pay_here = (
@@ -669,21 +667,14 @@ def overdue_reminder_copy(user, invoice_data):
             else None
         )
 
-        if amount and due_date:
+        if invoice_data.get("amount_due") is not None and due_date:
             opening = gettext(
                 "Your membership invoice for %(amount)s was due on %(due_date)s, "
                 "and we haven't registered a payment yet."
-            )
-        elif amount:
-            opening = gettext(
-                "Your membership invoice for %(amount)s is past its due date, and "
-                "we haven't registered a payment yet."
-            )
-        elif due_date:
-            opening = gettext(
-                "Your membership invoice was due on %(due_date)s, and we haven't "
-                "registered a payment yet."
-            )
+            ) % {
+                "amount": format_invoice_amount(invoice_data, prefer="due"),
+                "due_date": due_date,
+            }
         else:
             opening = gettext(
                 "Your membership invoice is past its due date, and we haven't "
@@ -692,7 +683,7 @@ def overdue_reminder_copy(user, invoice_data):
 
         subject = gettext("Reminder: your membership invoice is overdue")
         sentences = [
-            opening % {"amount": amount, "due_date": due_date},
+            opening,
             gettext(
                 "If you have paid in another way than through the invoice link, for "
                 "example by bank transfer, we may not have had time to register "

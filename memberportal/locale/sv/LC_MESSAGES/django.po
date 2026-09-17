@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-18 02:59+1000\n"
+"POT-Creation-Date: 2026-09-18 03:00+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -259,24 +259,6 @@ msgid ""
 msgstr ""
 "Din medlemsfaktura på %(amount)s förföll %(due_date)s, och vi har inte "
 "registrerat någon betalning ännu."
-
-#: api_billing/webhook_handlers.py
-#, python-format
-msgid ""
-"Your membership invoice for %(amount)s is past its due date, and we haven't "
-"registered a payment yet."
-msgstr ""
-"Din medlemsfaktura på %(amount)s har passerat förfallodagen, och vi har inte "
-"registrerat någon betalning ännu."
-
-#: api_billing/webhook_handlers.py
-#, python-format
-msgid ""
-"Your membership invoice was due on %(due_date)s, and we haven't registered a "
-"payment yet."
-msgstr ""
-"Din medlemsfaktura förföll %(due_date)s, och vi har inte registrerat någon "
-"betalning ännu."
 
 #: api_billing/webhook_handlers.py
 msgid ""
