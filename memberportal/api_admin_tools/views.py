@@ -1559,12 +1559,8 @@ class SignupPreview(APIView):
 
         # Rendered in the member email language, as members receive it.
         with member_email_translation():
-            title = gettext("Welcome to %(site_owner)s") % {
-                "site_owner": config.SITE_OWNER
-            }
             welcome_email_html = render_to_string(
-                "email_welcome.html",
-                {"email": {"title": title, "cards": cards}, "config": config},
+                "email_welcome.html", {"email": {"cards": cards}, "config": config}
             )
 
         try:

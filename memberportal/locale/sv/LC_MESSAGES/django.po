@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-18 02:58+1000\n"
+"POT-Creation-Date: 2026-09-18 02:59+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -42,12 +42,6 @@ msgstr ""
 "En administratör har avslutat ditt medlemskap med omedelbar verkan. Din "
 "prenumeration har avslutats och eventuella obetalda fakturor har makulerats. "
 "Hör av dig till oss om det kommer oväntat."
-
-#: api_admin_tools/views.py profile/models.py
-#: profile/templates/email_welcome.html
-#, python-format
-msgid "Welcome to %(site_owner)s"
-msgstr "Välkommen till %(site_owner)s"
 
 #: api_billing/views.py
 msgid "Your membership has been resumed"
@@ -372,6 +366,11 @@ msgstr ""
 "bekräftar att ditt nyckelkort har aktiverats. Om ditt medlemskap av någon "
 "anledning avslås under den här perioden får du ett e-postmeddelande med mer "
 "information."
+
+#: profile/models.py profile/templates/email_welcome.html
+#, python-format
+msgid "Welcome to %(site_owner)s"
+msgstr "Välkommen till %(site_owner)s"
 
 #: profile/models.py
 #, python-format
