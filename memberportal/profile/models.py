@@ -266,13 +266,14 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
     def email_verification(self, link: str):
         with member_email_translation(self):
-            return self.email_link(
-                gettext("Action Required: Verify Email"),
-                gettext("Verify Email"),
-                gettext("Please verify your email address to activate your account."),
-                link,
-                gettext("Verify Now"),
+            subject = gettext("Action Required: Verify Email")
+            title = gettext("Verify Email")
+            message = gettext(
+                "Please verify your email address to activate your account."
             )
+            btn_text = gettext("Verify Now")
+
+        return self.email_link(subject, title, message, link, btn_text)
 
     def email_membership_application(self):
         if config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL:
@@ -324,25 +325,38 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
     def email_disable_member_access(self):
         placeholders = {"site_owner": config.SITE_OWNER}
         with member_email_translation(self):
-            subject = gettext("Your %(site_owner)s site access has been disabled.")
-            message = gettext(
-                "Your access to %(site_owner)s has been disabled. If this is "
-                "unexpected, please let us know."
+            subject = (
+                gettext("Your %(site_owner)s site access has been disabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Your access to %(site_owner)s has been disabled. If this is "
+                    "unexpected, please let us know."
+                )
+                % placeholders
             )
 
-        return self.email_notification(subject % placeholders, message % placeholders)
+        return self.email_notification(subject, message)
 
     def email_subscription_ended(self):
         placeholders = {"site_owner": config.SITE_OWNER}
         with member_email_translation(self):
-            subject = gettext("Your %(site_owner)s site access has been disabled.")
-            message = gettext(
-                "Your access to %(site_owner)s has been disabled because your "
-                "membership subscription has ended. This is usually due to a failed "
-                "membership payment. If this is unexpected, please let us know."
+            subject = (
+                gettext("Your %(site_owner)s site access has been disabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Your access to %(site_owner)s has been disabled because your "
+                    "membership subscription has ended. This is usually due to a "
+                    "failed membership payment. If this is unexpected, please let "
+                    "us know."
+                )
+                % placeholders
             )
 
-        return self.email_notification(subject % placeholders, message % placeholders)
+        return self.email_notification(subject, message)
 
     def email_enable_member_access(self):
         placeholders = {
@@ -350,13 +364,19 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             "site_owner": config.SITE_OWNER,
         }
         with member_email_translation(self):
-            subject = gettext("Your %(site_owner)s site access has been enabled.")
-            message = gettext(
-                "Great news %(first_name)s, your %(site_owner)s site access has "
-                "been enabled."
+            subject = (
+                gettext("Your %(site_owner)s site access has been enabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Great news %(first_name)s, your %(site_owner)s site access has "
+                    "been enabled."
+                )
+                % placeholders
             )
 
-        return self.email_notification(subject % placeholders, message % placeholders)
+        return self.email_notification(subject, message)
 
     def reset_password(self):
         with transaction.atomic():

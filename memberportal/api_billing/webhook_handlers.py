@@ -293,7 +293,7 @@ def handle_invoice_paid(ctx):
                     "%(amount)s. You can review your membership at any time at "
                     "%(site_url)s."
                 )
-        receipt_message %= placeholders
+            receipt_message %= placeholders
 
         def _on_commit_receipt_email(
             user=profile.user,
