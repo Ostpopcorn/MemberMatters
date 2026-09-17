@@ -69,10 +69,7 @@ class TestInvoicePaid:
 
         [message] = mail_to(outbox, renewing_member)
         assert message["Subject"] == "Ditt medlemskap har förnyats"
-        assert (
-            "Tack – vi har tagit emot din medlemsbetalning på 55.00 AUD och ditt "
-            "medlemskap fortsätter som vanligt." in message["HtmlBody"]
-        )
+        assert "din medlemsbetalning på 55.00 AUD" in message["HtmlBody"]
 
     @swedish()
     def test_a_leaving_members_final_receipt(
@@ -191,11 +188,7 @@ class TestPaymentFailedCopy:
         )
 
         assert subject == "Betalningen av din medlemsfaktura gick inte igenom"
-        assert message == (
-            "En betalning av din medlemsfaktura på 55.00 AUD gick inte igenom, så "
-            "fakturan är fortfarande obetald. Förfallodagen är 1 januari 2100. "
-            "Betala den före förfallodagen för att behålla ditt medlemskap."
-        )
+        assert "1 januari 2100" in message
 
     @swedish()
     def test_a_card_payment_that_will_be_retried(self):

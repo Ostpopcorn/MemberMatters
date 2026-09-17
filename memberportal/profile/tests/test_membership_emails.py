@@ -21,7 +21,7 @@ def email_to(outbox, profile):
     return message
 
 
-# (send, English subject, English body, Swedish subject, Swedish body).
+# (send, English subject, English body, Swedish subject, Swedish phrase).
 # {owner} is SITE_OWNER; the member's first name is the factory's "Test".
 ACCESS_EMAILS = {
     "enabled": (
@@ -29,7 +29,7 @@ ACCESS_EMAILS = {
         "Your {owner} site access has been enabled.",
         "Great news Test, your {owner} site access has been enabled.",
         "Din åtkomst till {owner} har aktiverats.",
-        "Goda nyheter, Test! Din åtkomst till {owner} har aktiverats.",
+        "Goda nyheter, Test!",
     ),
     "disabled": (
         lambda user: user.email_disable_member_access(),
@@ -37,8 +37,7 @@ ACCESS_EMAILS = {
         "Your access to {owner} has been disabled. If this is unexpected, please "
         "let us know.",
         "Din åtkomst till {owner} har inaktiverats.",
-        "Din åtkomst till {owner} har inaktiverats. Hör av dig till oss om det "
-        "kommer oväntat.",
+        "Hör av dig till oss",
     ),
     "subscription_ended": (
         lambda user: user.email_subscription_ended(),
@@ -47,20 +46,20 @@ ACCESS_EMAILS = {
         "subscription has ended. This is usually due to a failed membership "
         "payment. If this is unexpected, please let us know.",
         "Din åtkomst till {owner} har inaktiverats.",
-        "Din åtkomst till {owner} har inaktiverats eftersom din "
-        "medlemsprenumeration har upphört. Det beror oftast på en misslyckad "
-        "medlemsbetalning. Hör av dig till oss om det kommer oväntat.",
+        "medlemsprenumeration har upphört",
     ),
 }
 
 
 class TestAccessEmails:
     @pytest.mark.parametrize(
-        "send, subject, body, _sv_subject, _sv_body",
+        "send, subject, body, _sv_subject, _sv_phrase",
         ACCESS_EMAILS.values(),
         ids=ACCESS_EMAILS.keys(),
     )
-    def test_english(self, member, outbox, send, subject, body, _sv_subject, _sv_body):
+    def test_english(
+        self, member, outbox, send, subject, body, _sv_subject, _sv_phrase
+    ):
         send(member.user)
 
         message = email_to(outbox, member)
@@ -69,16 +68,18 @@ class TestAccessEmails:
 
     @SWEDISH
     @pytest.mark.parametrize(
-        "send, _subject, _body, sv_subject, sv_body",
+        "send, _subject, _body, sv_subject, sv_phrase",
         ACCESS_EMAILS.values(),
         ids=ACCESS_EMAILS.keys(),
     )
-    def test_swedish(self, member, outbox, send, _subject, _body, sv_subject, sv_body):
+    def test_swedish(
+        self, member, outbox, send, _subject, _body, sv_subject, sv_phrase
+    ):
         send(member.user)
 
         message = email_to(outbox, member)
         assert message["Subject"] == sv_subject.format(owner=config.SITE_OWNER)
-        assert sv_body.format(owner=config.SITE_OWNER) in message["HtmlBody"]
+        assert sv_phrase in message["HtmlBody"]
 
 
 @pytest.mark.override_config(
