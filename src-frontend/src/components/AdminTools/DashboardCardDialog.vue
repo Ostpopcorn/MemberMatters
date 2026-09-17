@@ -142,6 +142,7 @@
 
 <script>
 import icons from '@icons';
+import { mapGetters } from 'vuex';
 import DashboardCard from '@components/DashboardCard.vue';
 import PageAndRouteConfig from '../../pages/pageAndRouteConfig';
 import { portalPages } from '../../utils/portalPages';
@@ -187,6 +188,7 @@ export default {
     };
   },
   computed: {
+    ...mapGetters('config', ['features']),
     icons() {
       return icons;
     },
@@ -194,10 +196,15 @@ export default {
       return linkTypeOptions;
     },
     pageOptions() {
-      return portalPages(PageAndRouteConfig).map((page) => ({
-        label: enAU.menuLink[page.name] ?? page.name,
-        value: page.name,
-      }));
+      return portalPages(PageAndRouteConfig, this.features).map((page) => {
+        const label = enAU.menuLink[page.name] ?? page.name;
+        return {
+          label: page.featureEnabled
+            ? label
+            : `${label} (feature switched off)`,
+          value: page.name,
+        };
+      });
     },
     apiLinks() {
       return this.form.links.map((link) =>

@@ -42,8 +42,9 @@
 <script>
 import { Platform } from 'quasar';
 import DOMPurify from 'dompurify';
+import { mapGetters } from 'vuex';
 import PageAndRouteConfig from '../pages/pageAndRouteConfig';
-import { portalPages } from '../utils/portalPages';
+import { cardLinks, portalPages } from '../utils/portalPages';
 
 export default {
   name: 'DashboardCard',
@@ -68,20 +69,15 @@ export default {
     },
   },
   computed: {
+    ...mapGetters('config', ['features']),
     Platform() {
       return Platform;
     },
     visibleLinks() {
-      // Resolving a page that no longer exists, or is missing its route
-      // parameters, would throw, so those links are hidden.
-      const pages = portalPages(PageAndRouteConfig);
-      return this.links.flatMap((link) => {
-        if (!link.route) return [link];
-        const page = pages.find((p) => p.name === link.route);
-        return page
-          ? [{ ...link, to: { name: page.name, params: page.params } }]
-          : [];
-      });
+      return cardLinks(
+        this.links,
+        portalPages(PageAndRouteConfig, this.features)
+      );
     },
     sanitizedDescription() {
       // The tags and attributes the API keeps when a card is saved
