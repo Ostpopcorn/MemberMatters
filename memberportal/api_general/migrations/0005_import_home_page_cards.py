@@ -40,7 +40,7 @@ def import_home_page_cards(apps, schema_editor):
     if not isinstance(cards, list):
         print(
             "\n  HOME_PAGE_CARDS is not a valid JSON array, so no dashboard cards "
-            "were imported. Recreate them in Admin Tools -> Dashboard."
+            "were imported. Recreate them in Admin Tools -> Dashboard Cards."
         )
         return
 

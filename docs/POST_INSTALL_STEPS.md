@@ -313,9 +313,9 @@ as above (NOT recommended for security).
 
 ### Dashboard and Welcome Email Cards
 
-The "Member Resources" cards on the dashboard are managed from "Admin Tools" > "Dashboard". Each card has a title, an
-icon, a description and any number of buttons, each opening a website or a page of the portal. Cards can be reordered,
-and switched off without deleting them. We recommend 6 cards as a maximum. Icons are
+The "Member Resources" cards on the dashboard are managed from "Admin Tools" > "Dashboard Cards". Each card has a
+title, an icon, a description and any number of buttons, each opening a website or a page of the portal. Cards can be
+reordered, and switched off without deleting them. We recommend 6 cards as a maximum. Icons are
 [Material Design Icons](https://pictogrammers.com/library/mdi/) names with an `mdi-` prefix, such as `mdi-calendar`.
 
 The setting called "WELCOME_EMAIL_CARDS" controls the content in the welcome email each user receives when they are

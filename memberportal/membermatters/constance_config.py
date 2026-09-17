@@ -80,7 +80,7 @@ CONSTANCE_CONFIG = {
     ),
     "WELCOME_EMAIL_CARDS": (
         "[]",
-        'A JSON array of cards shown in the welcome email. Each card: {"title": "...", "description": "<p>...</p>", "url": "https://...", "btn_text": "..."}. Leave blank to use the dashboard\'s Member Resources cards, which are edited in Admin Tools -> Dashboard.',
+        'A JSON array of cards shown in the welcome email. Each card: {"title": "...", "description": "<p>...</p>", "url": "https://...", "btn_text": "..."}. Leave blank to use the dashboard\'s Member Resources cards, which are edited in Admin Tools -> Dashboard Cards.',
     ),
     "TERMS_ACCEPTANCE_CARDS": (
         "[]",
