@@ -1,5 +1,7 @@
 from django.db import models
 from datetime import timedelta
+from urllib.parse import urljoin
+from constance import config
 from django.utils import timezone
 import pytz
 from django.conf import settings
@@ -59,7 +61,7 @@ class DashboardCard(ExportModelOperationsMixin("dashboard-card"), models.Model):
     title = models.CharField("Title", max_length=255)
     icon = models.CharField("Icon", max_length=100)
     description = models.TextField("Description (HTML)", blank=True)
-    # [{"label": str, "url": str}] for an external link or
+    # [{"label": str, "url": str}] for a website or a path on this site, or
     # [{"label": str, "route": str}] for a portal page, by Vue route name.
     links = models.JSONField("Links", default=list, blank=True)
 
@@ -77,12 +79,12 @@ class DashboardCard(ExportModelOperationsMixin("dashboard-card"), models.Model):
 
     def get_email_object(self):
         # The welcome email has a single button and can't open a portal page,
-        # so it uses the first link with a URL.
+        # so it uses the first link with a URL, made absolute if it is a path.
         link = next((link for link in self.links if link.get("url")), {})
         return {
             "title": self.title,
             "description": self.description,
-            "url": link.get("url", ""),
+            "url": urljoin(config.SITE_URL, link["url"]) if link else "",
             "btn_text": link.get("label", ""),
         }
 

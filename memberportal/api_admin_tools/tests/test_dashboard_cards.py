@@ -117,7 +117,9 @@ def test_title_and_icon_are_required(admin_client, fields):
             [{"label": "Read", "url": " JavaScript:alert(1)"}],
             id="javascript-padded",
         ),
-        pytest.param([{"label": "Read", "url": "/memberbucks"}], id="relative-url"),
+        pytest.param(
+            [{"label": "Read", "url": "static/rules.pdf"}], id="path-without-slash"
+        ),
         pytest.param([{"label": "Read", "url": 5}], id="non-string-url"),
         pytest.param([{"label": "Read", "route": "a/b"}], id="bad-route"),
     ],
@@ -135,6 +137,7 @@ def test_valid_links_are_stored_trimmed_and_without_extra_keys(admin_client):
         {"label": " Wiki ", "url": " https://bms.wiki ", "newLine": True},
         {"label": "Top up", "route": "memberbucks"},
         {"label": "Email us", "url": "mailto:hello@example.org"},
+        {"label": "Rules", "url": " /static/rules.pdf "},
     ]
 
     response = admin_client.post(LIST_URL, new_card(links=links), format="json")
@@ -144,6 +147,7 @@ def test_valid_links_are_stored_trimmed_and_without_extra_keys(admin_client):
         {"label": "Wiki", "url": "https://bms.wiki"},
         {"label": "Top up", "route": "memberbucks"},
         {"label": "Email us", "url": "mailto:hello@example.org"},
+        {"label": "Rules", "url": "/static/rules.pdf"},
     ]
 
 

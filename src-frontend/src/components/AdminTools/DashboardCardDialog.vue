@@ -225,10 +225,10 @@ export default {
       );
     },
     validUrl(value) {
-      // Mirrors the API, which only accepts these schemes.
+      // Mirrors the API's check.
       return (
-        /^\s*(https?|mailto):/i.test(value) ||
-        'Must start with http://, https:// or mailto:'
+        /^\s*((https?|mailto):|\/)/i.test(value) ||
+        'Must start with http://, https://, mailto: or /'
       );
     },
     reset() {

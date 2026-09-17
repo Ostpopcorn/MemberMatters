@@ -1604,12 +1604,12 @@ class DashboardCardSerializer(serializers.ModelSerializer):
             if url:
                 # urlparse strips the leading whitespace and tabs a browser
                 # would also ignore, so " javascript:" is caught here too.
-                if (
-                    not isinstance(url, str)
-                    or urlparse(url).scheme not in LINK_URL_SCHEMES
+                if not isinstance(url, str) or not (
+                    url.strip().startswith("/")
+                    or urlparse(url).scheme in LINK_URL_SCHEMES
                 ):
                     raise serializers.ValidationError(
-                        "Link URLs must start with http://, https:// or mailto:."
+                        "Link URLs must start with http://, https://, mailto: or /."
                     )
                 cleaned.append({"label": label.strip(), "url": url.strip()})
             else:

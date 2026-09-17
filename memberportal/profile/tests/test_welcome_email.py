@@ -74,6 +74,19 @@ def test_blank_falls_back_to_the_enabled_dashboard_cards(outbox, dashboard_cards
     assert 'href=""' not in html
 
 
+@override_config(WELCOME_EMAIL_CARDS="", SITE_URL="https://portal.example.org")
+def test_a_path_on_this_site_becomes_a_full_link():
+    DashboardCard.objects.create(
+        title="Rules",
+        icon="mdi-book",
+        links=[{"label": "Read", "url": "/static/rules.pdf"}],
+    )
+
+    assert welcome_email_cards()[0]["url"] == (
+        "https://portal.example.org/static/rules.pdf"
+    )
+
+
 @override_config(WELCOME_EMAIL_CARDS="[]")
 def test_an_empty_list_means_no_cards(dashboard_cards):
     assert welcome_email_cards() == []
