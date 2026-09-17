@@ -114,11 +114,7 @@ export default defineComponent({
     await this.getPortalConfig();
   },
   methods: {
-    ...mapMutations('config', [
-      'setSiteName',
-      'setHomepageCards',
-      'setWebcamLinks',
-    ]),
+    ...mapMutations('config', ['setSiteName', 'setWebcamLinks']),
     ...mapMutations('profile', ['setLoggedIn', 'resetState']),
     ...mapMutations('rfid', ['setConnected', 'setCardId']),
     ...mapActions('config', ['getSiteConfig', 'getKioskId', 'pushKioskId']),
