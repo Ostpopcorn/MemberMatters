@@ -247,12 +247,15 @@ class MemberCancelMembership(StripeAPIView):
                         "admin",
                     )
 
-                    member_subject = "Your membership cancellation is scheduled"
-                    member_message = (
-                        "An admin has scheduled your membership to cancel at "
-                        "the end of the current billing period. Your access "
-                        "continues until then."
-                    )
+                    with member_email_translation(locked.user):
+                        member_subject = gettext(
+                            "Your membership cancellation is scheduled"
+                        )
+                        member_message = gettext(
+                            "An admin has scheduled your membership to cancel at the "
+                            "end of the current billing period. Your access continues "
+                            "until then."
+                        )
                     admin_subject = (
                         f"{request.user.get_full_name()} cancelled "
                         f"{locked.get_full_name()}'s membership (at period end)."
@@ -341,12 +344,13 @@ class MemberCancelMembership(StripeAPIView):
                         "stripe",
                     )
 
-            member_subject = "Your membership has been cancelled"
-            member_message = (
-                "An admin has cancelled your membership effective "
-                "immediately. Your subscription has been ended and any open "
-                "invoices voided. If this is unexpected, please let us know."
-            )
+            with member_email_translation(locked.user):
+                member_subject = gettext("Your membership has been cancelled")
+                member_message = gettext(
+                    "An admin has cancelled your membership effective immediately. "
+                    "Your subscription has been ended and any open invoices voided. "
+                    "If this is unexpected, please let us know."
+                )
             admin_subject = (
                 f"{request.user.get_full_name()} cancelled "
                 f"{full_name}'s membership (immediately)."

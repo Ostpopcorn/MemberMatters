@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 05:45+1000\n"
+"POT-Creation-Date: 2026-09-18 02:58+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -17,11 +17,76 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: api_admin_tools/views.py
+msgid "Your membership cancellation is scheduled"
+msgstr "Uppsägningen av ditt medlemskap är schemalagd"
+
+#: api_admin_tools/views.py
+msgid ""
+"An admin has scheduled your membership to cancel at the end of the current "
+"billing period. Your access continues until then."
+msgstr ""
+"En administratör har sagt upp ditt medlemskap till slutet av den nuvarande "
+"faktureringsperioden. Din åtkomst gäller fram till dess."
+
+#: api_admin_tools/views.py
+msgid "Your membership has been cancelled"
+msgstr "Ditt medlemskap har avslutats"
+
+#: api_admin_tools/views.py
+msgid ""
+"An admin has cancelled your membership effective immediately. Your "
+"subscription has been ended and any open invoices voided. If this is "
+"unexpected, please let us know."
+msgstr ""
+"En administratör har avslutat ditt medlemskap med omedelbar verkan. Din "
+"prenumeration har avslutats och eventuella obetalda fakturor har makulerats. "
+"Hör av dig till oss om det kommer oväntat."
+
 #: api_admin_tools/views.py profile/models.py
 #: profile/templates/email_welcome.html
 #, python-format
 msgid "Welcome to %(site_owner)s"
 msgstr "Välkommen till %(site_owner)s"
+
+#: api_billing/views.py
+msgid "Your membership has been resumed"
+msgstr "Ditt medlemskap har återupptagits"
+
+#: api_billing/views.py
+msgid ""
+"Your cancellation request has been reversed and your membership will "
+"continue billing as normal."
+msgstr ""
+"Din uppsägning har återkallats och ditt medlemskap fortsätter att faktureras "
+"som vanligt."
+
+#: api_billing/views.py
+msgid "Your pending membership signup has been cancelled."
+msgstr "Din påbörjade medlemsregistrering har avbrutits."
+
+#: api_billing/views.py
+msgid ""
+"We've cancelled your pending membership signup at your request. No payment "
+"was taken. You can sign up again at any time from the member portal."
+msgstr ""
+"Vi har avbrutit din påbörjade medlemsregistrering på din begäran. Ingen "
+"betalning har dragits. Du kan registrera dig igen när som helst via "
+"medlemsportalen."
+
+#: api_billing/views.py
+msgid "You've requested to cancel your membership plan."
+msgstr "Du har begärt att säga upp ditt medlemskap."
+
+#: api_billing/views.py
+msgid ""
+"No further action is required, the subscription will automatically cancel at "
+"the end of the current billing period. You can cancel this request at any "
+"time from the member portal."
+msgstr ""
+"Du behöver inte göra något mer – prenumerationen avslutas automatiskt vid "
+"slutet av den nuvarande faktureringsperioden. Du kan ångra uppsägningen när "
+"som helst via medlemsportalen."
 
 #: api_billing/webhook_handlers.py
 msgid "your membership fee"
