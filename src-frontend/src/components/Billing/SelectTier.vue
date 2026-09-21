@@ -30,6 +30,19 @@
       animated
     >
       <q-step
+        v-if="steps.includes('terms')"
+        :name="stepIndex('terms')"
+        :title="$tc('signup.termsAcceptance')"
+        :icon="icons.terms"
+        :done="step > stepIndex('terms')"
+      >
+        <terms-acceptance-step
+          :cards="termsAcceptanceCards"
+          @accepted="advanceFrom('terms')"
+        />
+      </q-step>
+
+      <q-step
         v-if="steps.includes('tier')"
         :name="stepIndex('tier')"
         :title="$tc('tiers.select')"
@@ -335,6 +348,7 @@ import { defineComponent } from 'vue';
 import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
+import TermsAcceptanceStep from '@components/Billing/TermsAcceptanceStep.vue';
 import icons from '@icons';
 import {
   nextStepAfter,
@@ -370,6 +384,9 @@ export default defineComponent({
       if (this.selectedBillingMethod === 'invoice') return true;
       return !!this.cardExists;
     },
+    termsAcceptanceCards() {
+      return this.features.signup?.termsAcceptanceCards || [];
+    },
     // The confirm step's summary reads cost/currency/interval off the plan.
     planSelected() {
       const plan = this.selectedPlan;
@@ -380,6 +397,7 @@ export default defineComponent({
     TierCard,
     PlanCard,
     MemberBucksManageBilling,
+    TermsAcceptanceStep,
   },
   mounted() {
     // Manual renewal (invoice) is the first/default option, but only when
@@ -399,13 +417,23 @@ export default defineComponent({
     // indexed by `step`, so growing or shrinking it later would silently
     // re-point the stepper at a different panel.
     async buildSteps() {
-      // A failed request leaves us with no tiers, which the tier step already
-      // renders an empty state for. Swallowing it here keeps the spinner from
+      // A failed tiers request leaves us with none, which the tier step
+      // already renders an empty state for. A failed can-signup means we
+      // don't know whether terms are outstanding, so assume they are —
+      // re-accepting just re-stamps a timestamp, skipping a legal gate on a
+      // flaky connection does not. Swallowing both keeps the spinner from
       // hanging forever.
-      this.tiers = await this.$axios
-        .get('/api/billing/tiers/')
-        .then((response) => response.data)
-        .catch(() => []);
+      const [tiers, outstanding] = await Promise.all([
+        this.$axios
+          .get('/api/billing/tiers/')
+          .then((response) => response.data)
+          .catch(() => []),
+        this.$axios
+          .get('/api/billing/can-signup/')
+          .then((response) => response.data.requiredSteps || [])
+          .catch(() => ['termsAcceptance']),
+      ]);
+      this.tiers = tiers;
 
       // Only one membership plan to choose — preselect it. The tier step then
       // drops out of the list rather than being stepped over.
@@ -415,6 +443,7 @@ export default defineComponent({
 
       this.steps = preSignupSteps(this.features, {
         tierCount: this.tiers.length,
+        outstanding,
       });
       this.step = 0;
     },

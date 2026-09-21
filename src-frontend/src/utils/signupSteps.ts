@@ -69,9 +69,12 @@ export function enabledSignupSteps(features: SignupFeatures): SignupStep[] {
 // reshapes underneath it silently re-points at a different panel.
 export function preSignupSteps(
   features: SignupFeatures,
-  { tierCount }: { tierCount: number }
+  { tierCount, outstanding }: { tierCount: number; outstanding: string[] }
 ): PreSignupStep[] {
   const steps: PreSignupStep[] = [];
+  // Terms come first: the member agrees before picking or paying for
+  // anything. Absent once accepted, so a re-signup goes straight to tiers.
+  if (termsOutstanding(features, outstanding)) steps.push('terms');
   // Exactly one tier — it gets preselected, so drop the picker. Note `!== 1`
   // rather than `> 1`: with zero tiers the step has to stay, because it is
   // what renders the "no tiers available" empty state.
