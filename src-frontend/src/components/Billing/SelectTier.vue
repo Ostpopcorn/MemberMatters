@@ -313,7 +313,7 @@
           <q-btn
             flat
             :disable="disableFinish || loading"
-            @click="backToBilling"
+            @click="backFromConfirm"
             :label="$tc('button.back')"
           />
           <q-space />
@@ -558,8 +558,10 @@ export default defineComponent({
       this.selectedPlan = {};
       this.goTo('plan');
     },
-    backToBilling() {
-      this.goTo('billing');
+    // Billing drops out when payments are off, so go back to whatever step
+    // actually precedes the confirmation.
+    backFromConfirm() {
+      this.goTo(this.steps.includes('billing') ? 'billing' : 'plan');
     },
     cardExistsHandler(value) {
       this.cardExists = value;

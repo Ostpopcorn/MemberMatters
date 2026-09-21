@@ -17,7 +17,13 @@
       v-else-if="['needs_plan', 'account_only', 'lapsed'].includes(signupStage)"
     >
       <q-banner
-        v-if="features.enableNewSubscriptions === false"
+        v-if="features.enableMembershipPayments === false"
+        class="bg-info text-white q-pa-md"
+      >
+        {{ $t('billing.membershipPaymentsDisabled') }}
+      </q-banner>
+      <q-banner
+        v-else-if="features.enableNewSubscriptions === false"
         class="bg-info text-white q-pa-md"
       >
         {{ $t('billing.newSubscriptionsDisabled') }}

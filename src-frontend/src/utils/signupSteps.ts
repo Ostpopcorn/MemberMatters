@@ -50,14 +50,16 @@ const inductionEnabled = (features: SignupFeatures) =>
   !!features.signup?.enableInduction;
 const accessCardRequired = (features: SignupFeatures) =>
   !!features.signup?.requireAccessCard;
+const paymentsEnabled = (features: SignupFeatures) =>
+  !!features.enableMembershipPayments;
 const termsOutstanding = (features: SignupFeatures, outstanding: string[]) =>
   termsConfigured(features) && outstanding.includes(REQUIRED_STEP_KEY.terms);
 
 // Order here = display order.
 export function enabledSignupSteps(features: SignupFeatures): SignupStep[] {
   const steps: SignupStep[] = [];
-  if (features.enableMembershipPayments) steps.push('payment');
   if (termsConfigured(features)) steps.push('terms');
+  if (paymentsEnabled(features)) steps.push('payment');
   if (inductionEnabled(features)) steps.push('induction');
   if (accessCardRequired(features)) steps.push('accessCard');
   return steps;
@@ -80,7 +82,9 @@ export function preSignupSteps(
   // what renders the "no tiers available" empty state.
   if (tierCount !== 1) steps.push('tier');
   steps.push('plan');
-  steps.push('billing');
+  // Nothing to collect when payments are off; MembershipPlan refuses the
+  // whole flow in that case anyway.
+  if (paymentsEnabled(features)) steps.push('billing');
   steps.push('confirm');
   return steps;
 }
