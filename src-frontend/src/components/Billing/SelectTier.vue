@@ -16,7 +16,12 @@
       </q-banner>
     </div>
 
+    <div v-if="!steps" class="text-center q-my-xl">
+      <q-spinner size="4em" />
+    </div>
+
     <q-stepper
+      v-else
       v-model="step"
       ref="stepper"
       color="primary"
@@ -25,10 +30,11 @@
       animated
     >
       <q-step
-        :name="1"
+        v-if="steps.includes('tier')"
+        :name="stepIndex('tier')"
         :title="$tc('tiers.select')"
         :icon="icons.plans"
-        :done="step > 1"
+        :done="step > stepIndex('tier')"
       >
         <template v-if="tiers.length === 0">
           <div class="text-center text-h6">
@@ -53,10 +59,10 @@
       </q-step>
 
       <q-step
-        :name="2"
+        :name="stepIndex('plan')"
         :title="$tc('paymentPlans.select')"
         :icon="icons.dollar"
-        :done="step > 2"
+        :done="step > stepIndex('plan')"
       >
         <div class="q-pa-md">
           <q-card class="bg-white text-black" style="max-width: 500px">
@@ -97,7 +103,7 @@
 
           <div class="row justify-start">
             <q-btn
-              v-if="tiers.length > 1"
+              v-if="steps.includes('tier')"
               class="q-mt-md"
               @click="backToTiers"
               flat
@@ -109,10 +115,10 @@
 
       <q-step
         class="flex flex-center"
-        :name="3"
+        :name="stepIndex('billing')"
         :title="$tc('menuLink.billing')"
         :icon="icons.billing"
-        :done="step > 3"
+        :done="step > stepIndex('billing')"
       >
         <div class="text-h6 q-py-md">
           {{ $tc('memberbucks.selectToContinue') }}
@@ -213,10 +219,10 @@
       </q-step>
 
       <q-step
-        :name="4"
+        :name="stepIndex('confirm')"
         :title="$tc('paymentPlans.confirmSelection')"
         :icon="icons.success"
-        :done="step > 4"
+        :done="step > stepIndex('confirm')"
       >
         <div class="row">
           <div class="row col-xs-12 col-sm-6">
@@ -229,7 +235,7 @@
           </div>
         </div>
 
-        <div class="text-h6">
+        <div v-if="planSelected" class="text-h6">
           <template v-if="selectedBillingMethod === 'invoice'">
             {{
               $t('billing.invoiceAmount', {
@@ -254,7 +260,7 @@
           </template>
         </div>
 
-        <p v-if="step > 2" class="q-py-md" style="max-width: 850px">
+        <p v-if="planSelected" class="q-py-md" style="max-width: 850px">
           {{
             $t('tiers.confirm', {
               intervalDescription: $t('paymentPlans.intervalDescription', {
@@ -330,12 +336,20 @@ import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
 import icons from '@icons';
+import {
+  nextStepAfter,
+  preSignupSteps,
+  stepIndex,
+} from '../../utils/signupSteps';
 
 export default defineComponent({
   name: 'SelectTier',
   data() {
     return {
-      step: 1,
+      // Built once in mounted(), after the requests it depends on land.
+      // `step` indexes into it, so it must not change shape afterwards.
+      steps: null,
+      step: 0,
       tiers: [],
       selectedTier: {},
       selectedPlan: {},
@@ -356,6 +370,11 @@ export default defineComponent({
       if (this.selectedBillingMethod === 'invoice') return true;
       return !!this.cardExists;
     },
+    // The confirm step's summary reads cost/currency/interval off the plan.
+    planSelected() {
+      const plan = this.selectedPlan;
+      return !!(plan.currency && plan.interval && plan.cost != null);
+    },
   },
   components: {
     TierCard,
@@ -363,7 +382,6 @@ export default defineComponent({
     MemberBucksManageBilling,
   },
   mounted() {
-    this.getTiers();
     // Manual renewal (invoice) is the first/default option, but only when
     // it's actually offered — mirror the picker's own visibility gate.
     if (
@@ -372,17 +390,44 @@ export default defineComponent({
     ) {
       this.selectedBillingMethod = 'invoice';
     }
+    this.buildSteps();
   },
   methods: {
     ...mapActions('profile', ['getProfile']),
-    getTiers() {
-      this.$axios.get('/api/billing/tiers/').then((response) => {
-        this.tiers = response.data;
-        // Only one membership plan to choose — skip to the payment plan step.
-        if (this.tiers.length === 1) {
-          this.selectedTierEvent(this.tiers[0]);
-        }
+    // Load everything the step list depends on, then build it once and show
+    // the stepper. Deferring the render is what keeps `steps` stable: it is
+    // indexed by `step`, so growing or shrinking it later would silently
+    // re-point the stepper at a different panel.
+    async buildSteps() {
+      // A failed request leaves us with no tiers, which the tier step already
+      // renders an empty state for. Swallowing it here keeps the spinner from
+      // hanging forever.
+      this.tiers = await this.$axios
+        .get('/api/billing/tiers/')
+        .then((response) => response.data)
+        .catch(() => []);
+
+      // Only one membership plan to choose — preselect it. The tier step then
+      // drops out of the list rather than being stepped over.
+      if (this.tiers.length === 1) {
+        this.selectedTier = this.tiers[0];
+      }
+
+      this.steps = preSignupSteps(this.features, {
+        tierCount: this.tiers.length,
       });
+      this.step = 0;
+    },
+    stepIndex(name) {
+      return stepIndex(this.steps, name);
+    },
+    advanceFrom(name) {
+      const next = nextStepAfter(this.steps, name);
+      if (next) this.step = this.stepIndex(next);
+    },
+    goTo(name) {
+      const target = this.stepIndex(name);
+      if (target >= 0) this.step = target;
     },
     skipSignup() {
       this.$axios
@@ -445,26 +490,26 @@ export default defineComponent({
     },
     selectedTierEvent(tier) {
       this.selectedTier = tier;
-      this.step++;
+      this.advanceFrom('tier');
     },
     selectedPlanEvent(plan) {
       this.selectedPlan = plan;
-      this.step++;
+      this.advanceFrom('plan');
     },
     selectedBillingMethodEvent() {
-      this.step++;
+      this.advanceFrom('billing');
     },
     backToTiers() {
-      this.step = 1;
       this.selectedPlan = {};
       this.selectedTier = {};
+      this.goTo('tier');
     },
     backToPlans() {
-      this.step = 2;
       this.selectedPlan = {};
+      this.goTo('plan');
     },
     backToBilling() {
-      this.step = 3;
+      this.goTo('billing');
     },
     cardExistsHandler(value) {
       this.cardExists = value;
