@@ -14,6 +14,15 @@ export type SignupStep = 'payment' | 'terms' | 'induction' | 'accessCard';
 // The pre-payment stepper (SelectTier) expands 'payment' into its own steps.
 export type PreSignupStep = 'terms' | 'tier' | 'plan' | 'billing' | 'confirm';
 
+// The post-payment stepper (SignupRequiredSteps) shows 'payment' as a done
+// breadcrumb and ends on a terminal confirmation.
+export type PostSignupStep =
+  | 'billing'
+  | 'terms'
+  | 'induction'
+  | 'accessCard'
+  | 'confirm';
+
 export interface SignupStepState {
   complete: boolean;
   pending: boolean;
@@ -28,12 +37,21 @@ interface SignupFeatures {
   };
 }
 
+// Maps a checklist step to the key the backend reports in `requiredSteps`.
+const REQUIRED_STEP_KEY: Record<Exclude<SignupStep, 'payment'>, string> = {
+  terms: 'termsAcceptance',
+  induction: 'induction',
+  accessCard: 'accessCard',
+};
+
 const termsConfigured = (features: SignupFeatures) =>
   (features.signup?.termsAcceptanceCards || []).length > 0;
 const inductionEnabled = (features: SignupFeatures) =>
   !!features.signup?.enableInduction;
 const accessCardRequired = (features: SignupFeatures) =>
   !!features.signup?.requireAccessCard;
+const termsOutstanding = (features: SignupFeatures, outstanding: string[]) =>
+  termsConfigured(features) && outstanding.includes(REQUIRED_STEP_KEY.terms);
 
 // Order here = display order.
 export function enabledSignupSteps(features: SignupFeatures): SignupStep[] {
@@ -64,6 +82,24 @@ export function preSignupSteps(
   return steps;
 }
 
+// Order here = visual order in the post-payment stepper. Same build-once
+// rule as preSignupSteps above.
+export function postSignupSteps(
+  features: SignupFeatures,
+  { outstanding }: { outstanding: string[] }
+): PostSignupStep[] {
+  // Billing is a breadcrumb: it's already done by the time we get here.
+  const steps: PostSignupStep[] = ['billing'];
+  // Terms are normally collected before payment. This only reappears for a
+  // member who reached this point without accepting — cards configured after
+  // they paid, or a signup that was already in flight.
+  if (termsOutstanding(features, outstanding)) steps.push('terms');
+  if (inductionEnabled(features)) steps.push('induction');
+  if (accessCardRequired(features)) steps.push('accessCard');
+  steps.push('confirm');
+  return steps;
+}
+
 export function stepIndex<T extends string>(steps: T[], name: T): number {
   return steps.indexOf(name);
 }
@@ -81,13 +117,6 @@ export function nextStepAfter<T extends string>(
   }
   return null;
 }
-
-// Maps a checklist step to the key the backend reports in `requiredSteps`.
-const REQUIRED_STEP_KEY: Record<Exclude<SignupStep, 'payment'>, string> = {
-  terms: 'termsAcceptance',
-  induction: 'induction',
-  accessCard: 'accessCard',
-};
 
 export function signupStepStatus(
   step: SignupStep,
