@@ -217,8 +217,6 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             template_vars=template_vars,
             user=self,
             template_name=template_name,
-            # TODO: per-member language. member_email_language() still returns
-            # the site-wide EMAIL_LANGUAGE and ignores the member.
             language=language or member_email_language(self),
         )
 

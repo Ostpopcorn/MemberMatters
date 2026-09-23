@@ -359,7 +359,7 @@
                 "
               >
                 <p style="margin: 0">
-                  {% blocktranslate trimmed with site_url=config.SITE_URL site_name=config.SITE_NAME site_owner=config.SITE_OWNER site_address=config.SITE_MAIL_ADDRESS %}Sent by <a href="{{ site_url }}">{{ site_name }}</a> on behalf of {{ site_owner }} at {{ site_address }}.{% endblocktranslate %}
+                  {% site_link as site_link %}{% blocktranslate trimmed with site_owner=config.SITE_OWNER site_address=config.SITE_MAIL_ADDRESS %}Sent by {{ site_link }} on behalf of {{ site_owner }} at {{ site_address }}.{% endblocktranslate %}
                 </p>
               </td>
             </tr>

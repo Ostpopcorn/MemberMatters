@@ -1,5 +1,7 @@
 import nh3
+from constance import config
 from django import template
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -26,3 +28,10 @@ def sanitize_html(value):
             link_rel="noopener noreferrer",
         )
     )
+
+
+@register.simple_tag
+def site_link():
+    """The footer's link to the portal, kept out of the translated sentence so a
+    translation can't break the markup."""
+    return format_html('<a href="{}">{}</a>', config.SITE_URL, config.SITE_NAME)

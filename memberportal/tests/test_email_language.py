@@ -48,7 +48,7 @@ def test_member_emails_follow_the_site_language(member, outbox, send):
 
     body = body_to(outbox, member.user.email)
     assert SWEDISH_SIGN_OFF in body
-    assert "Skickat av" in body
+    assert 'Skickat av <a href="' in body
     assert '<html lang="sv-se">' in body
 
 

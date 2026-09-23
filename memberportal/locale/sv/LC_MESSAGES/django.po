@@ -352,7 +352,7 @@ msgid ""
 "this period, you will receive an email with further information."
 msgstr ""
 "Tack för att du skickade in din medlemsansökan! Din ansökan har skickats in "
-"och du är nu 'ansökande medlem'. Ditt medlemskap godkänns inom kort, men vi "
+"och du är nu ”ansökande medlem”. Ditt medlemskap godkänns inom kort, men vi "
 "har redan gett dig åtkomst till lokalen. Du får ett e-postmeddelande som "
 "bekräftar att ditt nyckelkort har aktiverats. Om ditt medlemskap av någon "
 "anledning avslås under den här perioden får du ett e-postmeddelande med mer "
@@ -489,12 +489,9 @@ msgstr "Vänliga hälsningar,"
 #: profile/templates/email_with_button.html
 #: profile/templates/email_without_button.html
 #, python-format
-msgid ""
-"Sent by <a href=\"%(site_url)s\">%(site_name)s</a> on behalf of "
-"%(site_owner)s at %(site_address)s."
+msgid "Sent by %(site_link)s on behalf of %(site_owner)s at %(site_address)s."
 msgstr ""
-"Skickat av <a href=\"%(site_url)s\">%(site_name)s</a> på uppdrag av "
-"%(site_owner)s, %(site_address)s."
+"Skickat av %(site_link)s på uppdrag av %(site_owner)s, %(site_address)s."
 
 #: profile/templates/email_welcome.html
 #, python-format
