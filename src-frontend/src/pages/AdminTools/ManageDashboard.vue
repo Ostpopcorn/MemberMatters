@@ -2,9 +2,9 @@
   <q-page class="q-pa-md">
     <div class="text-h5 q-mb-md">Dashboard Cards</div>
     <p class="text-grey-7">
-      The Member Resources cards shown on every member's dashboard. If the
-      WELCOME_EMAIL_CARDS setting is blank, the welcome email uses these cards
-      too.
+      The Member Resources cards shown on every member's dashboard. The welcome
+      email uses these cards too, unless the WELCOME_EMAIL_CARDS setting is
+      filled in.
     </p>
 
     <q-btn

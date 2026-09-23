@@ -320,8 +320,9 @@ reordered, and switched off without deleting them. We recommend 6 cards as a max
 
 The setting called "WELCOME_EMAIL_CARDS" controls the content in the welcome email each user receives when they are
 converted to a member. It is configured with a JSON array of cards, and we recommend 4 as a maximum. Each card has a
-title, a description (a few formatting tags such as `<p>`, `<b>` and `<a>` are allowed), and a button with a URL. Leave
-it blank to use the dashboard's Member Resources cards instead, each with a button for its first website link.
+title, a description (a few formatting tags such as `<p>`, `<b>` and `<a>` are allowed), and a button with a URL. It is
+blank by default, which uses the dashboard's Member Resources cards instead, each with a button for its first website
+link. Set it to `[]` to send the welcome email without cards.
 
 An example with 2 cards is below:
 

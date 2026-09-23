@@ -87,6 +87,13 @@ def test_a_path_on_this_site_becomes_a_full_link():
     )
 
 
+def test_the_default_uses_the_dashboard_cards(dashboard_cards):
+    assert [card["title"] for card in welcome_email_cards()] == [
+        "Discord",
+        "Member Bucks",
+    ]
+
+
 @override_config(WELCOME_EMAIL_CARDS="[]")
 def test_an_empty_list_means_no_cards(dashboard_cards):
     assert welcome_email_cards() == []
