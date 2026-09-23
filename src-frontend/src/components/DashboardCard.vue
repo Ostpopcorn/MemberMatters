@@ -44,6 +44,7 @@ import { Platform } from 'quasar';
 import DOMPurify from 'dompurify';
 import { mapGetters } from 'vuex';
 import PageAndRouteConfig from '../pages/pageAndRouteConfig';
+import { ALLOWED_ATTR, ALLOWED_TAGS } from '../utils/cardHtml';
 import { cardLinks, portalPages } from '../utils/portalPages';
 
 export default {
@@ -80,25 +81,9 @@ export default {
       );
     },
     sanitizedDescription() {
-      // The tags and attributes the API keeps when a card is saved
-      // (clean_html in email_extras.py), so the admin preview matches the
-      // saved card.
       return DOMPurify.sanitize(this.description, {
-        ALLOWED_TAGS: [
-          'a',
-          'b',
-          'br',
-          'div',
-          'em',
-          'i',
-          'li',
-          'ol',
-          'p',
-          'span',
-          'strong',
-          'ul',
-        ],
-        ALLOWED_ATTR: ['href', 'target', 'rel'],
+        ALLOWED_TAGS,
+        ALLOWED_ATTR,
       });
     },
   },

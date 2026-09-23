@@ -46,7 +46,7 @@ from profile.models import (
     welcome_email_cards,
 )
 from profile.phone import to_e164
-from profile.templatetags.email_extras import clean_html
+from services.sanitize import clean_html
 from services import sms
 from services.emails import send_email_to_admin
 from .models import MemberTier, PaymentPlan
