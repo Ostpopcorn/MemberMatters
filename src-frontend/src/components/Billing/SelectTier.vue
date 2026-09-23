@@ -313,7 +313,7 @@
           <q-btn
             flat
             :disable="disableFinish || loading"
-            @click="backFromConfirm"
+            @click="backToBilling"
             :label="$tc('button.back')"
           />
           <q-space />
@@ -331,37 +331,23 @@
         </div>
       </q-step>
     </q-stepper>
-    <div v-if="profile.memberStatus === 'noob'" class="text-center">
-      <p
-        @click="confirmSkipSignup"
-        style="text-decoration: underline; cursor: pointer"
-      >
-        {{ $tc('tiers.skipSignup') }}
-      </p>
-    </div>
   </div>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 import { defineComponent } from 'vue';
 import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
 import TermsAcceptanceStep from '@components/Billing/TermsAcceptanceStep.vue';
 import icons from '@icons';
-import {
-  nextStepAfter,
-  preSignupSteps,
-  stepIndex,
-} from '../../utils/signupSteps';
+import { nextStepAfter, preSignupSteps } from '../../utils/signupSteps';
 
 export default defineComponent({
   name: 'SelectTier',
   data() {
     return {
-      // Built once in mounted(), after the requests it depends on land.
-      // `step` indexes into it, so it must not change shape afterwards.
       steps: null,
       step: 0,
       tiers: [],
@@ -411,18 +397,9 @@ export default defineComponent({
     this.buildSteps();
   },
   methods: {
-    ...mapActions('profile', ['getProfile']),
-    // Load everything the step list depends on, then build it once and show
-    // the stepper. Deferring the render is what keeps `steps` stable: it is
-    // indexed by `step`, so growing or shrinking it later would silently
-    // re-point the stepper at a different panel.
     async buildSteps() {
-      // A failed tiers request leaves us with none, which the tier step
-      // already renders an empty state for. A failed can-signup means we
-      // don't know whether terms are outstanding, so assume they are —
-      // re-accepting just re-stamps a timestamp, skipping a legal gate on a
-      // flaky connection does not. Swallowing both keeps the spinner from
-      // hanging forever.
+      // If can-signup fails, assume terms are outstanding: re-accepting only
+      // re-stamps a timestamp, skipping them would bypass a legal gate.
       const [tiers, outstanding] = await Promise.all([
         this.$axios
           .get('/api/billing/tiers/')
@@ -435,8 +412,7 @@ export default defineComponent({
       ]);
       this.tiers = tiers;
 
-      // Only one membership plan to choose — preselect it. The tier step then
-      // drops out of the list rather than being stepped over.
+      // Only one membership plan to choose — preselect it.
       if (this.tiers.length === 1) {
         this.selectedTier = this.tiers[0];
       }
@@ -445,60 +421,13 @@ export default defineComponent({
         tierCount: this.tiers.length,
         outstanding,
       });
-      this.step = 0;
     },
     stepIndex(name) {
-      return stepIndex(this.steps, name);
+      return this.steps.indexOf(name);
     },
     advanceFrom(name) {
       const next = nextStepAfter(this.steps, name);
       if (next) this.step = this.stepIndex(next);
-    },
-    goTo(name) {
-      const target = this.stepIndex(name);
-      if (target >= 0) this.step = target;
-    },
-    confirmSkipSignup() {
-      this.$q
-        .dialog({
-          title: this.$t('tiers.skipSignupWarningTitle'),
-          message: this.$t('tiers.skipSignupWarningMessage'),
-          html: true,
-          ok: {
-            label: this.$t('tiers.skipSignupWarningConfirm'),
-            color: 'negative',
-            flat: true,
-          },
-          cancel: {
-            label: this.$t('button.cancel'),
-            color: 'primary',
-          },
-          persistent: true,
-        })
-        .onOk(() => {
-          this.skipSignup();
-        });
-    },
-    skipSignup() {
-      this.$axios
-        .post('/api/billing/skip-signup/')
-        .then(async (response) => {
-          if (response.data.success) {
-            await this.getProfile();
-            this.$router.push({ name: 'dashboard' });
-          } else {
-            this.$q.dialog({
-              title: this.$t('error.requestFailed'),
-              message: this.$t('error.contactUs'),
-            });
-          }
-        })
-        .catch(() => {
-          this.$q.dialog({
-            title: this.$t('error.requestFailed'),
-            message: this.$t('error.contactUs'),
-          });
-        });
     },
     finishSignup() {
       this.disableFinish = true;
@@ -552,16 +481,14 @@ export default defineComponent({
     backToTiers() {
       this.selectedPlan = {};
       this.selectedTier = {};
-      this.goTo('tier');
+      this.step = this.stepIndex('tier');
     },
     backToPlans() {
       this.selectedPlan = {};
-      this.goTo('plan');
+      this.step = this.stepIndex('plan');
     },
-    // Billing drops out when payments are off, so go back to whatever step
-    // actually precedes the confirmation.
-    backFromConfirm() {
-      this.goTo(this.steps.includes('billing') ? 'billing' : 'plan');
+    backToBilling() {
+      this.step = this.stepIndex('billing');
     },
     cardExistsHandler(value) {
       this.cardExists = value;

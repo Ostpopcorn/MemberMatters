@@ -279,7 +279,8 @@ import TermsAcceptanceStep from '@components/Billing/TermsAcceptanceStep.vue';
 import {
   nextStepAfter,
   postSignupSteps,
-  stepIndex,
+  signupStepStatus,
+  SignupStep,
 } from '../../utils/signupSteps';
 
 export default defineComponent({
@@ -287,12 +288,11 @@ export default defineComponent({
   components: { TermsAcceptanceStep },
   data() {
     return {
-      // Both built once in mounted(), from the can-signup response. `step`
-      // indexes into `steps`, so `steps` must not change shape afterwards.
       steps: null,
       step: 0,
+      // can-signup's requiredSteps: what the backend still wants.
+      outstanding: [] as string[],
       inductionComplete: false,
-      accessCardComplete: false,
       accessCard: null,
       accessCardLoading: false,
       signupError: false,
@@ -325,37 +325,16 @@ export default defineComponent({
 
     api
       .get('/api/billing/can-signup/')
+      // If we can't tell what's outstanding, assume everything is.
+      .catch(() => ({
+        data: { requiredSteps: ['termsAcceptance', 'induction', 'accessCard'] },
+      }))
       .then((result) => {
-        // Build the list from what the backend still wants, so an already
-        // satisfied step is simply absent rather than shown and skipped.
-        const outstanding: string[] = result.data.requiredSteps || [];
-        this.steps = postSignupSteps(this.features, { outstanding });
-
-        if (result.data.success) {
-          // Pre-reqs already met (re-signup, RFID + induction still valid,
-          // or relaxed config). Drive complete-signup now — without this the
-          // user sits on subscription_status=active|pending with state=noob.
-          clearInterval(this.interval);
-          this.completeSignup();
-          return;
-        }
-
-        // if we don't need the access card, that step is complete
-        this.accessCardComplete = !outstanding.includes('accessCard');
-        // Billing is a visual breadcrumb only — start on the first real step.
-        this.step = this.stepIndex(
-          this.steps.find((s) => s !== 'billing') as string
-        );
-      })
-      .catch(() => {
-        // We don't know what's outstanding, so assume everything is and let
-        // each step sort itself out. Failing closed beats a stuck spinner.
-        this.steps = postSignupSteps(this.features, {
-          outstanding: ['termsAcceptance', 'induction', 'accessCard'],
-        });
-        this.step = this.stepIndex(
-          this.steps.find((s) => s !== 'billing') as string
-        );
+        this.outstanding = result.data.requiredSteps || [];
+        this.steps = postSignupSteps(this.features);
+        // Billing is a done breadcrumb. Start on the first step still
+        // required, or complete signup straight away if none is.
+        this.advanceFrom('billing');
       });
   },
   beforeUnmount() {
@@ -366,16 +345,18 @@ export default defineComponent({
   },
   methods: {
     stepIndex(name: string) {
-      // The induction poller can reach this before can-signup has answered.
-      return this.steps ? stepIndex(this.steps, name) : -1;
+      return this.steps.indexOf(name);
     },
-    // Skips 'accessCard' when the user already has a card on file
-    // (re-signup); finalizes when the next step is 'confirm'.
+    // Skips steps the backend no longer requires (e.g. terms accepted before
+    // payment, or an access card kept from a previous membership); finalizes
+    // when the next step is 'confirm'.
     advanceFrom(name: string) {
       const next = nextStepAfter(
         this.steps,
         name,
-        (step) => step === 'accessCard' && this.accessCardComplete
+        (step) =>
+          step !== 'confirm' &&
+          signupStepStatus(step as SignupStep, this.outstanding, null).complete
       );
       if (next === null || next === 'confirm') {
         this.completeSignup();
@@ -405,6 +386,7 @@ export default defineComponent({
     },
     ...mapActions('profile', ['getProfile']),
     async completeSignup() {
+      clearInterval(this.interval);
       api
         .post('/api/billing/complete-signup/')
         .then((result) => {

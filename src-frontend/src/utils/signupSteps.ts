@@ -8,6 +8,10 @@
 // build their lists from `preSignupSteps` / `postSignupSteps` below, which
 // expand the canonical list with the UI-only steps each one needs. Everything
 // derives from the same predicates, so the three can't drift.
+//
+// Build a stepper's list ONCE, after its inputs have loaded, and hold it in a
+// data field: q-stepper's v-model is an index into the list, so a list that
+// reshapes underneath it silently re-points at a different panel.
 
 export type SignupStep = 'payment' | 'terms' | 'induction' | 'accessCard';
 
@@ -55,20 +59,16 @@ const paymentsEnabled = (features: SignupFeatures) =>
 const termsOutstanding = (features: SignupFeatures, outstanding: string[]) =>
   termsConfigured(features) && outstanding.includes(REQUIRED_STEP_KEY.terms);
 
-// Order here = display order.
+// Same order as postSignupSteps, which the read-only views mirror.
 export function enabledSignupSteps(features: SignupFeatures): SignupStep[] {
   const steps: SignupStep[] = [];
-  if (termsConfigured(features)) steps.push('terms');
   if (paymentsEnabled(features)) steps.push('payment');
+  if (termsConfigured(features)) steps.push('terms');
   if (inductionEnabled(features)) steps.push('induction');
   if (accessCardRequired(features)) steps.push('accessCard');
   return steps;
 }
 
-// Order here = visual order in the pre-payment stepper. Adding a step is one
-// line. Build this ONCE, after its inputs have loaded, and hold the result in
-// a data field: q-stepper's v-model is an index into this list, so a list that
-// reshapes underneath it silently re-points at a different panel.
 export function preSignupSteps(
   features: SignupFeatures,
   { tierCount, outstanding }: { tierCount: number; outstanding: string[] }
@@ -81,45 +81,33 @@ export function preSignupSteps(
   // rather than `> 1`: with zero tiers the step has to stay, because it is
   // what renders the "no tiers available" empty state.
   if (tierCount !== 1) steps.push('tier');
-  steps.push('plan');
-  // Nothing to collect when payments are off; MembershipPlan refuses the
-  // whole flow in that case anyway.
-  if (paymentsEnabled(features)) steps.push('billing');
-  steps.push('confirm');
+  steps.push('plan', 'billing', 'confirm');
   return steps;
 }
 
-// Order here = visual order in the post-payment stepper. Same build-once
-// rule as preSignupSteps above.
-export function postSignupSteps(
-  features: SignupFeatures,
-  { outstanding }: { outstanding: string[] }
-): PostSignupStep[] {
+// Every configured step is listed, done or not; the stepper skips past the
+// ones the backend no longer requires.
+export function postSignupSteps(features: SignupFeatures): PostSignupStep[] {
   // Billing is a breadcrumb: it's already done by the time we get here.
   const steps: PostSignupStep[] = ['billing'];
-  // Terms are normally collected before payment. This only reappears for a
-  // member who reached this point without accepting — cards configured after
-  // they paid, or a signup that was already in flight.
-  if (termsOutstanding(features, outstanding)) steps.push('terms');
+  if (termsConfigured(features)) steps.push('terms');
   if (inductionEnabled(features)) steps.push('induction');
   if (accessCardRequired(features)) steps.push('accessCard');
   steps.push('confirm');
   return steps;
 }
 
-export function stepIndex<T extends string>(steps: T[], name: T): number {
-  return steps.indexOf(name);
-}
-
 // The next step after `from` that this member actually needs to stop on.
-// Returns null when `from` is last. `skip` steps over anything already
-// satisfied (e.g. an access card carried over from a previous membership).
+// Returns null when `from` is last or not in the list. `skip` steps over
+// anything already satisfied.
 export function nextStepAfter<T extends string>(
   steps: T[],
   from: T,
   skip: (step: T) => boolean = () => false
 ): T | null {
-  for (let i = steps.indexOf(from) + 1; i < steps.length; i++) {
+  const start = steps.indexOf(from);
+  if (start < 0) return null;
+  for (let i = start + 1; i < steps.length; i++) {
     if (!skip(steps[i])) return steps[i];
   }
   return null;
