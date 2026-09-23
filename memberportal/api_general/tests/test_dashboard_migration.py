@@ -96,6 +96,39 @@ def test_imports_each_legacy_link_shape_in_order():
     ]
 
 
+def test_imported_cards_can_be_saved_again():
+    set_constance(
+        "HOME_PAGE_CARDS",
+        json.dumps(
+            [
+                {
+                    "title": "Wiki",
+                    "description": '<h3>Rules</h3><p onclick="x">Read</p>',
+                    "icon": "class",
+                    "url": "https://bms.wiki",
+                },
+                {
+                    "title": "Discord",
+                    "icon": "mdi-chat",
+                    "links": [
+                        {"url": "", "btn_text": "Empty"},
+                        {"btn_text": "Missing"},
+                        {"url": "https://a.example"},
+                    ],
+                },
+            ]
+        ),
+    )
+
+    run_import()
+
+    wiki, discord = DashboardCard.objects.all()
+    assert wiki.icon == "mdi-link-variant"
+    assert wiki.description == "Rules<p>Read</p>"
+    assert wiki.links == [{"label": "Wiki", "url": "https://bms.wiki"}]
+    assert discord.links == [{"label": "Discord", "url": "https://a.example"}]
+
+
 def test_missing_setting_imports_nothing():
     run_import()
 
