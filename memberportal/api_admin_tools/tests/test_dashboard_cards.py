@@ -99,6 +99,17 @@ def test_title_and_icon_are_required(admin_client, fields):
 
 
 @pytest.mark.parametrize(
+    "icon", ["calendar", "mdi-Calendar", "img:https://x.example/a.png", "mdi-a b"]
+)
+def test_the_icon_must_be_an_mdi_name(admin_client, icon):
+    response = admin_client.post(LIST_URL, new_card(icon=icon), format="json")
+
+    assert response.status_code == 400
+    assert set(response.json()) == {"icon"}
+    assert not DashboardCard.objects.exists()
+
+
+@pytest.mark.parametrize(
     "links",
     [
         pytest.param("https://bms.wiki", id="not-a-list"),

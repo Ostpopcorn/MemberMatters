@@ -1572,6 +1572,7 @@ class SignupPreview(APIView):
 
 
 ROUTE_NAME = re.compile(r"[A-Za-z0-9_-]+")
+ICON_NAME = re.compile(r"mdi-[a-z0-9-]+")
 LINK_URL_SCHEMES = ("http", "https", "mailto")
 
 
@@ -1579,6 +1580,13 @@ class DashboardCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = DashboardCard
         fields = ("title", "icon", "description", "links", "enabled")
+
+    def validate_icon(self, value):
+        if not ICON_NAME.fullmatch(value):
+            raise serializers.ValidationError(
+                "Icons must be a Material Design Icons name, e.g. mdi-calendar."
+            )
+        return value
 
     def validate_description(self, value):
         return clean_html(value)

@@ -28,7 +28,7 @@
               maxlength="100"
               label="Icon"
               hint="A Material Design Icons name, e.g. mdi-calendar"
-              :rules="[required]"
+              :rules="[required, validIcon]"
             >
               <template #append>
                 <q-icon :name="form.icon || icons.info" />
@@ -145,6 +145,7 @@ import icons from '@icons';
 import { mapGetters } from 'vuex';
 import DashboardCard from '@components/DashboardCard.vue';
 import PageAndRouteConfig from '../../pages/pageAndRouteConfig';
+import { ICON_NAME } from '../../utils/cardHtml';
 import { portalPages } from '../../utils/portalPages';
 import enAU from '../../i18n/en-AU';
 
@@ -229,6 +230,11 @@ export default {
       return (
         (typeof value === 'string' ? value.trim() !== '' : !!value) ||
         'Required'
+      );
+    },
+    validIcon(value) {
+      return (
+        ICON_NAME.test(value) || 'Must be an mdi- icon name, e.g. mdi-calendar'
       );
     },
     validUrl(value) {

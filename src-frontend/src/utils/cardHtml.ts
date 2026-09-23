@@ -17,3 +17,6 @@ export const ALLOWED_TAGS = [
   'ul',
 ];
 export const ALLOWED_ATTR = ['href', 'target', 'rel'];
+
+// Mirrors ICON_NAME in the API: only Material Design Icons are loaded.
+export const ICON_NAME = /^mdi-[a-z0-9-]+$/;
