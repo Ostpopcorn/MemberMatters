@@ -7,6 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from services.emails import send_single_email
+from services.email_i18n import ENGLISH
 
 
 class Meetings(APIView):
@@ -139,6 +140,7 @@ class Proxies(APIView):
                     "message": message,
                 },
                 user=request.user,
+                language=ENGLISH,
             )
 
             subject = f"{proxy_user.profile.get_full_name()} is confirmed as your proxy for the {meeting.get_type()} meeting"
@@ -148,6 +150,7 @@ class Proxies(APIView):
                 subject=subject,
                 template_vars={"title": subject, "message": message},
                 user=request.user,
+                language=ENGLISH,
             )
 
             return Response({"success": True})
@@ -172,6 +175,7 @@ class Proxies(APIView):
                     "message": message,
                 },
                 user=request.user,
+                language=ENGLISH,
             )
 
             subject = f"{proxy.proxy_user.profile.get_full_name()} is no longer your proxy for the {proxy.meeting.get_type()} meeting"
@@ -184,6 +188,7 @@ class Proxies(APIView):
                     "message": message,
                 },
                 user=request.user,
+                language=ENGLISH,
             )
             return Response()
         else:

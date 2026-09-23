@@ -230,6 +230,21 @@ class TestAwaitingPayment:
             "Your signup has been received — awaiting payment"
         ]
 
+    @only(ENABLE_STRIPE_MEMBERSHIP_PAYMENTS=True, EMAIL_LANGUAGE="sv-SE")
+    def test_the_awaiting_payment_email_follows_the_site_language(
+        self, django_capture_on_commit_callbacks, outbox
+    ):
+        profile = ProfileFactory(subscription_pending=True)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            profile.complete_signup(SignupTriggeredBy.SUBSCRIPTION_CREATED)
+
+        [message] = [m for m in outbox if m["To"] == profile.user.email]
+        assert message["Subject"] == (
+            "Vi har tagit emot din registrering – väntar på betalning"
+        )
+        assert "Hej Test, tack för att du registrerade dig hos" in message["HtmlBody"]
+
     @only(ENABLE_STRIPE_MEMBERSHIP_PAYMENTS=True)
     def test_the_email_does_not_fire_without_a_commit(self, outbox):
         # Guards the assertions above: the notification rides

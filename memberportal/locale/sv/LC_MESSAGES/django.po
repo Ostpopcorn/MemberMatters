@@ -1,0 +1,527 @@
+# Swedish translations of MemberMatters member emails.
+#
+# Regenerate with makemessages; see the backend tests workflow for the exact
+# command. Entries marked fuzzy are left out of the compiled catalog, so the
+# email falls back to English until the translation has been reviewed.
+msgid ""
+msgstr ""
+"Project-Id-Version: MemberMatters\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-24 04:45+1000\n"
+"PO-Revision-Date: 2026-09-17 04:15+1000\n"
+"Last-Translator: \n"
+"Language-Team: Swedish\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: api_admin_tools/views.py
+msgid "Your membership cancellation is scheduled"
+msgstr "Uppsägningen av ditt medlemskap är schemalagd"
+
+#: api_admin_tools/views.py
+msgid ""
+"An admin has scheduled your membership to cancel at the end of the current "
+"billing period. Your access continues until then."
+msgstr ""
+"En administratör har sagt upp ditt medlemskap till slutet av den nuvarande "
+"faktureringsperioden. Din åtkomst gäller fram till dess."
+
+#: api_admin_tools/views.py
+msgid "Your membership has been cancelled"
+msgstr "Ditt medlemskap har avslutats"
+
+#: api_admin_tools/views.py
+msgid ""
+"An admin has cancelled your membership effective immediately. Your "
+"subscription has been ended and any open invoices voided. If this is "
+"unexpected, please let us know."
+msgstr ""
+"En administratör har avslutat ditt medlemskap med omedelbar verkan. Din "
+"prenumeration har avslutats och eventuella obetalda fakturor har makulerats. "
+"Hör av dig till oss om det kommer oväntat."
+
+#: api_billing/stripe_utils.py
+msgid "your membership fee"
+msgstr "din medlemsavgift"
+
+#: api_billing/views.py
+#, python-format
+msgid "You just added a payment card to your %(site_owner)s account."
+msgstr "Du har lagt till ett betalkort på ditt konto hos %(site_owner)s."
+
+#: api_billing/views.py
+#, python-format
+msgid ""
+"Don't worry, your card details are stored safe with Stripe and are not on "
+"our servers. You can remove this card at any time via the %(site_name)s."
+msgstr ""
+"Oroa dig inte – dina kortuppgifter lagras säkert hos Stripe och finns inte "
+"på våra servrar. Du kan ta bort kortet när som helst via %(site_name)s."
+
+#: api_billing/views.py
+msgid "Your membership has been resumed"
+msgstr "Ditt medlemskap har återupptagits"
+
+#: api_billing/views.py
+msgid ""
+"Your cancellation request has been reversed and your membership will "
+"continue billing as normal."
+msgstr ""
+"Din uppsägning har återkallats och ditt medlemskap fortsätter att faktureras "
+"som vanligt."
+
+#: api_billing/views.py
+msgid "Your pending membership signup has been cancelled."
+msgstr "Din påbörjade medlemsregistrering har avbrutits."
+
+#: api_billing/views.py
+msgid ""
+"We've cancelled your pending membership signup at your request. No payment "
+"was taken. You can sign up again at any time from the member portal."
+msgstr ""
+"Vi har avbrutit din påbörjade medlemsregistrering på din begäran. Ingen "
+"betalning har dragits. Du kan registrera dig igen när som helst via "
+"medlemsportalen."
+
+#: api_billing/views.py
+msgid "You've requested to cancel your membership plan."
+msgstr "Du har begärt att säga upp ditt medlemskap."
+
+#: api_billing/views.py
+msgid ""
+"No further action is required, the subscription will automatically cancel at "
+"the end of the current billing period. You can cancel this request at any "
+"time from the member portal."
+msgstr ""
+"Du behöver inte göra något mer – prenumerationen avslutas automatiskt vid "
+"slutet av den nuvarande faktureringsperioden. Du kan ångra uppsägningen när "
+"som helst via medlemsportalen."
+
+#: api_billing/webhook_handlers.py
+msgid "Your final membership payment"
+msgstr "Din sista medlemsbetalning"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s. Your "
+"membership is still set to end at the end of your current billing period, as "
+"you requested. You can review your membership at any time at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s. Ditt medlemskap "
+"avslutas fortfarande vid slutet av din nuvarande faktureringsperiod, som du "
+"har begärt. Du kan se ditt medlemskap när som helst på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership has been renewed"
+msgstr "Ditt medlemskap har förnyats"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s and your "
+"membership continues as normal. You can review your membership at any time "
+"at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s och ditt "
+"medlemskap fortsätter som vanligt. Du kan se ditt medlemskap när som helst "
+"på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership payment was received"
+msgstr "Vi har tagit emot din medlemsbetalning"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks — we've received your membership payment of %(amount)s. You can "
+"review your membership at any time at %(site_url)s."
+msgstr ""
+"Tack – vi har tagit emot din medlemsbetalning på %(amount)s. Du kan se ditt "
+"medlemskap när som helst på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Your payment was successful."
+msgstr "Din betalning har genomförts."
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"Thanks for making a membership payment using our online payment system. "
+"You've already met all of the requirements for activating your site access. "
+"Please check for another email message confirming this was successful."
+msgstr ""
+"Tack för din medlemsbetalning via vårt betalningssystem på nätet. Du "
+"uppfyller redan alla krav för att få åtkomst till lokalen. Håll utkik efter "
+"ytterligare ett e-postmeddelande som bekräftar att det har gått igenom."
+
+#: api_billing/webhook_handlers.py
+msgid "Your payment was received — additional steps needed"
+msgstr "Vi har tagit emot din betalning – fler steg krävs"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Thanks for making a membership payment using our online payment system. Your "
+"access isn't enabled yet because you still need to complete your induction. "
+"Please log in to %(site_url)s and finish the induction step to activate your "
+"membership."
+msgstr ""
+"Tack för din medlemsbetalning via vårt betalningssystem på nätet. Din "
+"åtkomst är inte aktiverad ännu eftersom du fortfarande behöver genomföra din "
+"introduktion. Logga in på %(site_url)s och slutför introduktionssteget för "
+"att aktivera ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "You can pay it here: %(url)s"
+msgstr "Du kan betala den här: %(url)s"
+
+#: api_billing/webhook_handlers.py
+msgid "If you have further questions, contact us."
+msgstr "Om du har fler frågor, kontakta oss."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership invoice is overdue"
+msgstr "Din medlemsfaktura är förfallen"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"A payment towards your membership invoice for %(amount)s didn't go through, "
+"and the invoice is now overdue."
+msgstr ""
+"En betalning av din medlemsfaktura på %(amount)s gick inte igenom, och "
+"fakturan är nu förfallen."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "It was due on %(due_date)s."
+msgstr "Förfallodagen var %(due_date)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Please pay it to keep your membership active."
+msgstr "Betala den för att behålla ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership invoice payment didn't go through"
+msgstr "Betalningen av din medlemsfaktura gick inte igenom"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"A payment towards your membership invoice for %(amount)s didn't go through, "
+"so the invoice is still outstanding."
+msgstr ""
+"En betalning av din medlemsfaktura på %(amount)s gick inte igenom, så "
+"fakturan är fortfarande obetald."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "It's due on %(due_date)s."
+msgstr "Förfallodagen är %(due_date)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Please pay it before the due date to keep your membership active."
+msgstr "Betala den före förfallodagen för att behålla ditt medlemskap."
+
+#: api_billing/webhook_handlers.py
+msgid "Your membership payment failed"
+msgstr "Din medlemsbetalning misslyckades"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"We tried to collect your membership payment of %(amount)s but weren't "
+"successful. We'll try again automatically, so there may be nothing for you "
+"to do — but it's worth checking the card we have on file is still current at "
+"%(site_url)s."
+msgstr ""
+"Vi försökte dra din medlemsbetalning på %(amount)s men det gick inte. Vi "
+"försöker igen automatiskt, så du behöver kanske inte göra något – men "
+"kontrollera gärna att kortet vi har sparat fortfarande gäller på "
+"%(site_url)s."
+
+#: api_billing/webhook_handlers.py
+msgid "Action needed: your membership payment failed"
+msgstr "Åtgärd krävs: din medlemsbetalning misslyckades"
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"We tried to collect your membership payment of %(amount)s and weren't "
+"successful. That was our last automatic attempt, so your membership may be "
+"cancelled unless the payment goes through. Please update your card at "
+"%(site_url)s."
+msgstr ""
+"Vi försökte dra din medlemsbetalning på %(amount)s men det gick inte. Det "
+"var vårt sista automatiska försök, så ditt medlemskap kan avslutas om "
+"betalningen inte går igenom. Uppdatera ditt kort på %(site_url)s."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid "Otherwise, you can pay it here: %(url)s."
+msgstr "Annars kan du betala den här: %(url)s."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Your membership invoice for %(amount)s was due on %(due_date)s, and we "
+"haven't registered a payment yet."
+msgstr ""
+"Din medlemsfaktura på %(amount)s förföll %(due_date)s, och vi har inte "
+"registrerat någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+#, python-format
+msgid ""
+"Your membership invoice for %(amount)s is past its due date, and we haven't "
+"registered a payment yet."
+msgstr ""
+"Din medlemsfaktura på %(amount)s har passerat förfallodagen, och vi har inte "
+"registrerat någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"Your membership invoice is past its due date, and we haven't registered a "
+"payment yet."
+msgstr ""
+"Din medlemsfaktura har passerat förfallodagen, och vi har inte registrerat "
+"någon betalning ännu."
+
+#: api_billing/webhook_handlers.py
+msgid "Reminder: your membership invoice is overdue"
+msgstr "Påminnelse: din medlemsfaktura är förfallen"
+
+#: api_billing/webhook_handlers.py
+msgid ""
+"If you have paid in another way than through the invoice link, for example "
+"by bank transfer, we may not have had time to register your payment yet. "
+"Please make sure the payment has been made."
+msgstr ""
+"Om du har betalat på annat sätt än via fakturalänken, till exempel med "
+"banköverföring, har vi kanske inte hunnit registrera din betalning ännu. Se "
+"till att betalningen har gjorts."
+
+#: api_general/views.py
+#, python-format
+msgid "Action Required: %(site_owner)s New Member Signup"
+msgstr "Åtgärd krävs: ny medlemsregistrering hos %(site_owner)s"
+
+#: api_general/views.py
+msgid "Next Step: Register for an Induction"
+msgstr "Nästa steg: anmäl dig till en introduktion"
+
+#: api_general/views.py
+#, python-format
+msgid ""
+"Hi %(first_name)s, thanks for signing up! The next step to becoming a fully "
+"fledged member is to book in for an induction. During this induction we will "
+"go over the basic safety and operational aspects of %(site_owner)s. To book "
+"in, click the link below."
+msgstr ""
+"Hej %(first_name)s, tack för att du registrerade dig! Nästa steg för att bli "
+"fullvärdig medlem är att boka en introduktion. Under introduktionen går vi "
+"igenom grundläggande säkerhet och hur %(site_owner)s fungerar. Klicka på "
+"länken nedan för att boka."
+
+#: api_general/views.py
+msgid "Register for Induction"
+msgstr "Anmäl dig till introduktion"
+
+#: profile/models.py
+#, python-format
+msgid "Reset your %(site_owner)s password"
+msgstr "Återställ ditt lösenord hos %(site_owner)s"
+
+#: profile/models.py
+msgid "Action Required: Verify Email"
+msgstr "Åtgärd krävs: verifiera din e-postadress"
+
+#: profile/models.py
+msgid "Verify Email"
+msgstr "Verifiera e-postadress"
+
+#: profile/models.py
+msgid "Please verify your email address to activate your account."
+msgstr "Verifiera din e-postadress för att aktivera ditt konto."
+
+#: profile/models.py
+msgid "Verify Now"
+msgstr "Verifiera nu"
+
+#: profile/models.py
+msgid "Your membership application has been submitted"
+msgstr "Din medlemsansökan har skickats in"
+
+#: profile/models.py
+msgid ""
+"Thanks for submitting your membership application! Your membership "
+"application has been submitted and you are now a 'member applicant'. Your "
+"membership will be officially accepted shortly, but we have granted site "
+"access immediately. You will receive an email confirming that your access "
+"card has been enabled. If for some reason your membership is rejected within "
+"this period, you will receive an email with further information."
+msgstr ""
+"Tack för att du skickade in din medlemsansökan! Din ansökan har skickats in "
+"och du är nu ”ansökande medlem”. Ditt medlemskap godkänns inom kort, men vi "
+"har redan gett dig åtkomst till lokalen. Du får ett e-postmeddelande som "
+"bekräftar att ditt nyckelkort har aktiverats. Om ditt medlemskap av någon "
+"anledning avslås under den här perioden får du ett e-postmeddelande med mer "
+"information."
+
+#: profile/models.py profile/templates/email_welcome.html
+#, python-format
+msgid "Welcome to %(site_owner)s"
+msgstr "Välkommen till %(site_owner)s"
+
+#: profile/models.py
+#, python-format
+msgid "Your %(site_owner)s site access has been disabled."
+msgstr "Din åtkomst till %(site_owner)s har inaktiverats."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Your access to %(site_owner)s has been disabled. If this is unexpected, "
+"please let us know."
+msgstr ""
+"Din åtkomst till %(site_owner)s har inaktiverats. Hör av dig till oss om det "
+"kommer oväntat."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Your access to %(site_owner)s has been disabled because your membership "
+"subscription has ended. This is usually due to a failed membership payment. "
+"If this is unexpected, please let us know."
+msgstr ""
+"Din åtkomst till %(site_owner)s har inaktiverats eftersom din "
+"medlemsprenumeration har upphört. Det beror oftast på en misslyckad "
+"medlemsbetalning. Hör av dig till oss om det kommer oväntat."
+
+#: profile/models.py
+#, python-format
+msgid "Your %(site_owner)s site access has been enabled."
+msgstr "Din åtkomst till %(site_owner)s har aktiverats."
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Great news %(first_name)s, your %(site_owner)s site access has been enabled."
+msgstr ""
+"Goda nyheter, %(first_name)s! Din åtkomst till %(site_owner)s har aktiverats."
+
+#: profile/models.py
+msgid "Your signup has been received — awaiting payment"
+msgstr "Vi har tagit emot din registrering – väntar på betalning"
+
+#: profile/models.py
+#, python-format
+msgid ""
+"Hi %(first_name)s, thanks for signing up to %(site_owner)s! We've received "
+"your signup and you'll receive an invoice from Stripe shortly. Once it's "
+"paid, your access will be enabled automatically and we'll send you a welcome "
+"email."
+msgstr ""
+"Hej %(first_name)s, tack för att du registrerade dig hos %(site_owner)s! Vi "
+"har tagit emot din registrering och du får snart en faktura från Stripe. När "
+"den är betald aktiveras din åtkomst automatiskt och vi skickar ett "
+"välkomstmeddelande till dig."
+
+#: profile/models.py
+msgid "Your membership signup has lapsed"
+msgstr "Din medlemsregistrering har gått ut"
+
+#: profile/models.py
+msgid ""
+"We weren't able to collect your membership payment in time, so your pending "
+"signup has been cancelled. You can sign up again at any time from the member "
+"portal."
+msgstr ""
+"Vi fick inte in din medlemsbetalning i tid, så din påbörjade registrering "
+"har avbrutits. Du kan registrera dig igen när som helst via medlemsportalen."
+
+#: profile/templates/email_password_reset.html
+#, python-format
+msgid ""
+"Someone requested a password reset for your %(site_owner)s account. Click "
+"the link in this email to reset it."
+msgstr ""
+"Någon har begärt att lösenordet till ditt konto hos %(site_owner)s ska "
+"återställas. Klicka på länken i det här e-postmeddelandet för att återställa "
+"det."
+
+#: profile/templates/email_password_reset.html
+msgid "Password Reset"
+msgstr "Lösenordsåterställning"
+
+#: profile/templates/email_password_reset.html
+#, python-format
+msgid ""
+"Someone has just initiated a password reset for your %(site_owner)s account. "
+"If this wasn't you, there's no need to worry. Simply ignore this email and "
+"nothing will happen."
+msgstr ""
+"Någon har just begärt att lösenordet till ditt konto hos %(site_owner)s ska "
+"återställas. Om det inte var du behöver du inte oroa dig – ignorera bara det "
+"här e-postmeddelandet så händer ingenting."
+
+#: profile/templates/email_password_reset.html
+msgid "Reset Password"
+msgstr "Återställ lösenord"
+
+#: profile/templates/email_password_reset.html
+#: profile/templates/email_with_button.html
+msgid ""
+"If that doesn't work, copy and paste the following link in your browser:"
+msgstr ""
+"Om det inte fungerar kan du kopiera och klistra in följande länk i din "
+"webbläsare:"
+
+#: profile/templates/email_password_reset.html
+#: profile/templates/email_with_button.html
+#: profile/templates/email_without_button.html
+msgid ""
+"If you have any questions, just reply to this email — we're always happy to "
+"help out."
+msgstr ""
+"Om du har några frågor är det bara att svara på det här e-postmeddelandet – "
+"vi hjälper gärna till."
+
+#: profile/templates/email_password_reset.html
+#: profile/templates/email_welcome.html
+#: profile/templates/email_with_button.html
+#: profile/templates/email_without_button.html
+msgid "Cheers,"
+msgstr "Vänliga hälsningar,"
+
+#: profile/templates/email_password_reset.html
+#: profile/templates/email_welcome.html
+#: profile/templates/email_with_button.html
+#: profile/templates/email_without_button.html
+#, python-format
+msgid "Sent by %(site_link)s on behalf of %(site_owner)s at %(site_address)s."
+msgstr ""
+"Skickat av %(site_link)s på uppdrag av %(site_owner)s, %(site_address)s."
+
+#: profile/templates/email_welcome.html
+#, python-format
+msgid ""
+"Welcome to %(site_owner)s. Please read this email as it contains some "
+"important information about how to get started."
+msgstr ""
+"Välkommen till %(site_owner)s. Läs det här e-postmeddelandet, det innehåller "
+"viktig information om hur du kommer igång."
+
+#: profile/templates/email_welcome.html
+#, python-format
+msgid ""
+"Thanks for finishing your %(site_owner)s member induction. Now that you're "
+"part of our community here are a few things to get you started."
+msgstr ""
+"Tack för att du har genomfört din introduktion hos %(site_owner)s. Nu när du "
+"är en del av vår gemenskap kommer här några saker som hjälper dig att komma "
+"igång."

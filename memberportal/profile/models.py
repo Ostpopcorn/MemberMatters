@@ -3,6 +3,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 import pytz
 from django.utils.timezone import make_aware
+from django.utils.translation import gettext
 from django.contrib.auth.models import (
     BaseUserManager,
     AbstractBaseUser,
@@ -19,6 +20,11 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from services.emails import send_single_email, send_email_to_admin
+from services.email_i18n import (
+    ADMIN_EMAIL_LANGUAGE,
+    member_email_language,
+    member_email_translation,
+)
 from services import sms
 from sentry_sdk import capture_exception
 from django_prometheus.models import ExportModelOperationsMixin
@@ -218,17 +224,24 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             description=description, logtype=event_type, user=self, data=data
         ).save()
 
-    def __send_email(self, subject, template_vars, template_name=None):
+    def __send_email(self, subject, template_vars, template_name=None, language=None):
         return send_single_email(
             to_email=self.email,
             subject=subject,
             template_vars=template_vars,
             user=self,
             template_name=template_name,
+            language=language or member_email_language(self),
         )
 
     def email_link(
-        self, subject: str, title: str, message: str, link: str, btn_text: str
+        self,
+        subject: str,
+        title: str,
+        message: str,
+        link: str,
+        btn_text: str,
+        language=None,
     ):
         template_vars = {
             "title": title,
@@ -241,25 +254,52 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
             subject=subject,
             template_vars=template_vars,
             template_name="email_with_button.html",
+            language=language,
         )
 
-    def email_notification(self, subject: str, message: str):
+    def email_notification(self, subject: str, message: str, language=None):
         template_vars = {"title": subject, "message": message}
-        return self.__send_email(subject, template_vars=template_vars)
+        return self.__send_email(
+            subject, template_vars=template_vars, language=language
+        )
 
     def email_password_reset(self, link: str):
         template_vars = {"link": link}
+        with member_email_translation(self):
+            subject = gettext("Reset your %(site_owner)s password") % {
+                "site_owner": config.SITE_OWNER
+            }
 
         return self.__send_email(
-            f"Reset your {config.SITE_OWNER} password",
+            subject,
             template_vars,
             template_name="email_password_reset.html",
         )
 
+    def email_verification(self, link: str):
+        with member_email_translation(self):
+            subject = gettext("Action Required: Verify Email")
+            title = gettext("Verify Email")
+            message = gettext(
+                "Please verify your email address to activate your account."
+            )
+            btn_text = gettext("Verify Now")
+
+        return self.email_link(subject, title, message, link, btn_text)
+
     def email_membership_application(self):
         if config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL:
-            subject = "Your membership application has been submitted"
-            message = "Thanks for submitting your membership application! Your membership application has been submitted and you are now a 'member applicant'. Your membership will be officially accepted shortly, but we have granted site access immediately. You will receive an email confirming that your access card has been enabled. If for some reason your membership is rejected within this period, you will receive an email with further information."
+            with member_email_translation(self):
+                subject = gettext("Your membership application has been submitted")
+                message = gettext(
+                    "Thanks for submitting your membership application! Your "
+                    "membership application has been submitted and you are now a "
+                    "'member applicant'. Your membership will be officially accepted "
+                    "shortly, but we have granted site access immediately. You will "
+                    "receive an email confirming that your access card has been "
+                    "enabled. If for some reason your membership is rejected within "
+                    "this period, you will receive an email with further information."
+                )
 
             self.email_notification(subject, message)
 
@@ -272,7 +312,10 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         )
 
     def email_welcome(self):
-        subject = f"Welcome to {config.SITE_OWNER}"
+        with member_email_translation(self):
+            subject = gettext("Welcome to %(site_owner)s") % {
+                "site_owner": config.SITE_OWNER
+            }
         template_vars = {"title": subject, "cards": welcome_email_cards()}
 
         if self.__send_email(
@@ -285,24 +328,58 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         return False
 
     def email_disable_member_access(self):
-        return self.email_notification(
-            f"Your {config.SITE_OWNER} site access has been disabled.",
-            f"Your access to {config.SITE_OWNER} has been disabled. "
-            f"If this is unexpected, please let us know.",
-        )
+        placeholders = {"site_owner": config.SITE_OWNER}
+        with member_email_translation(self):
+            subject = (
+                gettext("Your %(site_owner)s site access has been disabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Your access to %(site_owner)s has been disabled. If this is "
+                    "unexpected, please let us know."
+                )
+                % placeholders
+            )
+
+        return self.email_notification(subject, message)
 
     def email_subscription_ended(self):
-        return self.email_notification(
-            f"Your {config.SITE_OWNER} site access has been disabled.",
-            f"Your access to {config.SITE_OWNER} has been disabled because "
-            "your membership subscription has ended. This is usually due to "
-            "a failed membership payment. If this is unexpected, please let "
-            "us know.",
-        )
+        placeholders = {"site_owner": config.SITE_OWNER}
+        with member_email_translation(self):
+            subject = (
+                gettext("Your %(site_owner)s site access has been disabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Your access to %(site_owner)s has been disabled because your "
+                    "membership subscription has ended. This is usually due to a "
+                    "failed membership payment. If this is unexpected, please let "
+                    "us know."
+                )
+                % placeholders
+            )
+
+        return self.email_notification(subject, message)
 
     def email_enable_member_access(self):
-        message = f"Great news {self.profile.first_name}, your {config.SITE_OWNER} site access has been enabled."
-        subject = f"Your {config.SITE_OWNER} site access has been enabled."
+        placeholders = {
+            "first_name": self.profile.first_name,
+            "site_owner": config.SITE_OWNER,
+        }
+        with member_email_translation(self):
+            subject = (
+                gettext("Your %(site_owner)s site access has been enabled.")
+                % placeholders
+            )
+            message = (
+                gettext(
+                    "Great news %(first_name)s, your %(site_owner)s site access has "
+                    "been enabled."
+                )
+                % placeholders
+            )
 
         return self.email_notification(subject, message)
 
@@ -620,17 +697,20 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
 
                 if locked.subscription_status == "pending":
                     if not locked.pending_signup_email_sent:
-                        pending_subject = (
-                            "Your signup has been received — awaiting payment"
-                        )
-                        pending_message = (
-                            f"Hi {locked.first_name}, thanks for signing "
-                            f"up to {config.SITE_OWNER}! We've received your "
-                            "signup and you'll receive an invoice from Stripe "
-                            "shortly. Once it's paid, your access will be "
-                            "enabled automatically and we'll send you a "
-                            "welcome email."
-                        )
+                        with member_email_translation(locked.user):
+                            pending_subject = gettext(
+                                "Your signup has been received — awaiting payment"
+                            )
+                            pending_message = gettext(
+                                "Hi %(first_name)s, thanks for signing up to "
+                                "%(site_owner)s! We've received your signup and "
+                                "you'll receive an invoice from Stripe shortly. "
+                                "Once it's paid, your access will be enabled "
+                                "automatically and we'll send you a welcome email."
+                            ) % {
+                                "first_name": locked.first_name,
+                                "site_owner": config.SITE_OWNER,
+                            }
 
                         def _on_commit_pending_signup(
                             user=locked.user,
@@ -751,13 +831,14 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
                 # pre-staged default-access rows here.
                 locked.remove_default_access()
                 if triggered_by == CancelTriggeredBy.SUBSCRIPTION_DELETED:
-                    lapsed_subject = "Your membership signup has lapsed"
-                    lapsed_message = (
-                        "We weren't able to collect your membership payment "
-                        "in time, so your pending signup has been cancelled. "
-                        "You can sign up again at any time from the member "
-                        "portal."
-                    )
+                    with member_email_translation(locked.user):
+                        lapsed_subject = gettext("Your membership signup has lapsed")
+                        lapsed_message = gettext(
+                            "We weren't able to collect your membership payment "
+                            "in time, so your pending signup has been cancelled. "
+                            "You can sign up again at any time from the member "
+                            "portal."
+                        )
 
                     def _on_commit_lapsed(
                         user=locked.user,
@@ -962,6 +1043,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             template_vars=template_vars,
             user=self.user,
             reply_to=self.user.email,
+            language=ADMIN_EMAIL_LANGUAGE,
         )
 
     def get_logs(self):

@@ -31,10 +31,12 @@ from services.moodle_integration import (
     moodle_get_user_from_email,
 )
 from services.emails import send_email_to_admin
+from services.email_i18n import member_email_translation
 from constance import config
 from django.db import transaction, IntegrityError
 from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext
 from sentry_sdk import capture_exception
 
 logger = logging.getLogger("billing")
@@ -178,15 +180,17 @@ class MemberBucksAddCard(StripeAPIView):
 
         # Email outside the atomic — a Postmark blip mustn't roll back the
         # successful card attachment.
-        subject = f"You just added a payment card to your {config.SITE_OWNER} account."
+        with member_email_translation(request.user):
+            subject = gettext(
+                "You just added a payment card to your %(site_owner)s account."
+            ) % {"site_owner": config.SITE_OWNER}
+            message = gettext(
+                "Don't worry, your card details are stored safe with Stripe and are "
+                "not on our servers. You can remove this card at any time via the "
+                "%(site_name)s."
+            ) % {"site_name": config.SITE_NAME}
         try:
-            request.user.email_notification(
-                subject,
-                "Don't worry, your card details are stored safe "
-                "with Stripe and are not on our servers. You "
-                "can remove this card at any time via the "
-                f"{config.SITE_NAME}.",
-            )
+            request.user.email_notification(subject, message)
         except Exception as e:
             capture_exception(e)
             return Response(
@@ -1089,11 +1093,12 @@ class PaymentPlanResume(StripeAPIView):
                     subject = f"{request.user.get_full_name()} resumed their cancelling membership plan."
                     request.user.log_event(subject, "stripe")
 
-                    member_subject = "Your membership has been resumed"
-                    member_message = (
-                        "Your cancellation request has been reversed and "
-                        "your membership will continue billing as normal."
-                    )
+                    with member_email_translation(request.user):
+                        member_subject = gettext("Your membership has been resumed")
+                        member_message = gettext(
+                            "Your cancellation request has been reversed and your "
+                            "membership will continue billing as normal."
+                        )
 
                     def _on_commit_resume_notifications(
                         admin_subject=subject,
@@ -1183,12 +1188,15 @@ class PaymentPlanCancel(StripeAPIView):
                 f"{request.user.get_full_name()} cancelled their pending "
                 "membership (no payment was made)."
             )
-            member_subject = "Your pending membership signup has been cancelled."
-            member_message = (
-                "We've cancelled your pending membership signup at your "
-                "request. No payment was taken. You can sign up again at "
-                "any time from the member portal."
-            )
+            with member_email_translation(request.user):
+                member_subject = gettext(
+                    "Your pending membership signup has been cancelled."
+                )
+                member_message = gettext(
+                    "We've cancelled your pending membership signup at your request. "
+                    "No payment was taken. You can sign up again at any time from the "
+                    "member portal."
+                )
 
             def _on_commit_cancel_notifications(
                 admin_subject=cancelled_subject,
@@ -1359,16 +1367,17 @@ class PaymentPlanCancel(StripeAPIView):
                         except Exception as e:
                             capture_exception(e)
 
-                        member_subject = (
-                            "You've requested to cancel your membership plan."
-                        )
-                        member_description = (
-                            "No further action is required, the subscription "
-                            "will automatically cancel at the end of the "
-                            "current billing period. You can cancel this "
-                            "request at any time from the member portal."
-                        )
                         try:
+                            with member_email_translation(user):
+                                member_subject = gettext(
+                                    "You've requested to cancel your membership plan."
+                                )
+                                member_description = gettext(
+                                    "No further action is required, the subscription "
+                                    "will automatically cancel at the end of the "
+                                    "current billing period. You can cancel this "
+                                    "request at any time from the member portal."
+                                )
                             user.email_notification(member_subject, member_description)
                         except Exception as e:
                             capture_exception(e)

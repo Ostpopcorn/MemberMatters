@@ -6,8 +6,11 @@ import these without creating a cycle back through `api_billing.views`.
 
 from datetime import datetime
 from datetime import timezone as dt_timezone
+from decimal import Decimal
 
 from django.utils import timezone
+from django.utils.formats import date_format, number_format
+from django.utils.translation import gettext
 
 
 def invoice_subscription_id(invoice_data):
@@ -51,7 +54,8 @@ def invoice_is_past_due(invoice_data, now=None):
 
 
 def format_invoice_due_date(invoice_data):
-    """Render an invoice due date in the site's timezone, or None.
+    """Render an invoice due date in the site's timezone and the active
+    language, e.g. "14 November 2023", or None.
 
     Stripe sends unix seconds; rendering them naively would show a date a day
     out for members east of UTC.
@@ -61,11 +65,12 @@ def format_invoice_due_date(invoice_data):
         return None
 
     utc = datetime.fromtimestamp(due_date, tz=dt_timezone.utc)
-    return timezone.localtime(utc).strftime("%d %b %Y")
+    return date_format(timezone.localtime(utc), "j F Y")
 
 
 def format_invoice_amount(invoice_data, prefer="paid"):
-    """Render an invoice total for member-facing copy, e.g. "12.50 AUD".
+    """Render an invoice total in the active language, e.g. "12.50 AUD" or, in
+    Swedish, "12,50 AUD".
 
     Pass prefer="due" for an invoice that has not been paid: Stripe reports
     amount_paid as 0 rather than null on those, so preferring it would quote
@@ -84,10 +89,10 @@ def format_invoice_amount(invoice_data, prefer="paid"):
         None,
     )
     if amount is None:
-        return "your membership fee"
+        return gettext("your membership fee")
 
     currency = (invoice_data.get("currency") or "").upper()
-    formatted = f"{amount / 100:.2f}"
+    formatted = number_format(Decimal(amount) / 100, decimal_pos=2)
     return f"{formatted} {currency}".strip()
 
 

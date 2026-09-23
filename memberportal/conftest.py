@@ -8,6 +8,7 @@ import socket
 
 import pytest
 from django.core.cache import cache
+from django.core.management import call_command
 from rest_framework.test import APIClient
 
 from tests.factories import (  # noqa: F401  (re-exported for convenience)
@@ -23,6 +24,18 @@ _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 class NetworkAccessInTestError(RuntimeError):
     """Raised when a test tries to reach a non-loopback address."""
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _compiled_translations():
+    """Compile the email translation catalogs before any email is rendered.
+
+    Compiled .mo files are gitignored and built at deploy time, so without this a
+    fresh checkout, or a .po edited since the last compile, renders English where
+    a test expects Swedish. Catalogs already up to date are skipped, and a missing
+    msgfmt fails the run instead of every translation test.
+    """
+    call_command("compilemessages", verbosity=0)
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,9 @@
 from django.template.loader import render_to_string
+from django.utils import translation
 from django.utils.html import escape
 from constance import config
 from postmarker.core import PostmarkClient, ClientError
+from services.email_i18n import ADMIN_EMAIL_LANGUAGE
 import logging
 import json
 
@@ -15,6 +17,8 @@ def send_single_email(
     template_name=None,
     reply_to=None,
     user: object | None = None,
+    *,
+    language: str,
 ) -> object:
     # TODO: move to celery
 
@@ -23,15 +27,14 @@ def send_single_email(
     logger.debug("Using template vars: " + json.dumps(template_vars))
 
     if template_vars.get("message"):
-        template_vars["message"] = escape(template_vars["message"]).replace(
-            "~br~", "<br>"
-        )
+        template_vars["message"] = escape(template_vars["message"])
     if template_vars.get("title"):
         template_vars["title"] = escape(template_vars["title"])
 
-    email_string = render_to_string(
-        template_to_use, {"email": template_vars, "config": config}
-    )
+    with translation.override(language):
+        email_string = render_to_string(
+            template_to_use, {"email": template_vars, "config": config}
+        )
 
     if config.POSTMARK_API_KEY:
         postmark = PostmarkClient(server_token=config.POSTMARK_API_KEY)
@@ -92,4 +95,5 @@ def send_email_to_admin(
         template_name=template_name,
         reply_to=reply_to,
         user=user,
+        language=ADMIN_EMAIL_LANGUAGE,
     )

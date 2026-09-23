@@ -85,6 +85,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {},
 }
 
+# The real settings read MM_LANGUAGE_CODE, and `make test` exports .env, so a
+# local run would inherit the dev install's language while CI gets the default.
+# It is the language anything rendered outside a translation.override comes out
+# in; tests that need a non-English one set it themselves.
+LANGUAGE_CODE = "en-au"
+
 # Pinned rather than inherited: the real settings only pick the in-memory layer
 # when MM_ENV is unset or non-production, and device commands (Doors.sync,
 # Interlock.lock, ...) are asserted by draining this layer.

@@ -16,10 +16,12 @@ import logging
 import stripe
 from constance import config
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone, translation
+from django.utils.translation import gettext
 from sentry_sdk import capture_exception
 
 from profile.models import CancelTriggeredBy, SignupTriggeredBy
+from services.email_i18n import ADMIN_EMAIL_LANGUAGE, member_email_translation
 from services.emails import send_email_to_admin
 
 from .stripe_utils import (
@@ -120,7 +122,8 @@ def handle_orphan_invoice_paid(ctx):
     profile = ctx.profile
     data = ctx.data
     subscription_id = invoice_subscription_id(data)
-    amount = format_invoice_amount(data)
+    with translation.override(ADMIN_EMAIL_LANGUAGE):
+        amount = format_invoice_amount(data)
     invoice_id = data.get("id")
 
     profile.user.log_event(
@@ -196,7 +199,8 @@ def handle_invoice_paid(ctx):
         profile.save(update_fields=updates)
 
     if holding:
-        amount = format_invoice_amount(data)
+        with translation.override(ADMIN_EMAIL_LANGUAGE):
+            amount = format_invoice_amount(data)
         invoice_number = data.get("number")
         invoice_label = (
             f"{data.get('id')} ({invoice_number})" if invoice_number else data.get("id")
@@ -250,41 +254,46 @@ def handle_invoice_paid(ctx):
         # default, so send our own — otherwise a member who has just been
         # charged hears nothing either way.
         billing_reason = invoice_billing_reason(data)
-        amount = format_invoice_amount(data)
         profile.user.log_event(
             f"Payment recorded (billing_reason={billing_reason}); "
             "membership already active.",
             "stripe",
         )
 
-        if profile.subscription_status == "cancelling":
-            # The same case the status re-assert above excludes: the final
-            # invoice of a member who cancelled at period end. They are owed a
-            # receipt, but not one telling them their membership carries on.
-            receipt_subject = "Your final membership payment"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount}. "
-                "Your membership is still set to end at the end of your current "
-                "billing period, as you requested. You can review your "
-                f"membership at any time at {config.SITE_URL}."
-            )
-        elif billing_reason == "subscription_cycle":
-            receipt_subject = "Your membership has been renewed"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount} "
-                "and your membership continues as normal. You can review your "
-                f"membership at any time at {config.SITE_URL}."
-            )
-        else:
-            # Not a renewal. Usually the first invoice of a card signup:
-            # PaymentPlanSignup activates the member within the request, so
-            # this webhook tends to land after they are already active.
-            receipt_subject = "Your membership payment was received"
-            receipt_message = (
-                f"Thanks — we've received your membership payment of {amount}. "
-                "You can review your membership at any time at "
-                f"{config.SITE_URL}."
-            )
+        with member_email_translation(profile.user):
+            placeholders = {
+                "amount": format_invoice_amount(data),
+                "site_url": config.SITE_URL,
+            }
+            if profile.subscription_status == "cancelling":
+                # The same case the status re-assert above excludes: the final
+                # invoice of a member who cancelled at period end. They are owed
+                # a receipt, but not one telling them their membership carries on.
+                receipt_subject = gettext("Your final membership payment")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s. Your membership is still set to end at the end of "
+                    "your current billing period, as you requested. You can review "
+                    "your membership at any time at %(site_url)s."
+                )
+            elif billing_reason == "subscription_cycle":
+                receipt_subject = gettext("Your membership has been renewed")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s and your membership continues as normal. You can "
+                    "review your membership at any time at %(site_url)s."
+                )
+            else:
+                # Not a renewal. Usually the first invoice of a card signup:
+                # PaymentPlanSignup activates the member within the request, so
+                # this webhook tends to land after they are already active.
+                receipt_subject = gettext("Your membership payment was received")
+                receipt_message = gettext(
+                    "Thanks — we've received your membership payment of "
+                    "%(amount)s. You can review your membership at any time at "
+                    "%(site_url)s."
+                )
+            receipt_message %= placeholders
 
         def _on_commit_receipt_email(
             user=profile.user,
@@ -310,14 +319,14 @@ def handle_invoice_paid(ctx):
         # Registered before the activation callback so it arrives ahead of
         # activate()'s welcome email, which is the "another email message"
         # the body below refers to.
-        paid_subject = "Your payment was successful."
-        paid_message = (
-            "Thanks for making a membership payment using our "
-            "online payment system. You've already met all of "
-            "the requirements for activating your site access. "
-            "Please check for another email message confirming "
-            "this was successful."
-        )
+        with member_email_translation(profile.user):
+            paid_subject = gettext("Your payment was successful.")
+            paid_message = gettext(
+                "Thanks for making a membership payment using our online payment "
+                "system. You've already met all of the requirements for "
+                "activating your site access. Please check for another email "
+                "message confirming this was successful."
+            )
 
         def _on_commit_paid_email(
             user=profile.user,
@@ -351,14 +360,16 @@ def handle_invoice_paid(ctx):
             "stripe",
         )
 
-        paid_subject = "Your payment was received — additional steps needed"
-        paid_message = (
-            "Thanks for making a membership payment using our "
-            "online payment system. Your access isn't enabled yet "
-            "because you still need to complete your induction. "
-            f"Please log in to {config.SITE_URL} and finish the "
-            "induction step to activate your membership."
-        )
+        with member_email_translation(profile.user):
+            paid_subject = gettext(
+                "Your payment was received — additional steps needed"
+            )
+            paid_message = gettext(
+                "Thanks for making a membership payment using our online payment "
+                "system. Your access isn't enabled yet because you still need to "
+                "complete your induction. Please log in to %(site_url)s and finish "
+                "the induction step to activate your membership."
+            ) % {"site_url": config.SITE_URL}
         # Capture at decision time — state may shift before on_commit fires.
         notify_admin = profile.state != "noob"
 
@@ -402,48 +413,82 @@ def payment_failed_copy(profile, invoice_data, now=None):
     one, so for an invoice-billed member this event means a payment they
     started — on the hosted invoice page, or a bank debit — did not go
     through. They need the amount, the due date and a link to pay again.
+
+    The message is built from whole sentences, each translated on its own, so a
+    translation never has to fit a clause into another sentence.
     """
-    amount = format_invoice_amount(invoice_data, prefer="due")
-    hosted_url = invoice_data.get("hosted_invoice_url")
-    pay_here = f" You can pay it here: {hosted_url}" if hosted_url else ""
-
-    if profile.billing_method == "invoice":
+    with member_email_translation(profile.user):
+        amount = format_invoice_amount(invoice_data, prefer="due")
         due_date = format_invoice_due_date(invoice_data)
-
-        if invoice_is_past_due(invoice_data, now=now):
-            due_text = f" It was due on {due_date}." if due_date else ""
-            return (
-                "Your membership invoice is overdue",
-                f"A payment towards your membership invoice for {amount} "
-                f"didn't go through, and the invoice is now overdue.{due_text} "
-                "Please pay it to keep your membership active. If you have "
-                f"further questions, contact us.{pay_here}",
-            )
-
-        due_text = f" It's due on {due_date}." if due_date else ""
-        return (
-            "Your membership invoice payment didn't go through",
-            f"A payment towards your membership invoice for {amount} didn't go "
-            f"through, so the invoice is still outstanding.{due_text} Please "
-            f"pay it before the due date to keep your membership active.{pay_here}",
+        hosted_url = invoice_data.get("hosted_invoice_url")
+        pay_here = (
+            gettext("You can pay it here: %(url)s") % {"url": hosted_url}
+            if hosted_url
+            else None
         )
+        contact_us = gettext("If you have further questions, contact us.")
+        is_invoice = profile.billing_method == "invoice"
 
-    if invoice_will_retry(invoice_data):
-        return (
-            "Your membership payment failed",
-            f"We tried to collect your membership payment of {amount} but "
-            "weren't successful. We'll try again automatically, so there may "
-            "be nothing for you to do — but it's worth checking the card we "
-            f"have on file is still current at {config.SITE_URL}.",
-        )
+        if is_invoice and invoice_is_past_due(invoice_data, now=now):
+            subject = gettext("Your membership invoice is overdue")
+            sentences = [
+                gettext(
+                    "A payment towards your membership invoice for %(amount)s "
+                    "didn't go through, and the invoice is now overdue."
+                )
+                % {"amount": amount},
+                (
+                    gettext("It was due on %(due_date)s.") % {"due_date": due_date}
+                    if due_date
+                    else None
+                ),
+                gettext("Please pay it to keep your membership active."),
+                contact_us,
+                pay_here,
+            ]
+        elif is_invoice:
+            subject = gettext("Your membership invoice payment didn't go through")
+            sentences = [
+                gettext(
+                    "A payment towards your membership invoice for %(amount)s "
+                    "didn't go through, so the invoice is still outstanding."
+                )
+                % {"amount": amount},
+                (
+                    gettext("It's due on %(due_date)s.") % {"due_date": due_date}
+                    if due_date
+                    else None
+                ),
+                gettext(
+                    "Please pay it before the due date to keep your membership active."
+                ),
+                pay_here,
+            ]
+        elif invoice_will_retry(invoice_data):
+            subject = gettext("Your membership payment failed")
+            sentences = [
+                gettext(
+                    "We tried to collect your membership payment of %(amount)s but "
+                    "weren't successful. We'll try again automatically, so there may "
+                    "be nothing for you to do — but it's worth checking the card we "
+                    "have on file is still current at %(site_url)s."
+                )
+                % {"amount": amount, "site_url": config.SITE_URL},
+            ]
+        else:
+            subject = gettext("Action needed: your membership payment failed")
+            sentences = [
+                gettext(
+                    "We tried to collect your membership payment of %(amount)s and "
+                    "weren't successful. That was our last automatic attempt, so your "
+                    "membership may be cancelled unless the payment goes through. "
+                    "Please update your card at %(site_url)s."
+                )
+                % {"amount": amount, "site_url": config.SITE_URL},
+                contact_us,
+            ]
 
-    return (
-        "Action needed: your membership payment failed",
-        f"We tried to collect your membership payment of {amount} and weren't "
-        "successful. That was our last automatic attempt, so your membership "
-        "may be cancelled unless the payment goes through. Please update your "
-        f"card at {config.SITE_URL}. If you have further questions, contact us.",
-    )
+    return subject, " ".join(sentence for sentence in sentences if sentence)
 
 
 def handle_invoice_payment_failed(ctx):
@@ -608,30 +653,65 @@ def handle_subscription_deleted(ctx):
     transaction.on_commit(_on_commit_complete_cancel)
 
 
-def overdue_reminder_copy(invoice_data):
+def overdue_reminder_copy(user, invoice_data):
     """Returns (subject, message) for a membership invoice past its due date.
 
     Bank transfer and cash payments are recorded by an admin by hand, so the
     copy allows for a member who has paid but is not yet marked as paid.
-    """
-    amount_text = (
-        f" for {format_invoice_amount(invoice_data, prefer='due')}"
-        if invoice_data.get("amount_due") is not None
-        else ""
-    )
-    due_date = format_invoice_due_date(invoice_data)
-    due_text = f" was due on {due_date}" if due_date else " is past its due date"
-    hosted_url = invoice_data.get("hosted_invoice_url")
-    pay_here = f" Otherwise, you can pay it here: {hosted_url}." if hosted_url else ""
 
-    return (
-        "Reminder: your membership invoice is overdue",
-        f"Your membership invoice{amount_text}{due_text}, and we haven't "
-        "registered a payment yet. If you have paid in another way than through "
-        "the invoice link, for example by bank transfer, we may not have had time "
-        "to register your payment yet. Please make sure the payment has been "
-        f"made.{pay_here} If you have further questions, contact us.",
-    )
+    A send_invoice invoice from Stripe always carries its amount and due date.
+    The openings without them cover an invoice that could not be fetched.
+    """
+    with member_email_translation(user):
+        due_date = format_invoice_due_date(invoice_data)
+        hosted_url = invoice_data.get("hosted_invoice_url")
+        pay_here = (
+            gettext("Otherwise, you can pay it here: %(url)s.") % {"url": hosted_url}
+            if hosted_url
+            else None
+        )
+
+        placeholders = {
+            "amount": format_invoice_amount(invoice_data, prefer="due"),
+            "due_date": due_date,
+        }
+        has_amount = invoice_data.get("amount_due") is not None
+
+        if has_amount and due_date:
+            opening = (
+                gettext(
+                    "Your membership invoice for %(amount)s was due on %(due_date)s, "
+                    "and we haven't registered a payment yet."
+                )
+                % placeholders
+            )
+        elif has_amount:
+            opening = (
+                gettext(
+                    "Your membership invoice for %(amount)s is past its due date, and "
+                    "we haven't registered a payment yet."
+                )
+                % placeholders
+            )
+        else:
+            opening = gettext(
+                "Your membership invoice is past its due date, and we haven't "
+                "registered a payment yet."
+            )
+
+        subject = gettext("Reminder: your membership invoice is overdue")
+        sentences = [
+            opening,
+            gettext(
+                "If you have paid in another way than through the invoice link, for "
+                "example by bank transfer, we may not have had time to register "
+                "your payment yet. Please make sure the payment has been made."
+            ),
+            pay_here,
+            gettext("If you have further questions, contact us."),
+        ]
+
+    return subject, " ".join(sentence for sentence in sentences if sentence)
 
 
 def handle_subscription_updated(ctx):
@@ -677,7 +757,7 @@ def handle_subscription_updated(ctx):
         if invoice_data and invoice_data.get("status") != "open":
             return
 
-        subject, message = overdue_reminder_copy(invoice_data)
+        subject, message = overdue_reminder_copy(user, invoice_data)
         try:
             user.email_notification(subject, message)
             user.log_event("Overdue-invoice reminder email sent.", "email")

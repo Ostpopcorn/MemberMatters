@@ -10,7 +10,8 @@ RUN mkdir -p /usr/src/app/frontend && mkdir /usr/src/logs && mkdir /usr/src/data
 
 # daphne is not installed here: channels pulls it in via requirements.txt, and
 # pip's /usr/local/bin copy already shadowed the apt one on PATH.
-RUN apt-get update -y && apt-get install -y nginx curl
+# gettext provides msgfmt for compilemessages below.
+RUN apt-get update -y && apt-get install -y nginx curl gettext
 
 # Install Node
 ENV NODE_VERSION=22.2.0
@@ -47,6 +48,8 @@ RUN rm -rf .npmrc
 ADD memberportal /usr/src/app/memberportal
 WORKDIR /usr/src/app/memberportal/
 RUN python3 manage.py collectstatic --noinput
+# Compiled email translations are not committed.
+RUN python3 manage.py compilemessages
 
 # Copy over the nginx config and requirement files
 ADD docker/nginx.conf /etc/nginx/nginx.conf

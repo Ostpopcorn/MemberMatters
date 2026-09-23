@@ -1,6 +1,6 @@
-{% load email_extras %}
+{% load i18n email_extras %}
 <!DOCTYPE html>
-<html>
+{% get_current_language as LANGUAGE_CODE %}<html lang="{{ LANGUAGE_CODE }}">
   <head>
     <title></title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -130,8 +130,10 @@
         overflow: hidden;
       "
     >
-      Welcome to {{ config.SITE_OWNER }}. Please read this email as it contains
+      {% blocktranslate trimmed with site_owner=config.SITE_OWNER %}
+      Welcome to {{ site_owner }}. Please read this email as it contains
       some important information about how to get started.
+      {% endblocktranslate %}
     </div>
 
     <table border="0" cellpadding="0" cellspacing="0" width="100%">
@@ -201,7 +203,7 @@
                 "
               >
                 <h1 style="font-size: 48px; font-weight: 400; margin: 0">
-                  Welcome to {{ config.SITE_OWNER }}
+                  {% blocktranslate with site_owner=config.SITE_OWNER %}Welcome to {{ site_owner }}{% endblocktranslate %}
                 </h1>
               </td>
             </tr>
@@ -233,9 +235,11 @@
                 "
               >
                 <p style="margin: 0">
-                  Thanks for finishing your {{ config.SITE_OWNER }} member
+                  {% blocktranslate trimmed with site_owner=config.SITE_OWNER %}
+                  Thanks for finishing your {{ site_owner }} member
                   induction. Now that you're part of our community here are a
-                  few things to get you started.<br />
+                  few things to get you started.
+                  {% endblocktranslate %}<br />
                 </p>
               </td>
             </tr>
@@ -326,7 +330,7 @@
                   line-height: 25px;
                 "
               >
-                <p style="margin: 0">Cheers,<br />{{ config.SITE_NAME }}</p>
+                <p style="margin: 0">{% translate "Cheers," %}<br />{{ config.SITE_NAME }}</p>
               </td>
             </tr>
           </table>
@@ -357,9 +361,7 @@
                 "
               >
                 <p style="margin: 0">
-                  Sent by
-                  <a href="{{ config.SITE_URL }}">{{ config.SITE_NAME }}</a> on
-                  behalf of {{ config.SITE_OWNER }} at {{ config.SITE_MAIL_ADDRESS }}.
+                  {% site_link as site_link %}{% blocktranslate trimmed with site_owner=config.SITE_OWNER site_address=config.SITE_MAIL_ADDRESS %}Sent by {{ site_link }} on behalf of {{ site_owner }} at {{ site_address }}.{% endblocktranslate %}
                 </p>
               </td>
             </tr>

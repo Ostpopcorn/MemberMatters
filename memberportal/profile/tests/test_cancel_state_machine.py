@@ -196,6 +196,19 @@ class TestSignupLapsed:
 
         assert subjects_to(outbox, profile) == ["Your membership signup has lapsed"]
 
+    @pytest.mark.override_config(EMAIL_LANGUAGE="sv-SE")
+    def test_the_lapsed_email_follows_the_site_language(
+        self, django_capture_on_commit_callbacks, outbox
+    ):
+        profile = ProfileFactory()
+
+        with django_capture_on_commit_callbacks(execute=True):
+            profile.complete_cancel(CancelTriggeredBy.SUBSCRIPTION_DELETED)
+
+        [message] = [m for m in outbox if m["To"] == profile.user.email]
+        assert message["Subject"] == "Din medlemsregistrering har gått ut"
+        assert "Vi fick inte in din medlemsbetalning i tid" in message["HtmlBody"]
+
     def test_the_lapsed_email_does_not_fire_without_a_commit(self, outbox):
         # Same guard as the awaiting-payment email: it rides
         # transaction.on_commit, so the test above would pass vacuously

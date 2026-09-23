@@ -15,6 +15,7 @@ from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext
 from rest_framework import permissions
 from rest_framework import serializers
 from rest_framework import status
@@ -49,6 +50,7 @@ from profile.phone import to_e164
 from services.sanitize import clean_html
 from services import sms
 from services.emails import send_email_to_admin
+from services.email_i18n import member_email_translation
 from .models import MemberTier, PaymentPlan
 
 
@@ -251,12 +253,15 @@ class MemberCancelMembership(StripeAPIView):
                         "admin",
                     )
 
-                    member_subject = "Your membership cancellation is scheduled"
-                    member_message = (
-                        "An admin has scheduled your membership to cancel at "
-                        "the end of the current billing period. Your access "
-                        "continues until then."
-                    )
+                    with member_email_translation(locked.user):
+                        member_subject = gettext(
+                            "Your membership cancellation is scheduled"
+                        )
+                        member_message = gettext(
+                            "An admin has scheduled your membership to cancel at the "
+                            "end of the current billing period. Your access continues "
+                            "until then."
+                        )
                     admin_subject = (
                         f"{request.user.get_full_name()} cancelled "
                         f"{locked.get_full_name()}'s membership (at period end)."
@@ -345,12 +350,13 @@ class MemberCancelMembership(StripeAPIView):
                         "stripe",
                     )
 
-            member_subject = "Your membership has been cancelled"
-            member_message = (
-                "An admin has cancelled your membership effective "
-                "immediately. Your subscription has been ended and any open "
-                "invoices voided. If this is unexpected, please let us know."
-            )
+            with member_email_translation(locked.user):
+                member_subject = gettext("Your membership has been cancelled")
+                member_message = gettext(
+                    "An admin has cancelled your membership effective immediately. "
+                    "Your subscription has been ended and any open invoices voided. "
+                    "If this is unexpected, please let us know."
+                )
             admin_subject = (
                 f"{request.user.get_full_name()} cancelled "
                 f"{full_name}'s membership (immediately)."
@@ -1550,13 +1556,12 @@ class SignupPreview(APIView):
     permission_classes = (permissions.IsAdminUser,)
 
     def get(self, request):
-        email_vars = {
-            "title": f"Welcome to {config.SITE_OWNER}",
-            "cards": welcome_email_cards(),
-        }
-        welcome_email_html = render_to_string(
-            "email_welcome.html", {"email": email_vars, "config": config}
-        )
+        # Rendered in the member email language, as members receive it.
+        with member_email_translation():
+            welcome_email_html = render_to_string(
+                "email_welcome.html",
+                {"email": {"cards": welcome_email_cards()}, "config": config},
+            )
 
         try:
             terms_cards = json.loads(config.TERMS_ACCEPTANCE_CARDS)
