@@ -69,7 +69,6 @@ if os.environ.get("MM_ENV") == "Production":
 # Application definition
 INSTALLED_APPS = [
     "constance",
-    "constance.backends.database",
     "django_prometheus",
     "django.contrib.admin",
     "django.contrib.auth",

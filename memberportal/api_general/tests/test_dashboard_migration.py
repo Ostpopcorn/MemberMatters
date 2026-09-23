@@ -8,7 +8,7 @@ import importlib
 import json
 
 import pytest
-from constance.backends.database.models import Constance
+from constance.models import Constance
 from django.apps import apps
 
 from api_general.models import DashboardCard
