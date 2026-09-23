@@ -30,6 +30,7 @@ export default {
     kiosks: 'Kiosks',
     pendingInvoices: 'Väntande fakturor',
     signupPreview: 'Signup Preview',
+    manageDashboard: 'Dashboard Cards',
 
     memberTools: 'Medlemsverktyg',
     reportIssue: 'Rapportera ett problem',

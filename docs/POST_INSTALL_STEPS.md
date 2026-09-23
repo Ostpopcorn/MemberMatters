@@ -210,7 +210,6 @@ You cannot currently enable specific events, you either get "all or nothing".
     ["Digital Fabrication", "https://example.com/digifab.jpg"],
     ]
 ```
-  * "HOME_PAGE_CARDS" - a JSON array of cards to be used on the hompeage (see below for more info).
   * "WELCOME_EMAIL_CARDS" - a JSON array of cards to be used in the welcome email (see below for more info).
 
 ### "Stripe Integration"
@@ -312,49 +311,34 @@ as above (NOT recommended for security).
   * "DISCORD_INTERLOCK_WEBHOOK" - URL for the interlock webhook.
   * "DISCORD_MEMBERBUCKS_PURCHASE_WEBHOOK" - URL for the vending/product purchase webhook.
 
-### Home Page and Welcome Email Cards
+### Dashboard and Welcome Email Cards
 
-The settings called "HOME_PAGE_CARDS" and "WELCOME_EMAIL_CARDS" control the content that is displayed on the
-MemberMatters home page, and the content in the welcome email each user receives when they are converted to a member.
-These options are configured with a JSON object specifying the content. You can add as many cards as you want, but we
-recommend 6 as a maximum for the homepage, and 4 for the email. You can find the icon names on
-[this page](https://fontawesome.com/icons?d=gallery&p=1). Absolute and relative URLs, and vue routes are supported.
+The "Member Resources" cards on the dashboard are managed from "Admin Tools" > "Dashboard Cards". Each card has a
+title, an icon, a description and any number of buttons, each opening a website or a page of the portal. Cards can be
+reordered, and switched off without deleting them. We recommend 6 cards as a maximum. Icons are
+[Material Design Icons](https://pictogrammers.com/library/mdi/) names with an `mdi-` prefix, such as `mdi-calendar`.
 
-An example with 3 cards is below:
+The setting called "WELCOME_EMAIL_CARDS" controls the content in the welcome email each user receives when they are
+converted to a member. It is configured with a JSON array of cards, and we recommend 4 as a maximum. Each card has a
+title, a description (a few formatting tags such as `<p>`, `<b>` and `<a>` are allowed), and a button with a URL. It is
+blank by default, which uses the dashboard's Member Resources cards instead, each with a button for its first website
+link. Set it to `[]` to send the welcome email without cards.
+
+An example with 2 cards is below:
 
 ```json
 [
   {
     "title": "Brisbane Makerspace Wiki",
     "description": "Our wiki is like the rule book for BMS. It contains all the information about our tools, processes and other helpful tips.",
-    "icon": "class",
     "url": "https://bms.wiki",
     "btn_text": "Read Wiki"
   },
   {
-    "title": "Member Bucks",
-    "description": "If you need to make a payment for tool usage or something else, tap here.",
-    "icon": "mdi-alert",
-    "routerLink": {
-      "name": "memberbucks"
-    },
-    "btn_text": "Member Bucks"
-  },
-  {
     "title": "Discord Server",
-	"description": "Discord is an instant messaging platform that allows you to connect with other BMS members to share you skills, knowledge and projects. You can also get realtime support from staff/other members.",
-	"icon": "mdi-chat",
-	"links": [
-		{
-			"url": "https://s.bms.wiki/discord",
-			"btn_text": "Join Discord",
-                        "newLine": true
-		},
-		{
-			"url": "https://s.bms.wiki/discord",
-			"btn_text": "Join Discord 2"
-		}
-	]
+    "description": "Connect with other BMS members to share your skills, knowledge and projects.",
+    "url": "https://s.bms.wiki/discord",
+    "btn_text": "Join Discord"
   }
 ]
 ```

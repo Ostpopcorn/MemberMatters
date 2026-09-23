@@ -1,5 +1,7 @@
 import json
+import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 import stripe
 from asgiref.sync import async_to_sync
@@ -14,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework import permissions
+from rest_framework import serializers
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,6 +26,7 @@ from sentry_sdk import capture_message
 
 from access import models
 from access.models import DoorLog, InterlockLog
+from api_general.models import DashboardCard
 from api_billing.stripe_utils import invoice_subscription_id
 from api_billing.views import (
     ensure_stripe_customer,
@@ -39,8 +43,10 @@ from profile.models import (
     CancelTriggeredBy,
     User,
     UserEventLog,
+    welcome_email_cards,
 )
 from profile.phone import to_e164
+from services.sanitize import clean_html
 from services import sms
 from services.emails import send_email_to_admin
 from .models import MemberTier, PaymentPlan
@@ -1544,14 +1550,10 @@ class SignupPreview(APIView):
     permission_classes = (permissions.IsAdminUser,)
 
     def get(self, request):
-        # Mirror Profile.email_welcome()'s card source so the preview matches.
-        raw_cards = config.WELCOME_EMAIL_CARDS or config.HOME_PAGE_CARDS
-        try:
-            cards = json.loads(raw_cards)
-        except (ValueError, TypeError):
-            cards = []
-
-        email_vars = {"title": f"Welcome to {config.SITE_OWNER}", "cards": cards}
+        email_vars = {
+            "title": f"Welcome to {config.SITE_OWNER}",
+            "cards": welcome_email_cards(),
+        }
         welcome_email_html = render_to_string(
             "email_welcome.html", {"email": email_vars, "config": config}
         )
@@ -1567,3 +1569,143 @@ class SignupPreview(APIView):
                 "termsAcceptanceCards": terms_cards,
             }
         )
+
+
+ROUTE_NAME = re.compile(r"[A-Za-z0-9_-]+")
+ICON_NAME = re.compile(r"mdi-[a-z0-9-]+")
+LINK_URL_SCHEMES = ("http", "https", "mailto")
+
+
+class DashboardCardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DashboardCard
+        fields = ("title", "icon", "description", "links", "enabled")
+
+    def validate_icon(self, value):
+        if not ICON_NAME.fullmatch(value):
+            raise serializers.ValidationError(
+                "Icons must be a Material Design Icons name, e.g. mdi-calendar."
+            )
+        return value
+
+    def validate_description(self, value):
+        return clean_html(value)
+
+    def validate_links(self, links):
+        if not isinstance(links, list) or not all(
+            isinstance(link, dict) for link in links
+        ):
+            raise serializers.ValidationError("Links must be a list of objects.")
+
+        cleaned = []
+        for link in links:
+            label, url, route = link.get("label"), link.get("url"), link.get("route")
+
+            if not isinstance(label, str) or not label.strip():
+                raise serializers.ValidationError("Every link needs a label.")
+
+            if bool(url) == bool(route):
+                raise serializers.ValidationError(
+                    "Every link needs either a URL or a portal page, not both."
+                )
+
+            if url:
+                # urlparse strips the leading whitespace and tabs a browser
+                # would also ignore, so " javascript:" is caught here too.
+                if not isinstance(url, str) or not (
+                    url.strip().startswith("/")
+                    or urlparse(url).scheme in LINK_URL_SCHEMES
+                ):
+                    raise serializers.ValidationError(
+                        "Link URLs must start with http://, https://, mailto: or /."
+                    )
+                cleaned.append({"label": label.strip(), "url": url.strip()})
+            else:
+                if not isinstance(route, str) or not ROUTE_NAME.fullmatch(route):
+                    raise serializers.ValidationError("Invalid portal page.")
+                cleaned.append({"label": label.strip(), "route": route})
+
+        return cleaned
+
+
+class DashboardCardOrderSerializer(serializers.Serializer):
+    ids = serializers.ListField(child=serializers.IntegerField())
+
+
+class DashboardCards(APIView):
+    """
+    get: returns every dashboard card, including disabled ones.
+    post: creates a dashboard card at the end of the list.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        return Response(
+            [card.get_admin_object() for card in DashboardCard.objects.all()]
+        )
+
+    def post(self, request):
+        serializer = DashboardCardSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        last_position = DashboardCard.objects.aggregate(Max("position"))[
+            "position__max"
+        ]
+        card = serializer.save(
+            position=0 if last_position is None else last_position + 1
+        )
+
+        return Response(card.get_admin_object(), status=status.HTTP_201_CREATED)
+
+
+class DashboardCardDetail(APIView):
+    """
+    put: updates the given fields of a dashboard card.
+    delete: deletes a dashboard card.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def put(self, request, card_id):
+        card = get_object_or_404(DashboardCard, pk=card_id)
+        serializer = DashboardCardSerializer(card, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.save().get_admin_object())
+
+    def delete(self, request, card_id):
+        get_object_or_404(DashboardCard, pk=card_id).delete()
+
+        return Response()
+
+
+class DashboardCardOrder(APIView):
+    """
+    put: reorders the dashboard cards to match a list of every card id.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def put(self, request):
+        serializer = DashboardCardOrderSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        ids = serializer.validated_data["ids"]
+        cards = DashboardCard.objects.in_bulk()
+        # Requiring every card rejects an order built from a stale list, e.g.
+        # while another admin added or deleted a card.
+        if len(ids) != len(set(ids)) or set(ids) != set(cards):
+            return Response(
+                {"ids": ["Must list every dashboard card exactly once."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for position, card_id in enumerate(ids):
+            cards[card_id].position = position
+        DashboardCard.objects.bulk_update(cards.values(), ["position"])
+
+        return Response([cards[card_id].get_admin_object() for card_id in ids])

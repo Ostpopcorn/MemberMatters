@@ -24,35 +24,15 @@
       <div class="full-width">
         <q-separator dark />
 
-        <q-card-actions v-if="Platform.is.electron">
-          <q-btn v-if="routerLink" :to="routerLink" flat>
-            {{ linkText }}
-          </q-btn>
-          <q-btn v-else :href="linkLocation" target="_blank" flat>
-            {{ linkLocation }}
-          </q-btn>
-        </q-card-actions>
-
-        <q-card-actions v-else>
-          <q-btn v-if="routerLink" :to="routerLink" flat>
-            {{ linkText }}
-          </q-btn>
-          <q-btn
-            v-else-if="linkLocation"
-            :href="linkLocation"
-            target="_blank"
-            flat
-          >
-            {{ linkText }}
-          </q-btn>
-          <div v-else>
-            <template :key="link.url" v-for="link in links">
-              <q-btn :href="link.url" target="_blank" flat>
-                {{ link.btn_text }}
-              </q-btn>
-              <q-separator v-if="link.newLine" vertical />
-            </template>
-          </div>
+        <q-card-actions>
+          <template v-for="(link, index) in visibleLinks" :key="index">
+            <q-btn v-if="link.route" :to="link.to" flat>
+              {{ link.label }}
+            </q-btn>
+            <q-btn v-else :href="link.url" target="_blank" flat>
+              {{ link.label }}
+            </q-btn>
+          </template>
         </q-card-actions>
       </div>
     </q-card>
@@ -60,8 +40,11 @@
 </template>
 
 <script>
-import { Platform } from 'quasar';
 import DOMPurify from 'dompurify';
+import { mapGetters } from 'vuex';
+import PageAndRouteConfig from '../pages/pageAndRouteConfig';
+import { ALLOWED_ATTR, ALLOWED_TAGS } from '../utils/cardHtml';
+import { cardLinks, portalPages } from '../utils/portalPages';
 
 export default {
   name: 'DashboardCard',
@@ -78,37 +61,27 @@ export default {
       type: String,
       required: true,
     },
-    linkText: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    linkLocation: {
-      type: [String, Object],
-      required: false,
-      default: null,
-    },
+    // [{ label, url }] for a website or [{ label, route }] for a portal page.
     links: {
       type: Array,
       required: false,
       default: () => [],
     },
-    routerLink: {
-      type: [Object, Boolean],
-      required: false,
-      default: null,
-    },
   },
   computed: {
-    Platform() {
-      return Platform;
+    ...mapGetters('config', ['features']),
+    ...mapGetters('profile', ['profile']),
+    visibleLinks() {
+      return cardLinks(
+        this.links,
+        portalPages(PageAndRouteConfig, this.features),
+        this.profile
+      );
     },
     sanitizedDescription() {
-      // Allow links (with target/rel) so cards can link out; everything
-      // else falls back to DOMPurify's safe defaults. Matches the policy
-      // used by the terms-acceptance and welcome-email cards.
       return DOMPurify.sanitize(this.description, {
-        ADD_ATTR: ['target', 'rel'],
+        ALLOWED_TAGS,
+        ALLOWED_ATTR,
       });
     },
   },

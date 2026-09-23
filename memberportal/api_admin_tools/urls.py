@@ -138,4 +138,19 @@ urlpatterns = [
         views.SignupPreview.as_view(),
         name="SignupPreview",
     ),
+    path(
+        "api/admin/dashboard-cards/",
+        views.DashboardCards.as_view(),
+        name="DashboardCards",
+    ),
+    path(
+        "api/admin/dashboard-cards/order/",
+        views.DashboardCardOrder.as_view(),
+        name="DashboardCardOrder",
+    ),
+    path(
+        "api/admin/dashboard-cards/<int:card_id>/",
+        views.DashboardCardDetail.as_view(),
+        name="DashboardCardDetail",
+    ),
 ]

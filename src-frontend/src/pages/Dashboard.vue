@@ -25,22 +25,21 @@
         <quick-cards />
       </template>
 
-      <h5 class="q-ma-md">
-        {{ $t('dashboard.usefulResources') }}
-      </h5>
-      <div class="dashboard-grid">
-        <dashboard-card
-          v-for="card in homepageCards"
-          :key="card.title"
-          :title="card.title"
-          :icon="card.icon"
-          :description="card.description"
-          :link-text="card.btn_text"
-          :link-location="card.url"
-          :router-link="card.routerLink ? card.routerLink : false"
-          :links="card.links"
-        />
-      </div>
+      <template v-if="dashboardCards.length">
+        <h5 class="q-ma-md">
+          {{ $t('dashboard.usefulResources') }}
+        </h5>
+        <div class="dashboard-grid">
+          <dashboard-card
+            v-for="card in dashboardCards"
+            :key="card.id"
+            :title="card.title"
+            :icon="card.icon"
+            :description="card.description"
+            :links="card.links"
+          />
+        </div>
+      </template>
     </div>
   </q-page>
 </template>
@@ -59,7 +58,7 @@ export default {
     Platform() {
       return Platform;
     },
-    ...mapGetters('config', ['homepageCards', 'features']),
+    ...mapGetters('config', ['dashboardCards', 'features']),
     ...mapGetters('profile', ['loggedIn', 'profile']),
     icons() {
       return icons;

@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Kiosk, SiteSession, EmailVerificationToken
+from .models import Kiosk, SiteSession, EmailVerificationToken, DashboardCard
 from services.discord import post_kiosk_swipe_to_discord
 from services.slack import post_kiosk_swipe_to_slack
 from services.captcha import verify_captcha, captcha_enabled
@@ -116,19 +116,6 @@ class GetConfig(APIView):
             version = package.get("version")
 
         try:
-            homepage_cards = json.loads(config.HOME_PAGE_CARDS)
-        except:
-            homepage_cards = [
-                {
-                    "title": "Error loading configuration",
-                    "description": "There was an error loading the home page cards configuration. Please try re-saving the configuration in the admin panel.",
-                    "icon": "mdi-alert",
-                    "url": "#",
-                    "btn_text": "",
-                },
-            ]
-
-        try:
             webcam_links = json.loads(config.WEBCAM_PAGE_URLS)
         except:
             webcam_links = [
@@ -159,7 +146,9 @@ class GetConfig(APIView):
                 "themeToolbar": config.THEME_TOOLBAR,
                 "themeAccent": config.THEME_ACCENT,
             },
-            "homepageCards": homepage_cards,
+            "dashboardCards": [
+                card.get_object() for card in DashboardCard.objects.filter(enabled=True)
+            ],
             "webcamLinks": webcam_links,
             "keys": keys,
             "features": features,

@@ -11,7 +11,7 @@ from django.contrib.auth.models import (
 from django.core.validators import RegexValidator
 from django.conf import settings
 from constance import config
-from api_general.models import SiteSession
+from api_general.models import DashboardCard, SiteSession
 from api_admin_tools.models import PaymentPlan
 import json
 import uuid
@@ -112,6 +112,20 @@ def log_event(
         interlock=interlock,
         memberbucks_device=memberbucks_device,
     ).save()
+
+
+def welcome_email_cards():
+    if not config.WELCOME_EMAIL_CARDS:
+        return [
+            card.get_email_object()
+            for card in DashboardCard.objects.filter(enabled=True)
+        ]
+
+    try:
+        cards = json.loads(config.WELCOME_EMAIL_CARDS)
+    except (ValueError, TypeError):
+        return []
+    return cards if isinstance(cards, list) else []
 
 
 class UserManager(BaseUserManager):
@@ -258,15 +272,8 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         )
 
     def email_welcome(self):
-        cards = (
-            config.WELCOME_EMAIL_CARDS
-            if config.WELCOME_EMAIL_CARDS
-            else config.HOME_PAGE_CARDS
-        )
-        cards = json.loads(cards)
-
         subject = f"Welcome to {config.SITE_OWNER}"
-        template_vars = {"title": subject, "cards": cards}
+        template_vars = {"title": subject, "cards": welcome_email_cards()}
 
         if self.__send_email(
             subject=subject,
