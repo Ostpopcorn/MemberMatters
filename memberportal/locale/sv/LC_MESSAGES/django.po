@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MemberMatters\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 03:53+1000\n"
+"POT-Creation-Date: 2026-09-24 04:45+1000\n"
 "PO-Revision-Date: 2026-09-17 04:15+1000\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
@@ -46,6 +46,20 @@ msgstr ""
 #: api_billing/stripe_utils.py
 msgid "your membership fee"
 msgstr "din medlemsavgift"
+
+#: api_billing/views.py
+#, python-format
+msgid "You just added a payment card to your %(site_owner)s account."
+msgstr "Du har lagt till ett betalkort på ditt konto hos %(site_owner)s."
+
+#: api_billing/views.py
+#, python-format
+msgid ""
+"Don't worry, your card details are stored safe with Stripe and are not on "
+"our servers. You can remove this card at any time via the %(site_name)s."
+msgstr ""
+"Oroa dig inte – dina kortuppgifter lagras säkert hos Stripe och finns inte "
+"på våra servrar. Du kan ta bort kortet när som helst via %(site_name)s."
 
 #: api_billing/views.py
 msgid "Your membership has been resumed"

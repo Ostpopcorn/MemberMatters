@@ -31,7 +31,7 @@ from services.moodle_integration import (
     moodle_get_user_from_email,
 )
 from services.emails import send_email_to_admin
-from services.email_i18n import ENGLISH, member_email_translation
+from services.email_i18n import member_email_translation
 from constance import config
 from django.db import transaction, IntegrityError
 from django.db.utils import OperationalError
@@ -180,16 +180,17 @@ class MemberBucksAddCard(StripeAPIView):
 
         # Email outside the atomic — a Postmark blip mustn't roll back the
         # successful card attachment.
-        subject = f"You just added a payment card to your {config.SITE_OWNER} account."
+        with member_email_translation(request.user):
+            subject = gettext(
+                "You just added a payment card to your %(site_owner)s account."
+            ) % {"site_owner": config.SITE_OWNER}
+            message = gettext(
+                "Don't worry, your card details are stored safe with Stripe and are "
+                "not on our servers. You can remove this card at any time via the "
+                "%(site_name)s."
+            ) % {"site_name": config.SITE_NAME}
         try:
-            request.user.email_notification(
-                subject,
-                "Don't worry, your card details are stored safe "
-                "with Stripe and are not on our servers. You "
-                "can remove this card at any time via the "
-                f"{config.SITE_NAME}.",
-                language=ENGLISH,
-            )
+            request.user.email_notification(subject, message)
         except Exception as e:
             capture_exception(e)
             return Response(
