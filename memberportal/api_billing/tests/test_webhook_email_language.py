@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone, translation
 
-from api_billing.stripe_utils import format_invoice_due_date
+from api_billing.stripe_utils import format_invoice_amount, format_invoice_due_date
 from api_billing.webhook_handlers import overdue_reminder_copy, payment_failed_copy
 from tests.factories import PaymentPlanFactory, ProfileFactory
 
@@ -69,7 +69,7 @@ class TestInvoicePaid:
 
         [message] = mail_to(outbox, renewing_member)
         assert message["Subject"] == "Ditt medlemskap har förnyats"
-        assert "din medlemsbetalning på 55.00 AUD" in message["HtmlBody"]
+        assert "din medlemsbetalning på 55,00 AUD" in message["HtmlBody"]
 
     @swedish()
     def test_a_leaving_members_final_receipt(
@@ -125,6 +125,35 @@ class TestInvoicePaid:
         assert alert["Subject"] == "Action Required: Verify returning member"
         assert "Cheers," in alert["HtmlBody"]
 
+    @swedish(EMAIL_ADMIN="admin@example.com")
+    def test_a_locked_members_payment_alert_keeps_the_english_amount(
+        self, settings, send_webhook, outbox
+    ):
+        # A Swedish install's default language would otherwise write "55,00".
+        settings.LANGUAGE_CODE = "sv-se"
+        ProfileFactory(
+            state_locked=True,
+            subscription_status="pending",
+            billing_method="invoice",
+            stripe_customer_id=CUSTOMER_ID,
+            stripe_subscription_id=SUBSCRIPTION_ID,
+            membership_plan=PaymentPlanFactory(),
+        )
+
+        send_webhook(
+            build_event(
+                "invoice.paid",
+                build_invoice(
+                    billing_reason="subscription_create",
+                    amount_paid=5500,
+                    currency="aud",
+                ),
+            )
+        )
+
+        [alert] = [m for m in outbox if m["To"] == "admin@example.com"]
+        assert "has paid 55.00 AUD" in alert["Subject"]
+
 
 # 2023-11-14 22:13 UTC and 2100-01-01 00:00 UTC. Dates are asserted with the
 # site timezone pinned to UTC, so they don't move with MM_TIME_ZONE.
@@ -144,6 +173,22 @@ class TestInvoiceDueDate:
             assert format_invoice_due_date({"due_date": PAST}) == "14 November 2023"
         with translation.override("sv-SE"):
             assert format_invoice_due_date({"due_date": PAST}) == "14 november 2023"
+
+
+class TestInvoiceAmount:
+    @pytest.mark.parametrize(
+        "payload, english, swedish",
+        [
+            ({"amount_paid": 5500, "currency": "aud"}, "55.00 AUD", "55,00 AUD"),
+            ({}, "your membership fee", "din medlemsavgift"),
+        ],
+        ids=["amount", "no_amount"],
+    )
+    def test_it_renders_in_the_active_language(self, payload, english, swedish):
+        with translation.override("en-AU"):
+            assert format_invoice_amount(payload) == english
+        with translation.override("sv-SE"):
+            assert format_invoice_amount(payload) == swedish
 
 
 class TestPaymentFailedCopy:
@@ -174,7 +219,7 @@ class TestPaymentFailedCopy:
 
         assert subject == "Din medlemsfaktura är förfallen"
         assert message == (
-            "En betalning av din medlemsfaktura på 55.00 AUD gick inte igenom, och "
+            "En betalning av din medlemsfaktura på 55,00 AUD gick inte igenom, och "
             "fakturan är nu förfallen. Förfallodagen var 14 november 2023. Betala "
             "den för att behålla ditt medlemskap. Om du har fler frågor, kontakta "
             f"oss. Du kan betala den här: {PAY_URL}"
@@ -242,15 +287,18 @@ GENERIC_OPENING = (
     "payment yet."
 )
 
-# (invoice fields, English opening). The amount and due date are only named
-# when the invoice carries both.
+# (invoice fields, English opening).
 OVERDUE_OPENINGS = {
     "amount_and_date": (
         {"amount_due": 5500, "currency": "aud", "due_date": PAST},
         "Your membership invoice for 55.00 AUD was due on 14 November 2023, and we "
         "haven't registered a payment yet.",
     ),
-    "amount_only": ({"amount_due": 5500, "currency": "aud"}, GENERIC_OPENING),
+    "amount_only": (
+        {"amount_due": 5500, "currency": "aud"},
+        "Your membership invoice for 55.00 AUD is past its due date, and we haven't "
+        "registered a payment yet.",
+    ),
     "neither": ({}, GENERIC_OPENING),
 }
 
@@ -275,7 +323,7 @@ class TestOverdueReminderCopy:
 
         assert subject == "Påminnelse: din medlemsfaktura är förfallen"
         assert message == (
-            "Din medlemsfaktura på 55.00 AUD förföll 14 november 2023, och vi har inte "
+            "Din medlemsfaktura på 55,00 AUD förföll 14 november 2023, och vi har inte "
             "registrerat någon betalning ännu. Om du har betalat på annat sätt än via "
             "fakturalänken, till exempel med banköverföring, har vi kanske inte hunnit "
             "registrera din betalning ännu. Se till att betalningen har gjorts. Annars "

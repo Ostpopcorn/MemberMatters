@@ -111,11 +111,6 @@ class TestFormatInvoiceAmount:
         # Never interpolate None into member-facing copy.
         assert format_invoice_amount({}) == "your membership fee"
 
-    def test_member_copy_can_supply_the_description_in_its_language(self):
-        assert format_invoice_amount({}, fallback="din medlemsavgift") == (
-            "din medlemsavgift"
-        )
-
 
 class TestIsSubscriptionInvoice:
     def test_every_subscription_reason_counts(self):

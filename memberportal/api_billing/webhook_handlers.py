@@ -16,12 +16,12 @@ import logging
 import stripe
 from constance import config
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.utils.translation import gettext
 from sentry_sdk import capture_exception
 
 from profile.models import CancelTriggeredBy, SignupTriggeredBy
-from services.email_i18n import member_email_translation
+from services.email_i18n import ADMIN_EMAIL_LANGUAGE, member_email_translation
 from services.emails import send_email_to_admin
 
 from .stripe_utils import (
@@ -122,7 +122,8 @@ def handle_orphan_invoice_paid(ctx):
     profile = ctx.profile
     data = ctx.data
     subscription_id = invoice_subscription_id(data)
-    amount = format_invoice_amount(data)
+    with translation.override(ADMIN_EMAIL_LANGUAGE):
+        amount = format_invoice_amount(data)
     invoice_id = data.get("id")
 
     profile.user.log_event(
@@ -198,7 +199,8 @@ def handle_invoice_paid(ctx):
         profile.save(update_fields=updates)
 
     if holding:
-        amount = format_invoice_amount(data)
+        with translation.override(ADMIN_EMAIL_LANGUAGE):
+            amount = format_invoice_amount(data)
         invoice_number = data.get("number")
         invoice_label = (
             f"{data.get('id')} ({invoice_number})" if invoice_number else data.get("id")
@@ -260,9 +262,7 @@ def handle_invoice_paid(ctx):
 
         with member_email_translation(profile.user):
             placeholders = {
-                "amount": format_invoice_amount(
-                    data, fallback=gettext("your membership fee")
-                ),
+                "amount": format_invoice_amount(data),
                 "site_url": config.SITE_URL,
             }
             if profile.subscription_status == "cancelling":
@@ -418,9 +418,7 @@ def payment_failed_copy(profile, invoice_data, now=None):
     translation never has to fit a clause into another sentence.
     """
     with member_email_translation(profile.user):
-        amount = format_invoice_amount(
-            invoice_data, prefer="due", fallback=gettext("your membership fee")
-        )
+        amount = format_invoice_amount(invoice_data, prefer="due")
         due_date = format_invoice_due_date(invoice_data)
         hosted_url = invoice_data.get("hosted_invoice_url")
         pay_here = (
@@ -439,8 +437,11 @@ def payment_failed_copy(profile, invoice_data, now=None):
                     "didn't go through, and the invoice is now overdue."
                 )
                 % {"amount": amount},
-                due_date
-                and gettext("It was due on %(due_date)s.") % {"due_date": due_date},
+                (
+                    gettext("It was due on %(due_date)s.") % {"due_date": due_date}
+                    if due_date
+                    else None
+                ),
                 gettext("Please pay it to keep your membership active."),
                 contact_us,
                 pay_here,
@@ -453,8 +454,11 @@ def payment_failed_copy(profile, invoice_data, now=None):
                     "didn't go through, so the invoice is still outstanding."
                 )
                 % {"amount": amount},
-                due_date
-                and gettext("It's due on %(due_date)s.") % {"due_date": due_date},
+                (
+                    gettext("It's due on %(due_date)s.") % {"due_date": due_date}
+                    if due_date
+                    else None
+                ),
                 gettext(
                     "Please pay it before the due date to keep your membership active."
                 ),
@@ -656,7 +660,7 @@ def overdue_reminder_copy(user, invoice_data):
     copy allows for a member who has paid but is not yet marked as paid.
 
     A send_invoice invoice from Stripe always carries its amount and due date.
-    The opening without them covers an invoice that could not be fetched.
+    The openings without them cover an invoice that could not be fetched.
     """
     with member_email_translation(user):
         due_date = format_invoice_due_date(invoice_data)
@@ -667,14 +671,28 @@ def overdue_reminder_copy(user, invoice_data):
             else None
         )
 
-        if invoice_data.get("amount_due") is not None and due_date:
-            opening = gettext(
-                "Your membership invoice for %(amount)s was due on %(due_date)s, "
-                "and we haven't registered a payment yet."
-            ) % {
-                "amount": format_invoice_amount(invoice_data, prefer="due"),
-                "due_date": due_date,
-            }
+        placeholders = {
+            "amount": format_invoice_amount(invoice_data, prefer="due"),
+            "due_date": due_date,
+        }
+        has_amount = invoice_data.get("amount_due") is not None
+
+        if has_amount and due_date:
+            opening = (
+                gettext(
+                    "Your membership invoice for %(amount)s was due on %(due_date)s, "
+                    "and we haven't registered a payment yet."
+                )
+                % placeholders
+            )
+        elif has_amount:
+            opening = (
+                gettext(
+                    "Your membership invoice for %(amount)s is past its due date, and "
+                    "we haven't registered a payment yet."
+                )
+                % placeholders
+            )
         else:
             opening = gettext(
                 "Your membership invoice is past its due date, and we haven't "

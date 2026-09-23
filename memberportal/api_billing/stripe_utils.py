@@ -6,9 +6,11 @@ import these without creating a cycle back through `api_billing.views`.
 
 from datetime import datetime
 from datetime import timezone as dt_timezone
+from decimal import Decimal
 
 from django.utils import timezone
-from django.utils.formats import date_format
+from django.utils.formats import date_format, number_format
+from django.utils.translation import gettext
 
 
 def invoice_subscription_id(invoice_data):
@@ -66,16 +68,16 @@ def format_invoice_due_date(invoice_data):
     return date_format(timezone.localtime(utc), "j F Y")
 
 
-def format_invoice_amount(invoice_data, prefer="paid", fallback="your membership fee"):
-    """Render an invoice total for member-facing copy, e.g. "12.50 AUD".
+def format_invoice_amount(invoice_data, prefer="paid"):
+    """Render an invoice total in the active language, e.g. "12.50 AUD" or, in
+    Swedish, "12,50 AUD".
 
     Pass prefer="due" for an invoice that has not been paid: Stripe reports
     amount_paid as 0 rather than null on those, so preferring it would quote
     "0.00" for what is still owed.
 
     Falls back to a bare description when the payload carries no usable
-    amount, so an email is still sent rather than one reading "$None". Member
-    copy passes the description in the member's language.
+    amount, so an email is still sent rather than one reading "$None".
     """
     fields = (
         ("amount_due", "amount_paid")
@@ -87,10 +89,10 @@ def format_invoice_amount(invoice_data, prefer="paid", fallback="your membership
         None,
     )
     if amount is None:
-        return fallback
+        return gettext("your membership fee")
 
     currency = (invoice_data.get("currency") or "").upper()
-    formatted = f"{amount / 100:.2f}"
+    formatted = number_format(Decimal(amount) / 100, decimal_pos=2)
     return f"{formatted} {currency}".strip()
 
 
