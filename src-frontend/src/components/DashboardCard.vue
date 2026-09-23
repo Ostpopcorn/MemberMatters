@@ -30,7 +30,7 @@
               {{ link.label }}
             </q-btn>
             <q-btn v-else :href="link.url" target="_blank" flat>
-              {{ Platform.is.electron ? link.url : link.label }}
+              {{ link.label }}
             </q-btn>
           </template>
         </q-card-actions>
@@ -40,7 +40,6 @@
 </template>
 
 <script>
-import { Platform } from 'quasar';
 import DOMPurify from 'dompurify';
 import { mapGetters } from 'vuex';
 import PageAndRouteConfig from '../pages/pageAndRouteConfig';
@@ -72,9 +71,6 @@ export default {
   computed: {
     ...mapGetters('config', ['features']),
     ...mapGetters('profile', ['profile']),
-    Platform() {
-      return Platform;
-    },
     visibleLinks() {
       return cardLinks(
         this.links,
