@@ -92,7 +92,14 @@ describe('cardLinks', () => {
       featureEnabled: true,
     },
     { name: 'webcams', params: {}, featureEnabled: false },
+    {
+      name: 'reportIssue',
+      params: {},
+      featureEnabled: true,
+      allowedStates: ['active'],
+    },
   ];
+  const member = { memberStatus: 'active' as const };
 
   it('keeps website links and resolves portal pages with their parameters', () => {
     const links = [
@@ -100,7 +107,7 @@ describe('cardLinks', () => {
       { label: 'Top up', route: 'memberbucks' },
     ];
 
-    expect(cardLinks(links, pages)).toEqual([
+    expect(cardLinks(links, pages, member)).toEqual([
       { label: 'Wiki', url: 'https://bms.wiki' },
       {
         label: 'Top up',
@@ -116,6 +123,20 @@ describe('cardLinks', () => {
       { label: 'Cameras', route: 'webcams' },
     ];
 
-    expect(cardLinks(links, pages)).toEqual([]);
+    expect(cardLinks(links, pages, member)).toEqual([]);
+  });
+
+  it("leaves out pages the viewer's member state can't open, except for staff", () => {
+    const links = [{ label: 'Report', route: 'reportIssue' }];
+    const labels = (viewer: Parameters<typeof cardLinks>[2]) =>
+      cardLinks(links, pages, viewer).map((link) => link.label);
+
+    expect(labels({ memberStatus: 'active' })).toEqual(['Report']);
+    expect(labels({ memberStatus: 'inactive' })).toEqual([]);
+    expect(labels({})).toEqual([]);
+    expect(labels(null)).toEqual([]);
+    expect(
+      labels({ memberStatus: 'noob', permissions: { staff: true } })
+    ).toEqual(['Report']);
   });
 });

@@ -71,13 +71,15 @@ export default {
   },
   computed: {
     ...mapGetters('config', ['features']),
+    ...mapGetters('profile', ['profile']),
     Platform() {
       return Platform;
     },
     visibleLinks() {
       return cardLinks(
         this.links,
-        portalPages(PageAndRouteConfig, this.features)
+        portalPages(PageAndRouteConfig, this.features),
+        this.profile
       );
     },
     sanitizedDescription() {

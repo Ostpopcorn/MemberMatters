@@ -1,9 +1,13 @@
-import type { PageAndRouteConfigType } from '../pages/pageAndRouteConfig';
+import type {
+  MemberState,
+  PageAndRouteConfigType,
+} from '../pages/pageAndRouteConfig';
 
 export type PortalPage = {
   name: string;
   params: { [key: string]: string };
   featureEnabled: boolean;
+  allowedStates?: MemberState[];
 };
 
 export type CardLink = {
@@ -36,17 +40,36 @@ export function portalPages(
       params: page.defaultParams ?? {},
       featureEnabled:
         !page.featureEnabledFlag || !!features[page.featureEnabledFlag],
+      allowedStates: page.allowedStates,
     }));
 }
 
+export type CardViewer = {
+  memberStatus?: MemberState;
+  permissions?: { staff?: boolean };
+} | null;
+
 // The links a card shows, with portal pages resolved to router locations.
 // Resolving a page that doesn't exist or is missing route parameters would
-// throw, and the router doesn't check feature flags, so links to those pages
-// and to switched-off features are left out, as their menu entries are.
-export function cardLinks(links: CardLink[], pages: PortalPage[]) {
+// throw, the router doesn't check feature flags, and a page the viewer's
+// member state can't open would only show a 403, so links to those pages are
+// left out, as their menu entries are. Staff bypass the member state check, as
+// in the route guard.
+export function cardLinks(
+  links: CardLink[],
+  pages: PortalPage[],
+  viewer: CardViewer
+) {
+  const canOpen = (page: PortalPage) =>
+    page.featureEnabled &&
+    (!page.allowedStates ||
+      viewer?.permissions?.staff === true ||
+      (!!viewer?.memberStatus &&
+        page.allowedStates.includes(viewer.memberStatus)));
+
   return links.flatMap((link) => {
     if (!link.route) return [link];
-    const page = pages.find((p) => p.name === link.route && p.featureEnabled);
+    const page = pages.find((p) => p.name === link.route && canOpen(p));
     return page
       ? [{ ...link, to: { name: page.name, params: page.params } }]
       : [];
