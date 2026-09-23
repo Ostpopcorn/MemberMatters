@@ -16,7 +16,12 @@
       </q-banner>
     </div>
 
+    <div v-if="!steps" class="text-center q-my-xl">
+      <q-spinner size="4em" />
+    </div>
+
     <q-stepper
+      v-else
       v-model="step"
       ref="stepper"
       color="primary"
@@ -25,10 +30,24 @@
       animated
     >
       <q-step
-        :name="1"
+        v-if="steps.includes('terms')"
+        :name="stepIndex('terms')"
+        :title="$tc('signup.termsAcceptance')"
+        :icon="icons.terms"
+        :done="step > stepIndex('terms')"
+      >
+        <terms-acceptance-step
+          :cards="termsAcceptanceCards"
+          @accepted="advanceFrom('terms')"
+        />
+      </q-step>
+
+      <q-step
+        v-if="steps.includes('tier')"
+        :name="stepIndex('tier')"
         :title="$tc('tiers.select')"
         :icon="icons.plans"
-        :done="step > 1"
+        :done="step > stepIndex('tier')"
       >
         <template v-if="tiers.length === 0">
           <div class="text-center text-h6">
@@ -53,10 +72,10 @@
       </q-step>
 
       <q-step
-        :name="2"
+        :name="stepIndex('plan')"
         :title="$tc('paymentPlans.select')"
         :icon="icons.dollar"
-        :done="step > 2"
+        :done="step > stepIndex('plan')"
       >
         <div class="q-pa-md">
           <q-card class="bg-white text-black" style="max-width: 500px">
@@ -97,7 +116,7 @@
 
           <div class="row justify-start">
             <q-btn
-              v-if="tiers.length > 1"
+              v-if="steps.includes('tier')"
               class="q-mt-md"
               @click="backToTiers"
               flat
@@ -109,10 +128,10 @@
 
       <q-step
         class="flex flex-center"
-        :name="3"
+        :name="stepIndex('billing')"
         :title="$tc('menuLink.billing')"
         :icon="icons.billing"
-        :done="step > 3"
+        :done="step > stepIndex('billing')"
       >
         <div class="text-h6 q-py-md">
           {{ $tc('memberbucks.selectToContinue') }}
@@ -213,10 +232,10 @@
       </q-step>
 
       <q-step
-        :name="4"
+        :name="stepIndex('confirm')"
         :title="$tc('paymentPlans.confirmSelection')"
         :icon="icons.success"
-        :done="step > 4"
+        :done="step > stepIndex('confirm')"
       >
         <div class="row">
           <div class="row col-xs-12 col-sm-6">
@@ -229,7 +248,7 @@
           </div>
         </div>
 
-        <div class="text-h6">
+        <div v-if="planSelected" class="text-h6">
           <template v-if="selectedBillingMethod === 'invoice'">
             {{
               $t('billing.invoiceAmount', {
@@ -254,7 +273,7 @@
           </template>
         </div>
 
-        <p v-if="step > 2" class="q-py-md" style="max-width: 850px">
+        <p v-if="planSelected" class="q-py-md" style="max-width: 850px">
           {{
             $t('tiers.confirm', {
               intervalDescription: $t('paymentPlans.intervalDescription', {
@@ -312,30 +331,25 @@
         </div>
       </q-step>
     </q-stepper>
-    <div v-if="profile.memberStatus === 'noob'" class="text-center">
-      <p
-        @click="confirmSkipSignup"
-        style="text-decoration: underline; cursor: pointer"
-      >
-        {{ $tc('tiers.skipSignup') }}
-      </p>
-    </div>
   </div>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 import { defineComponent } from 'vue';
 import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
+import TermsAcceptanceStep from '@components/Billing/TermsAcceptanceStep.vue';
 import icons from '@icons';
+import { nextStepAfter, preSignupSteps } from '../../utils/signupSteps';
 
 export default defineComponent({
   name: 'SelectTier',
   data() {
     return {
-      step: 1,
+      steps: null,
+      step: 0,
       tiers: [],
       selectedTier: {},
       selectedPlan: {},
@@ -356,14 +370,22 @@ export default defineComponent({
       if (this.selectedBillingMethod === 'invoice') return true;
       return !!this.cardExists;
     },
+    termsAcceptanceCards() {
+      return this.features.signup?.termsAcceptanceCards || [];
+    },
+    // The confirm step's summary reads cost/currency/interval off the plan.
+    planSelected() {
+      const plan = this.selectedPlan;
+      return !!(plan.currency && plan.interval && plan.cost != null);
+    },
   },
   components: {
     TierCard,
     PlanCard,
     MemberBucksManageBilling,
+    TermsAcceptanceStep,
   },
   mounted() {
-    this.getTiers();
     // Manual renewal (invoice) is the first/default option, but only when
     // it's actually offered — mirror the picker's own visibility gate.
     if (
@@ -372,59 +394,40 @@ export default defineComponent({
     ) {
       this.selectedBillingMethod = 'invoice';
     }
+    this.buildSteps();
   },
   methods: {
-    ...mapActions('profile', ['getProfile']),
-    getTiers() {
-      this.$axios.get('/api/billing/tiers/').then((response) => {
-        this.tiers = response.data;
-        // Only one membership plan to choose — skip to the payment plan step.
-        if (this.tiers.length === 1) {
-          this.selectedTierEvent(this.tiers[0]);
-        }
+    async buildSteps() {
+      // If can-signup fails, assume terms are outstanding: re-accepting only
+      // re-stamps a timestamp, skipping them would bypass a legal gate.
+      const [tiers, outstanding] = await Promise.all([
+        this.$axios
+          .get('/api/billing/tiers/')
+          .then((response) => response.data)
+          .catch(() => []),
+        this.$axios
+          .get('/api/billing/can-signup/')
+          .then((response) => response.data.requiredSteps || [])
+          .catch(() => ['termsAcceptance']),
+      ]);
+      this.tiers = tiers;
+
+      // Only one membership plan to choose — preselect it.
+      if (this.tiers.length === 1) {
+        this.selectedTier = this.tiers[0];
+      }
+
+      this.steps = preSignupSteps(this.features, {
+        tierCount: this.tiers.length,
+        outstanding,
       });
     },
-    confirmSkipSignup() {
-      this.$q
-        .dialog({
-          title: this.$t('tiers.skipSignupWarningTitle'),
-          message: this.$t('tiers.skipSignupWarningMessage'),
-          html: true,
-          ok: {
-            label: this.$t('tiers.skipSignupWarningConfirm'),
-            color: 'negative',
-            flat: true,
-          },
-          cancel: {
-            label: this.$t('button.cancel'),
-            color: 'primary',
-          },
-          persistent: true,
-        })
-        .onOk(() => {
-          this.skipSignup();
-        });
+    stepIndex(name) {
+      return this.steps.indexOf(name);
     },
-    skipSignup() {
-      this.$axios
-        .post('/api/billing/skip-signup/')
-        .then(async (response) => {
-          if (response.data.success) {
-            await this.getProfile();
-            this.$router.push({ name: 'dashboard' });
-          } else {
-            this.$q.dialog({
-              title: this.$t('error.requestFailed'),
-              message: this.$t('error.contactUs'),
-            });
-          }
-        })
-        .catch(() => {
-          this.$q.dialog({
-            title: this.$t('error.requestFailed'),
-            message: this.$t('error.contactUs'),
-          });
-        });
+    advanceFrom(name) {
+      const next = nextStepAfter(this.steps, name);
+      if (next) this.step = this.stepIndex(next);
     },
     finishSignup() {
       this.disableFinish = true;
@@ -466,26 +469,26 @@ export default defineComponent({
     },
     selectedTierEvent(tier) {
       this.selectedTier = tier;
-      this.step++;
+      this.advanceFrom('tier');
     },
     selectedPlanEvent(plan) {
       this.selectedPlan = plan;
-      this.step++;
+      this.advanceFrom('plan');
     },
     selectedBillingMethodEvent() {
-      this.step++;
+      this.advanceFrom('billing');
     },
     backToTiers() {
-      this.step = 1;
       this.selectedPlan = {};
       this.selectedTier = {};
+      this.step = this.stepIndex('tier');
     },
     backToPlans() {
-      this.step = 2;
       this.selectedPlan = {};
+      this.step = this.stepIndex('plan');
     },
     backToBilling() {
-      this.step = 3;
+      this.step = this.stepIndex('billing');
     },
     cardExistsHandler(value) {
       this.cardExists = value;

@@ -847,6 +847,8 @@ export default {
     invoiceDisabled:
       'Fakturabetalning är inte tillgänglig för närvarande. Välj en annan betalmetod.',
     newSubscriptionsDisabled: 'Registrering av nya medlemskap är stängda.',
+    membershipPaymentsDisabled:
+      'Medlemsbetalningar är inte konfigurerade, så medlemskap kan inte köpas här. Kontakta oss för att bli medlem.',
     stripeError:
       'Något gick fel i kommunikationen med vår betalleverantör. Försök igen om en stund eller kontakta oss om det inte löser sig.',
   },

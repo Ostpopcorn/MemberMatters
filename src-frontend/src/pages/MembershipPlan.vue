@@ -17,12 +17,19 @@
       v-else-if="['needs_plan', 'account_only', 'lapsed'].includes(signupStage)"
     >
       <q-banner
-        v-if="features.enableNewSubscriptions === false"
+        v-if="features.enableMembershipPayments === false"
+        class="bg-info text-white q-pa-md"
+      >
+        {{ $t('billing.membershipPaymentsDisabled') }}
+      </q-banner>
+      <q-banner
+        v-else-if="features.enableNewSubscriptions === false"
         class="bg-info text-white q-pa-md"
       >
         {{ $t('billing.newSubscriptionsDisabled') }}
       </q-banner>
       <select-tier v-else />
+      <skip-signup-link v-if="profile.memberStatus === 'noob'" />
     </template>
 
     <template v-else-if="signupStage === 'needs_requirements'">
@@ -164,6 +171,7 @@
 import { defineComponent } from 'vue';
 import { mapGetters, mapActions } from 'vuex';
 import SelectTier from '@components/Billing/SelectTier.vue';
+import SkipSignupLink from '@components/Billing/SkipSignupLink.vue';
 import SelectedTier from '@components/Billing/SelectedTier.vue';
 import SignupRequiredSteps from '@components/Billing/SignupRequiredSteps.vue';
 import MemberBucksManageBilling from 'components/MemberBucksManageBilling.vue';
@@ -174,6 +182,7 @@ export default defineComponent({
   components: {
     MemberBucksManageBilling,
     SelectTier,
+    SkipSignupLink,
     SelectedTier,
     SignupRequiredSteps,
     MembershipStateBanner,

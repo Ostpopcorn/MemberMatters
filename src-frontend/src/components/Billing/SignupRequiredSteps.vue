@@ -1,6 +1,10 @@
 <template>
   <div class="q-gutter-md">
-    <q-stepper v-model="step" ref="stepper" color="primary" animated>
+    <div v-if="!steps" class="text-center q-my-xl">
+      <q-spinner size="4em" />
+    </div>
+
+    <q-stepper v-else v-model="step" ref="stepper" color="primary" animated>
       <q-step
         :name="stepIndex('billing')"
         :title="$tc('signup.billing')"
@@ -12,41 +16,21 @@
       </q-step>
 
       <q-step
-        v-if="enabledSteps.includes('terms')"
+        v-if="steps.includes('terms')"
         :name="stepIndex('terms')"
         :title="$tc('signup.termsAcceptance')"
         :icon="icons.terms"
         :active-icon="icons.terms"
         :done="step > stepIndex('terms')"
       >
-        <div class="text-h6 q-py-md">{{ $tc('signup.acceptTerms') }}</div>
-        <div class="row">
-          <terms-acceptance-card
-            v-for="(card, i) in termsAcceptanceCards"
-            :key="i"
-            :icon="card.icon"
-            :title="card.title"
-            :body-html="card.body_html"
-            :checkbox-text="card.checkbox_text"
-            v-model="acceptedFlags[i]"
-            class="col-12 col-md-6"
-          />
-        </div>
-
-        <div class="row justify-start q-mt-md">
-          <q-space />
-          <q-btn
-            :disable="!allAccepted || termsSubmitting"
-            :loading="termsSubmitting"
-            @click="submitTerms"
-            color="primary"
-            :label="$tc('button.continue')"
-          />
-        </div>
+        <terms-acceptance-step
+          :cards="termsAcceptanceCards"
+          @accepted="advanceFrom('terms')"
+        />
       </q-step>
 
       <q-step
-        v-if="enabledSteps.includes('induction')"
+        v-if="steps.includes('induction')"
         :name="stepIndex('induction')"
         :title="$tc('signup.induction')"
         :icon="icons.induction"
@@ -130,7 +114,7 @@
       </q-step>
 
       <q-step
-        v-if="enabledSteps.includes('accessCard')"
+        v-if="steps.includes('accessCard')"
         :name="stepIndex('accessCard')"
         :title="$tc('signup.accessCard')"
         :icon="icons.accessCard"
@@ -291,19 +275,24 @@ import { defineComponent } from 'vue';
 import { mapGetters, mapActions } from 'vuex';
 import icons from '@icons';
 import { api } from 'boot/axios';
-import TermsAcceptanceCard from '@components/Billing/TermsAcceptanceCard.vue';
+import TermsAcceptanceStep from '@components/Billing/TermsAcceptanceStep.vue';
+import {
+  nextStepAfter,
+  postSignupSteps,
+  signupStepStatus,
+  SignupStep,
+} from '../../utils/signupSteps';
 
 export default defineComponent({
   name: 'SignupRequiredSteps',
-  components: { TermsAcceptanceCard },
+  components: { TermsAcceptanceStep },
   data() {
-    const cards =
-      this.$store.getters['config/features'].signup.termsAcceptanceCards || [];
     return {
-      // Set in created() once enabledSteps is available.
+      steps: null,
       step: 0,
+      // can-signup's requiredSteps: what the backend still wants.
+      outstanding: [] as string[],
       inductionComplete: false,
-      accessCardComplete: false,
       accessCard: null,
       accessCardLoading: false,
       signupError: false,
@@ -311,9 +300,6 @@ export default defineComponent({
       signupErrorItems: [],
       awaitingPayment: false,
       inductionScore: 0,
-      acceptedFlags: new Array(cards.length).fill(false) as boolean[],
-      termsSubmitting: false,
-      termsAccepted: false,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       interval: null as any,
     };
@@ -324,29 +310,12 @@ export default defineComponent({
     icons() {
       return icons;
     },
-    // Order here = visual order in the stepper. Adding a step is one line.
-    enabledSteps() {
-      const steps = ['billing'];
-      if (this.termsAcceptanceCards.length > 0) steps.push('terms');
-      if (this.features.signup.enableInduction) steps.push('induction');
-      if (this.features.signup.requireAccessCard) steps.push('accessCard');
-      steps.push('confirm');
-      return steps;
-    },
     termsAcceptanceCards() {
       return this.features.signup.termsAcceptanceCards || [];
-    },
-    allAccepted(): boolean {
-      return this.acceptedFlags.every(Boolean);
     },
     applicationEmailEnabled(): boolean {
       return this.features.signup.enableMembershipApplicationEmail;
     },
-  },
-  created() {
-    // Billing is a visual breadcrumb only — start on the first real step.
-    const initial = this.enabledSteps.find((s) => s !== 'billing');
-    this.step = this.stepIndex(initial as string);
   },
   mounted() {
     this.updateInductionStatus();
@@ -354,26 +323,19 @@ export default defineComponent({
       this.updateInductionStatus();
     }, 10000);
 
-    api.get('/api/billing/can-signup/').then((result) => {
-      if (result.data.success) {
-        // Pre-reqs already met (re-signup, RFID + induction still valid,
-        // or relaxed config). Drive complete-signup now — without this the
-        // user sits on subscription_status=active|pending with state=noob.
-        clearInterval(this.interval);
-        this.completeSignup();
-      } else {
-        // if we don't need the access card, that step is complete
-        this.accessCardComplete =
-          !result.data.requiredSteps.includes('accessCard');
-        this.termsAccepted =
-          !result.data.requiredSteps.includes('termsAcceptance');
-        // We optimistically landed on terms in created(); bump past if
-        // the backend says the user already accepted.
-        if (this.termsAccepted && this.step === this.stepIndex('terms')) {
-          this.advanceFrom('terms');
-        }
-      }
-    });
+    api
+      .get('/api/billing/can-signup/')
+      // If we can't tell what's outstanding, assume everything is.
+      .catch(() => ({
+        data: { requiredSteps: ['termsAcceptance', 'induction', 'accessCard'] },
+      }))
+      .then((result) => {
+        this.outstanding = result.data.requiredSteps || [];
+        this.steps = postSignupSteps(this.features);
+        // Billing is a done breadcrumb. Start on the first step still
+        // required, or complete signup straight away if none is.
+        this.advanceFrom('billing');
+      });
   },
   beforeUnmount() {
     // beforeRouteLeave only fires on a route change; a parent re-render,
@@ -383,22 +345,23 @@ export default defineComponent({
   },
   methods: {
     stepIndex(name: string) {
-      return this.enabledSteps.indexOf(name);
+      return this.steps.indexOf(name);
     },
-    // Skips 'accessCard' when the user already has a card on file
-    // (re-signup); finalizes when the next step is 'confirm'.
+    // Skips steps the backend no longer requires (e.g. terms accepted before
+    // payment, or an access card kept from a previous membership); finalizes
+    // when the next step is 'confirm'.
     advanceFrom(name: string) {
-      let target = this.stepIndex(name) + 1;
-      while (
-        this.enabledSteps[target] === 'accessCard' &&
-        this.accessCardComplete
-      ) {
-        target++;
-      }
-      if (target >= this.stepIndex('confirm')) {
+      const next = nextStepAfter(
+        this.steps,
+        name,
+        (step) =>
+          step !== 'confirm' &&
+          signupStepStatus(step as SignupStep, this.outstanding, null).complete
+      );
+      if (next === null || next === 'confirm') {
         this.completeSignup();
       } else {
-        this.step = target;
+        this.step = this.stepIndex(next);
       }
     },
     async updateInductionStatus() {
@@ -411,6 +374,10 @@ export default defineComponent({
       }
     },
     inductionCompleted() {
+      // The induction poll can beat can-signup, and until that answers we
+      // don't have a step list to check against. Leave the poller running
+      // rather than stopping it on a decision we can't make yet.
+      if (!this.steps) return;
       // Guard against a late poll firing after can-signup already
       // advanced us off the induction step.
       clearInterval(this.interval);
@@ -419,6 +386,7 @@ export default defineComponent({
     },
     ...mapActions('profile', ['getProfile']),
     async completeSignup() {
+      clearInterval(this.interval);
       api
         .post('/api/billing/complete-signup/')
         .then((result) => {
@@ -446,20 +414,6 @@ export default defineComponent({
           // Land on the final "Submitted" step regardless of caller.
           this.step = this.stepIndex('confirm');
         });
-    },
-    async submitTerms() {
-      this.termsSubmitting = true;
-      try {
-        await api.post('/api/billing/accept-terms/');
-        this.advanceFrom('terms');
-      } catch {
-        this.$q.dialog({
-          title: this.$tc('error.error'),
-          message: this.$tc('signup.termsAcceptError'),
-        });
-      } finally {
-        this.termsSubmitting = false;
-      }
     },
     async submitAccessCard() {
       this.accessCardLoading = true;

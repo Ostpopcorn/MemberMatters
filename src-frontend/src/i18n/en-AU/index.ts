@@ -862,6 +862,8 @@ export default {
       'Invoice billing is not currently available. Please choose another payment method.',
     newSubscriptionsDisabled:
       'New membership subscriptions are currently closed.',
+    membershipPaymentsDisabled:
+      'Membership payments are not set up, so memberships cannot be purchased here. Please contact us to join.',
     stripeError:
       "Something went wrong talking to our payment provider. Please try again in a moment, or contact us if it doesn't clear up.",
   },
