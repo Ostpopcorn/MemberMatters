@@ -370,6 +370,8 @@ REST_FRAMEWORK = {
         # as the abuse path (unauthenticated "send me a reset email").
         "password_reset_request": "10/hour",
         "password_reset_use": "40/hour",
+        # Admin "send test email" buttons on the Email delivery page.
+        "email_delivery_test": "20/hour",
     },
 }
 
@@ -420,7 +422,7 @@ CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
 # worker to run queued tasks, so run them inline in the calling process.
 CELERY_TASK_ALWAYS_EAGER = not CELERY_BROKER_URL
 # services isn't a Django app, so autodiscover_tasks() won't find its tasks.
-CELERY_IMPORTS = ("services.emails",)
+CELERY_IMPORTS = ("services.emails", "services.email_delivery")
 
 # Django constance configuration
 CONSTANCE_BACKEND = "membermatters.constance_backend.DatabaseBackend"

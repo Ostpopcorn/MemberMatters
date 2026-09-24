@@ -10,6 +10,8 @@ Initially when Postmark account is created in "test mode" you can only send emai
 
 When `MM_REDIS_HOST` is set, emails are sent in the background by the Celery worker so pages don't wait for Postmark, and temporary failures (network errors, Postmark rate limiting or outages) are retried for about 15 minutes. **If you set `MM_REDIS_HOST` you must also run the Celery worker**, otherwise emails wait in Redis and are never sent. Without `MM_REDIS_HOST` (e.g. the single-container quickstart) the web app sends emails itself, immediately.
 
+To check your setup, open **Admin Tools → Email Delivery**. It checks the Postmark API key, the sender and admin addresses, Redis, the Celery workers and beat, and can send a test email to `EMAIL_ADMIN` either directly from the web app or through the Celery worker.
+
 Aftert creating the [Postmark](https://www.postmarkapp.com) account see the section [Postmark (Email) Integration](#postmark-email-integration) to set the Postmark "Server API token" in the Member Matters configuration.
 
 ## Logs

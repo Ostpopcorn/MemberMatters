@@ -47,3 +47,6 @@
 - **Background email delivery**: emails are queued to the Celery worker after
   the surrounding transaction commits (retrying transient Postmark failures),
   and sent inline when no Redis broker is configured or reachable.
+- **Email Delivery admin page**: checks Postmark, sender/admin addresses, Redis,
+  Celery workers and beat, and sends a test email to `EMAIL_ADMIN` directly or
+  via the Celery worker.

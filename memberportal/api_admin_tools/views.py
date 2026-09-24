@@ -39,7 +39,7 @@ from profile.models import (
     UserEventLog,
 )
 from profile.phone import to_e164
-from services import sms
+from services import email_delivery, sms
 from services.emails import send_email_to_admin
 from .models import MemberTier, PaymentPlan
 
@@ -1538,3 +1538,78 @@ class SignupPreview(APIView):
                 "termsAcceptanceCards": terms_cards,
             }
         )
+
+
+class EmailDeliveryStatus(APIView):
+    """
+    get: Runs the checks shown on the Email delivery page (Postmark, sender
+    addresses, Redis, Celery workers and beat).
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        return Response(email_delivery.get_delivery_status())
+
+
+class EmailDeliveryTest(APIView):
+    """
+    post: Sends a test email to EMAIL_ADMIN, either directly from the web app
+    ("via": "direct") or through the Celery worker ("via": "worker"). A worker
+    test returns a task id to poll with EmailDeliveryTestResult.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+    throttle_scope = "email_delivery_test"
+
+    def post(self, request):
+        via = request.data.get("via")
+        if via not in ("direct", "worker"):
+            return Response(
+                {"error": "'via' must be 'direct' or 'worker'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not config.EMAIL_ADMIN:
+            return Response(
+                {"error": "EMAIL_ADMIN is not set, so there's nowhere to send it."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if via == "direct":
+            return Response(
+                email_delivery.send_test_email(request.user, via="by the web app")
+            )
+
+        if not email_delivery.queue_configured():
+            return Response(
+                {
+                    "error": "MM_REDIS_HOST is not set, so there's no queue or "
+                    "worker to test."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        try:
+            task = email_delivery.send_test_email_task.apply_async(
+                kwargs={"requested_by_id": request.user.pk},
+                expires=email_delivery.TEST_EMAIL_EXPIRES_SECONDS,
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Could not queue the test email: {e}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response({"taskId": task.id}, status=status.HTTP_202_ACCEPTED)
+
+
+class EmailDeliveryTestResult(APIView):
+    """
+    get: Reports the progress of a test email sent through the Celery worker.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, task_id):
+        return Response(email_delivery.get_test_email_result(str(task_id)))

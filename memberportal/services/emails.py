@@ -42,16 +42,8 @@ def _redacted_kwargsrepr(to_email, subject):
     return repr({"to_email": to_email, "subject": subject})
 
 
-def _deliver(
-    to_email,
-    subject,
-    template_vars,
-    template_name=None,
-    reply_to=None,
-    user=None,
-):
-    """Renders and sends one email via Postmark. Raises on failure, except for
-    an inactive recipient or a missing API key, which are logged and skipped."""
+def render_email(template_vars, template_name=None):
+    """Renders an email body. Escapes the title and message in place."""
     template_to_use = template_name if template_name else "email_without_button.html"
     logger.debug("Using email template: " + template_to_use)
     logger.debug("Using template vars: " + json.dumps(template_vars))
@@ -63,22 +55,39 @@ def _deliver(
     if template_vars.get("title"):
         template_vars["title"] = escape(template_vars["title"])
 
-    email_string = render_to_string(
-        template_to_use, {"email": template_vars, "config": config}
+    return render_to_string(template_to_use, {"email": template_vars, "config": config})
+
+
+def postmark_send(to_email, subject, html_body, reply_to=None):
+    """Sends one rendered email via Postmark and returns Postmark's response
+    (which includes the MessageID). Raises on any failure."""
+    postmark = PostmarkClient(
+        server_token=config.POSTMARK_API_KEY, timeout=POSTMARK_TIMEOUT_SECONDS
+    )
+    return postmark.emails.send(
+        From=config.EMAIL_DEFAULT_FROM,
+        To=to_email,
+        Subject=subject,
+        HtmlBody=html_body,
+        ReplyTo=reply_to or config.EMAIL_DEFAULT_FROM,
     )
 
+
+def _deliver(
+    to_email,
+    subject,
+    template_vars,
+    template_name=None,
+    reply_to=None,
+    user=None,
+):
+    """Renders and sends one email via Postmark. Raises on failure, except for
+    an inactive recipient or a missing API key, which are logged and skipped."""
+    email_string = render_email(template_vars, template_name)
+
     if config.POSTMARK_API_KEY:
-        postmark = PostmarkClient(
-            server_token=config.POSTMARK_API_KEY, timeout=POSTMARK_TIMEOUT_SECONDS
-        )
         try:
-            postmark.emails.send(
-                From=config.EMAIL_DEFAULT_FROM,
-                To=to_email,
-                Subject=subject,
-                HtmlBody=email_string,
-                ReplyTo=reply_to or config.EMAIL_DEFAULT_FROM,
-            )
+            postmark_send(to_email, subject, email_string, reply_to)
         except ClientError as e:
             if e.error_code != 406:
                 raise

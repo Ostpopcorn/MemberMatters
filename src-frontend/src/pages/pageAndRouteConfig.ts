@@ -144,6 +144,14 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         component: () => import('pages/AdminTools/SignupPreview.vue'),
       },
       {
+        icon: icons.emailDelivery,
+        to: '/manage/email-delivery',
+        name: 'emailDelivery',
+        loggedIn: true,
+        admin: true,
+        component: () => import('pages/AdminTools/EmailDelivery.vue'),
+      },
+      {
         icon: icons.interlocks,
         to: '/manage/devices',
         name: 'devices',
