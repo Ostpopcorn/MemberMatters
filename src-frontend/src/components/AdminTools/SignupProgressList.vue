@@ -35,21 +35,25 @@
                 :icon="icons.filter"
                 :label="stepsFilterLabel"
               >
-                <q-list style="min-width: 280px">
-                  <q-item v-for="step in steps" :key="step">
-                    <q-item-section avatar>
-                      <q-icon :name="stepIcon(step)" />
-                    </q-item-section>
+                <q-list class="q-py-sm">
+                  <q-item v-for="step in steps" :key="step" class="q-py-md">
                     <q-item-section>
-                      <q-item-label>{{ stepLabel(step) }}</q-item-label>
+                      <q-item-label class="text-body1 q-mb-sm">
+                        <q-icon :name="stepIcon(step)" class="q-mr-sm" />
+                        {{ stepLabel(step) }}
+                      </q-item-label>
+                      <!-- Icon sits in the label, not an avatar column, so the
+                           buttons get the full menu width on a phone. -->
                       <q-btn-toggle
-                        class="q-mt-xs"
                         :model-value="stepFilters[step] || 'any'"
-                        dense
                         no-caps
                         unelevated
-                        size="sm"
+                        class="step-toggle"
+                        :padding="$q.screen.xs ? '6px 8px' : '6px 12px'"
+                        color="grey-3"
+                        text-color="grey-9"
                         toggle-color="primary"
+                        toggle-text-color="white"
                         :options="stepFilterOptions(step)"
                         @update:model-value="setStepFilter(step, $event)"
                       />
@@ -83,12 +87,15 @@
           </div>
 
           <!-- What the table and exports are narrowed to, at a glance. -->
-          <div v-if="activeStepFilters.length" class="row items-center">
+          <div
+            v-if="activeStepFilters.length"
+            class="row items-center q-gutter-sm q-mb-sm"
+          >
             <q-chip
               v-for="[step, state] in activeStepFilters"
               :key="step"
               removable
-              dense
+              class="q-px-md"
               color="primary"
               text-color="white"
               :icon="stepIcon(step)"
@@ -492,6 +499,12 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
+// Quasar caps the menu at the space beside the button; wrap rather than
+// clip if the options still don't fit.
+.step-toggle {
+  flex-wrap: wrap;
+}
+
 .step-item {
   min-height: 26px;
 }
