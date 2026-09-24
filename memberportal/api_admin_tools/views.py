@@ -341,8 +341,9 @@ class MemberCancelMembership(StripeAPIView):
             member_user = locked.user
 
             # Registered before _on_commit_stripe_cleanup / _on_commit_complete_cancel
-            # so the explanation email lands before deactivate()'s access-
-            # disabled notification, matching the at-period-end ordering.
+            # so the explanation email is queued before deactivate()'s access-
+            # disabled notification, matching the at-period-end ordering
+            # (Celery doesn't guarantee delivery order).
             def _on_commit_notifications():
                 try:
                     member_user.email_notification(member_subject, member_message)

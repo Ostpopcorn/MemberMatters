@@ -1567,10 +1567,12 @@ class StripeWebhook(StripeAPIView):
 
                     # Both callbacks deferred to on_commit so the I/O can't
                     # extend the row lock past Stripe's 30s webhook timeout.
-                    # The paid-confirmation email is registered first so it
-                    # arrives before activate()'s welcome email — the body
+                    # The paid-confirmation email is registered first so it's
+                    # queued before activate()'s welcome email — the body
                     # references "another email message confirming this was
-                    # successful" which is the welcome that follows.
+                    # successful" which is the welcome that follows. Celery
+                    # doesn't guarantee delivery order, so it may still
+                    # arrive second.
                     paid_subject = "Your payment was successful."
                     paid_message = (
                         "Thanks for making a membership payment using our "
@@ -1790,8 +1792,9 @@ class StripeWebhook(StripeAPIView):
                 # Notify the operator that this member's Stripe sub ended out
                 # of band. Stripe-specific messaging stays here, not in
                 # complete_cancel. Registered before the complete_cancel
-                # callback so it lands before the member-facing access-
-                # disabled email that deactivate() sends.
+                # callback so it's queued before the member-facing access-
+                # disabled email that deactivate() sends (Celery doesn't
+                # guarantee delivery order).
                 admin_cancel_subject = (
                     f"The membership for {full_name} was just cancelled"
                 )

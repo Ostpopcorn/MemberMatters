@@ -416,6 +416,11 @@ REQUEST_TIMEOUT = 0.05
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
+# Without a broker (single-container installs, local development) there's no
+# worker to run queued tasks, so run them inline in the calling process.
+CELERY_TASK_ALWAYS_EAGER = not CELERY_BROKER_URL
+# services isn't a Django app, so autodiscover_tasks() won't find its tasks.
+CELERY_IMPORTS = ("services.emails",)
 
 # Django constance configuration
 CONSTANCE_BACKEND = "membermatters.constance_backend.DatabaseBackend"

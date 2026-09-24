@@ -44,3 +44,6 @@
   `allowedStates` route guards.
 - **i18n & infra**: expanded Swedish (sv-SE) and en-AU translations; Docker image
   builds retargeted to the fork.
+- **Background email delivery**: emails are queued to the Celery worker after
+  the surrounding transaction commits (retrying transient Postmark failures),
+  and sent inline when no Redis broker is configured or reachable.
