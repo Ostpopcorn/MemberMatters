@@ -252,12 +252,16 @@ export default defineComponent({
           label: this.$t('tableHeading.subscriptionStatus'),
           field: 'subscriptionStatus',
           sortable: true,
+          format: (val: string) =>
+            this.$t(`adminTools.subscriptionStatusString.${val}`),
         },
         {
           name: 'status',
           label: this.$t('tableHeading.status'),
           field: 'state',
           sortable: true,
+          format: (val: string) =>
+            this.$t(`adminTools.memberStatusString.${val}`),
         },
       ];
     },
