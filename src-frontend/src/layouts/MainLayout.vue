@@ -144,8 +144,6 @@
 <script lang="ts">
 import EssentialLink from 'components/EssentialLink.vue';
 import { mapActions, mapGetters } from 'vuex';
-// import Transitions, { FadeTransition } from "vue2-transitions";
-// import { FadeTransition } from "vue2-transitions";
 // import Vue from "vue";
 import { defineComponent } from 'vue';
 import { Platform } from 'quasar';
