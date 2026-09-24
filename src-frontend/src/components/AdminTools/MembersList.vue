@@ -22,66 +22,23 @@
     >
       <template v-slot:top-left>
         <div class="row flex items-start">
-          <template v-if="$q.screen.lt.md">
-            <div class="full-width">
-              <q-btn-dropdown
-                class="q-mb-sm"
-                color="primary"
-                :label="$t('adminTools.exportOptions')"
-              >
-                <q-list>
-                  <q-item v-close-popup clickable @click="exportCsv">
-                    <q-item-section>
-                      <q-item-label>{{
-                        $t('adminTools.exportCsv')
-                      }}</q-item-label>
-                    </q-item-section>
-                  </q-item>
-
-                  <q-item
-                    v-close-popup
-                    clickable
-                    @click="copyEmailsToClipboard"
-                  >
-                    <q-item-section>
-                      <q-item-label>{{
-                        $t('adminTools.emailAddresses')
-                      }}</q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
-            </div>
-            <div class="full-width">
-              <q-select
-                v-model="memberState"
-                class="q-mb-sm"
-                outlined
-                emit-value
-                map-options
-                :options="filterOptions"
-                :label="$t('adminTools.filterOptions')"
-                dense
-              />
-            </div>
-          </template>
-
-          <template v-else>
-            <q-btn
-              class="q-mr-sm q-mb-sm"
-              color="primary"
-              :icon="icons.export"
-              :label="$t('adminTools.exportCsv')"
-              @click="exportCsv"
+          <member-export-buttons
+            :class="{ 'full-width': $q.screen.lt.md }"
+            :members="displayMemberList"
+            :csv-columns="csvColumns"
+          />
+          <div v-if="$q.screen.lt.md" class="full-width">
+            <q-select
+              v-model="memberState"
+              class="q-mb-sm"
+              outlined
+              emit-value
+              map-options
+              :options="filterOptions"
+              :label="$t('adminTools.filterOptions')"
+              dense
             />
-            <q-btn
-              class="q-mr-sm q-mb-sm"
-              color="primary"
-              :icon="icons.email"
-              :label="$t('adminTools.emailAddresses')"
-              @click="copyEmailsToClipboard"
-            />
-          </template>
+          </div>
         </div>
       </template>
       <template v-slot:top-right>
@@ -142,19 +99,19 @@
 </template>
 
 <script lang="ts">
-import { copyToClipboard } from 'quasar';
 import icons from '@icons';
 import formatMixin from '@mixins/formatMixin';
-import { exportFile } from 'quasar';
-import { stringify } from 'csv-stringify';
 import { mapGetters } from 'vuex';
+import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
 import { MemberProfile } from 'types/member';
 import { memberMatchesQuery } from '../../utils/fuzzySearch';
+import { CsvColumn } from '../../utils/memberExport';
 import { defineComponent } from 'vue';
 import type { QInput } from 'quasar';
 
 export default defineComponent({
   name: 'MembersList',
+  components: { MemberExportButtons },
   mixins: [formatMixin],
   data() {
     return {
@@ -196,12 +153,6 @@ export default defineComponent({
         (member: MemberProfile) => member.state === this.memberState
       );
     },
-    memberEmails() {
-      return this.displayMemberList
-        .filter((member: MemberProfile) => !member.excludeFromEmailExport)
-        .map((member: MemberProfile) => member.email)
-        .join(',');
-    },
     icons() {
       return icons;
     },
@@ -212,6 +163,36 @@ export default defineComponent({
         { label: this.$t('adminTools.inactive'), value: 'inactive' },
         { label: this.$t('adminTools.new'), value: 'noob' },
         { label: this.$t('adminTools.accountOnly'), value: 'accountonly' },
+      ];
+    },
+    csvColumns(): CsvColumn<MemberProfile>[] {
+      return [
+        { header: this.$t('tableHeading.name'), value: (m) => m.name.full },
+        {
+          header: this.$t('tableHeading.screenName'),
+          value: (m) => m.screenName,
+        },
+        { header: this.$t('tableHeading.email'), value: (m) => m.email },
+        { header: this.$t('tableHeading.rfid'), value: (m) => m.rfid },
+        ...(this.features?.signup?.collectVehicleRegistrationPlate
+          ? [
+              {
+                header: this.$t('form.vehicleRegistrationPlate'),
+                value: (m: MemberProfile) => m.vehicleRegistrationPlate,
+              },
+            ]
+          : []),
+        {
+          header: this.$t('tableHeading.subscriptionStatus'),
+          value: (m) =>
+            this.$t(
+              `adminTools.subscriptionStatusString.${m.subscriptionStatus}`
+            ),
+        },
+        {
+          header: this.$t('tableHeading.status'),
+          value: (m) => this.$t(`adminTools.memberStatusString.${m.state}`),
+        },
       ];
     },
     columns() {
@@ -319,52 +300,6 @@ export default defineComponent({
         })
         .finally(() => {
           this.loading = false;
-        });
-    },
-    exportCsv() {
-      console.log(this.displayMemberList);
-      stringify(
-        this.displayMemberList,
-        {
-          columns: ['name.full', 'email', 'state'],
-        },
-        (err, output) => {
-          const status = exportFile('member-export.csv', output, 'text/csv');
-
-          if (status !== true) {
-            this.$q.notify({
-              message: this.$t('error.downloadFailed'),
-              color: 'negative',
-              icon: 'warning',
-            });
-          }
-        }
-      );
-    },
-    copyEmailsToClipboard() {
-      copyToClipboard(this.memberEmails)
-        .then(() => {
-          this.$q.dialog({
-            dark: true,
-            title: this.$tc(
-              'adminTools.copyEmailListSuccess',
-              this.displayMemberList.length
-            ),
-            message: this.$tc(
-              'adminTools.copyEmailListSuccessDescription',
-              this.displayMemberList.length -
-                this.displayMemberList.filter(
-                  (member: MemberProfile) => !member.excludeFromEmailExport
-                ).length
-            ),
-          });
-        })
-        .catch(() => {
-          this.$q.dialog({
-            dark: true,
-            title: this.$t('error.copyToClipboard'),
-            message: this.$t('error.copyToClipboardDescription'),
-          });
         });
     },
   },
