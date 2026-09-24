@@ -73,6 +73,8 @@ if os.environ.get("MM_ENV") == "Production":
 
 # Application definition
 INSTALLED_APPS = [
+    # Provides the ASGI runserver, and has to come before staticfiles.
+    "daphne",
     "constance",
     "django_prometheus",
     "django.contrib.admin",

@@ -17,6 +17,12 @@ docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > memb
 
 Sections are newest first. Read the ones between the version you are on and the version you are moving to.
 
+## Redis TLS options must be lowercase (Channels 4)
+
+This release updates the library door, interlock and memberbucks devices use to reach Redis. If your `MM_REDIS_HOST` is a `rediss://` address with an `ssl_cert_reqs` option, write its value in lowercase: `ssl_cert_reqs=required`, `optional` or `none`. The uppercase form (`CERT_REQUIRED`) still works for background tasks, but devices can no longer connect with it, and the door buttons in Admin Tools fail.
+
+Plain `redis://` addresses, including the one in the bundled [docker-compose.yml](/docker/docker-compose.yml), need no change.
+
 ## Database and proxy requirements (Django 4.2)
 
 This release moves the portal onto Django 4.2, which is stricter about two parts of your setup.
