@@ -39,8 +39,8 @@ export default {
     membersState: 'all',
     // rowsPerPage default depends on screen size, so MembersList sets it.
     membersPagination: {
-      sortBy: 'date',
-      descending: true,
+      sortBy: 'name',
+      descending: false,
       page: 1,
       rowsPerPage: null,
     },

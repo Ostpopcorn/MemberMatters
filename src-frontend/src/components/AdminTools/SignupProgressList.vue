@@ -15,14 +15,13 @@
       <template v-slot:top>
         <div class="full-width">
           <div class="row items-start justify-between">
-            <div class="row items-center q-mb-sm">
+            <div class="row items-center q-gutter-sm q-mb-sm">
               <q-select
                 v-model="stateFilter"
                 outlined
                 dense
                 emit-value
                 map-options
-                class="q-mr-sm"
                 style="min-width: 140px"
                 :options="stateFilterOptions"
                 :label="$t('adminTools.filterOptions')"
@@ -77,6 +76,12 @@
                   </q-item>
                 </q-list>
               </q-btn-dropdown>
+
+              <card-sort-control
+                v-if="grid"
+                v-model:pagination="pagination"
+                :columns="columns"
+              />
             </div>
 
             <member-export-buttons
@@ -207,6 +212,7 @@ import { defineComponent } from 'vue';
 import { mapGetters } from 'vuex';
 import icons from '@icons';
 import formatMixin, { formatDate } from '@mixins/formatMixin';
+import CardSortControl from '@components/AdminTools/CardSortControl.vue';
 import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
 import MemberSummaryCard from '@components/AdminTools/MemberSummaryCard.vue';
 import { MemberProfile } from 'types/member';
@@ -244,7 +250,7 @@ const STEP_STATE_LABEL_KEYS: Record<SignupStepStateName, string> = {
 // query comes from the parent so it can be shared with the members tab.
 export default defineComponent({
   name: 'SignupProgressList',
-  components: { MemberExportButtons, MemberSummaryCard },
+  components: { CardSortControl, MemberExportButtons, MemberSummaryCard },
   mixins: [formatMixin],
   props: {
     grid: {
