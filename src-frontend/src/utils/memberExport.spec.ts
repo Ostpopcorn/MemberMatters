@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCsvRows, memberEmailList } from './memberExport';
+import { buildCsvRows, memberEmailList, toCsv } from './memberExport';
 
 const rows = [
   { name: 'Ada', email: 'ada@example.com', excludeFromEmailExport: false },
@@ -38,5 +38,16 @@ describe('memberEmailList', () => {
 
   it('is empty for no rows', () => {
     expect(memberEmailList([])).toBe('');
+  });
+});
+
+describe('toCsv', () => {
+  it('quotes values that need it', () => {
+    expect(
+      toCsv(
+        [{ name: 'Smith, "Jo"' }],
+        [{ header: 'Name', value: (row) => row.name }]
+      )
+    ).toBe('Name\n"Smith, ""Jo"""\n');
   });
 });
