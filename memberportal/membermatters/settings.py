@@ -42,11 +42,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # this allows the frontend dev server to talk to the dev server
 CORS_ALLOW_ALL_ORIGINS = True
 
+# The frontend dev server proxies /admin and /openid with changeOrigin, so the
+# Host Django sees is not the browser's Origin and CSRF would reject the POST.
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8080", "http://127.0.0.1:8080"]
+
 if os.environ.get("MM_ENV") == "Production":
     from django.core.exceptions import ImproperlyConfigured
 
     ENVIRONMENT = "Production"
     CORS_ALLOW_ALL_ORIGINS = False
+    CSRF_TRUSTED_ORIGINS = []
     DEBUG = False
 
     # Refuse to boot in production with the bundled dev SECRET_KEY. JWTs
@@ -417,7 +422,6 @@ LANGUAGE_CODE = os.getenv("MM_LANGUAGE_CODE", "en-au")
 
 TIME_ZONE = os.getenv("MM_TIME_ZONE", "Australia/Brisbane")
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 # Only emails are translated by the project itself; see services/email_i18n.py.

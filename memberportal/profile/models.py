@@ -1,7 +1,6 @@
 from django.db import models, transaction
 from django.utils import timezone
 from datetime import timedelta, datetime
-import pytz
 from django.utils.translation import gettext
 from django.contrib.auth.models import (
     BaseUserManager,
@@ -31,7 +30,6 @@ from django_prometheus.models import ExportModelOperationsMixin
 
 logger = logging.getLogger("profile")
 
-utc = pytz.UTC
 
 LOG_TYPES = (
     ("generic", "Generic Event"),

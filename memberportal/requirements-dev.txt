@@ -4,8 +4,8 @@
 #   pip install -r memberportal/requirements-dev.txt
 -r requirements.txt
 
-# pytest-django 4.8 is the last line that still declares Django 3.2 support;
-# newer releases require Django >= 4.2. Bump only alongside the Django upgrade.
+# pytest-django 4.8 declares support up to Django 5.0, so it stays put for the
+# 4.2 hop and needs bumping only when Django moves past 5.0.
 pytest~=8.3
 pytest-django~=4.8.0
 factory-boy~=3.3

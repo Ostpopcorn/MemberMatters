@@ -3,12 +3,9 @@ from datetime import timedelta
 from urllib.parse import urljoin
 from constance import config
 from django.utils import timezone
-import pytz
 from django.conf import settings
 from uuid import uuid4
 from django_prometheus.models import ExportModelOperationsMixin
-
-utc = pytz.UTC
 
 
 class Kiosk(ExportModelOperationsMixin("kiosk"), models.Model):

@@ -17,6 +17,45 @@ docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > memb
 
 Sections are newest first. Read the ones between the version you are on and the version you are moving to.
 
+## Database and proxy requirements (Django 4.2)
+
+This release moves the portal onto Django 4.2, which is stricter about two parts of your setup.
+
+### Newer database versions
+
+Django 4.2 will not work with a database server older than:
+
+| Database | Minimum |
+| --- | --- |
+| PostgreSQL | 12 |
+| MySQL | 8 |
+| MariaDB | 10.4 |
+
+If you use SQLite (the default in the [getting started](/docs/GETTING_STARTED.md) instructions, and built into the image) or the database from the bundled [docker-compose.yml](/docker/docker-compose.yml), there is nothing to do.
+
+If MemberMatters connects to a database server you run yourself, check its version **before** you pull the new image. This asks the running portal, so it reports the database it is actually configured to use. Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`:
+
+```bash
+docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select version()'); print(c.fetchone()[0])"
+```
+
+If the server is too old, upgrade it first. Otherwise the container still starts and the page still loads, but nobody can log in: every request that needs the database fails, and the container log shows an error such as `PostgreSQL 12 or later is required`. Going back to the previous image fixes it, because this upgrade makes no changes to your data.
+
+### Your reverse proxy must pass on X-Forwarded-Proto
+
+Django 4.2 checks that every change a signed-in person sends — saving their profile, logging in to the Django admin — comes from the same address the portal is served at. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so in the `X-Forwarded-Proto` header. If the proxy leaves it out, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
+
+```
+Forbidden (Origin checking failed - https://portal.example.org does not match any trusted origins.): /admin/login/
+```
+
+If you set up nginx as described in [Post Installation Steps](/docs/POST_INSTALL_STEPS.md), your proxy already sends the header and there is nothing to do. Otherwise, check your proxy's configuration before you upgrade. For nginx, the location that forwards to MemberMatters needs both of these lines; other proxies have an equivalent setting:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
 ## Settings move to a new table (django-constance 3.1)
 
 Everything you edit under Admin Tools is stored in a single table, which used to be named `constance_config`. django-constance 3.1 moves those rows into a table named `constance_constance` and drops the old one.

@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import datetime
+from datetime import timezone as dt_timezone
 from urllib.parse import urlparse
 
 import stripe
@@ -323,7 +324,7 @@ class MemberCancelMembership(StripeAPIView):
                 period_end_ts = getattr(stripe_sub, "current_period_end", None)
                 if period_end_ts:
                     period_end_dt = datetime.fromtimestamp(
-                        period_end_ts, tz=timezone.utc
+                        period_end_ts, tz=dt_timezone.utc
                     )
             except stripe.error.StripeError as e:
                 capture_exception(e)
