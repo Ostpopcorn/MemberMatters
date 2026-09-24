@@ -39,22 +39,31 @@
       </div>
       <div class="text-caption text-grey-7 ellipsis">{{ member.email }}</div>
 
-      <div class="row q-gutter-xs q-mt-xs">
-        <q-badge :color="memberStateColor(member.state)">
-          {{ $t(`adminTools.memberStatusString.${member.state}`) }}
-          <q-tooltip>{{ $t('tableHeading.status') }}</q-tooltip>
-        </q-badge>
-        <q-badge
-          outline
-          :color="subscriptionStatusColor(member.subscriptionStatus)"
-        >
-          {{
-            $t(
-              `adminTools.subscriptionStatusString.${member.subscriptionStatus}`
-            )
-          }}
-          <q-tooltip>{{ $t('tableHeading.subscriptionStatus') }}</q-tooltip>
-        </q-badge>
+      <!-- Headed like the table columns, so the two badges can't be mixed up. -->
+      <div class="row q-col-gutter-md q-mt-none">
+        <div class="col-auto">
+          <div class="text-caption text-grey-7">
+            {{ $t('tableHeading.status') }}
+          </div>
+          <q-badge :color="memberStateColor(member.state)">
+            {{ $t(`adminTools.memberStatusString.${member.state}`) }}
+          </q-badge>
+        </div>
+        <div class="col-auto">
+          <div class="text-caption text-grey-7">
+            {{ $t('tableHeading.subscriptionStatus') }}
+          </div>
+          <q-badge
+            outline
+            :color="subscriptionStatusColor(member.subscriptionStatus)"
+          >
+            {{
+              $t(
+                `adminTools.subscriptionStatusString.${member.subscriptionStatus}`
+              )
+            }}
+          </q-badge>
+        </div>
       </div>
     </q-card-section>
 
