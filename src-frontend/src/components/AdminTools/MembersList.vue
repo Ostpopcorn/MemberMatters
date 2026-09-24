@@ -13,17 +13,25 @@
     >
       <template v-slot:top>
         <div class="row items-start justify-between full-width">
-          <q-select
-            v-model="memberState"
-            class="q-mr-sm q-mb-sm"
-            style="min-width: 140px"
-            outlined
-            emit-value
-            map-options
-            :options="filterOptions"
-            :label="$t('adminTools.filterOptions')"
-            dense
-          />
+          <div class="row items-center">
+            <q-select
+              v-model="memberState"
+              class="q-mr-sm q-mb-sm"
+              style="min-width: 140px"
+              outlined
+              emit-value
+              map-options
+              :options="filterOptions"
+              :label="$t('adminTools.filterOptions')"
+              dense
+            />
+            <card-sort-control
+              v-if="grid"
+              v-model:pagination="pagination"
+              class="q-mr-sm q-mb-sm"
+              :columns="columns"
+            />
+          </div>
 
           <member-export-buttons
             :members="filteredMembers"
@@ -87,6 +95,7 @@
 import icons from '@icons';
 import formatMixin from '@mixins/formatMixin';
 import { mapGetters } from 'vuex';
+import CardSortControl from '@components/AdminTools/CardSortControl.vue';
 import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
 import MemberSummaryCard from '@components/AdminTools/MemberSummaryCard.vue';
 import { MemberProfile } from 'types/member';
@@ -96,7 +105,7 @@ import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'MembersList',
-  components: { MemberExportButtons, MemberSummaryCard },
+  components: { CardSortControl, MemberExportButtons, MemberSummaryCard },
   mixins: [formatMixin],
   props: {
     grid: {
