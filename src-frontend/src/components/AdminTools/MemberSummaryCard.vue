@@ -39,20 +39,21 @@
       </div>
       <div class="text-caption text-grey-7 ellipsis">{{ member.email }}</div>
 
-      <!-- Headed like the table columns, so the two badges can't be mixed up. -->
-      <div class="row q-col-gutter-md q-mt-none">
-        <div class="col-auto">
-          <div class="text-caption text-grey-7">
-            {{ $t('tableHeading.status') }}
-          </div>
+      <!-- Labelled, so the two badges can't be mixed up when both read
+           "Active". -->
+      <div class="status-grid q-mt-sm text-caption">
+        <span class="text-grey-7">
+          {{ $t('tableHeading.membershipStatus') }}:
+        </span>
+        <span>
           <q-badge :color="memberStateColor(member.state)">
             {{ $t(`adminTools.memberStatusString.${member.state}`) }}
           </q-badge>
-        </div>
-        <div class="col-auto">
-          <div class="text-caption text-grey-7">
-            {{ $t('tableHeading.subscriptionStatus') }}
-          </div>
+        </span>
+        <span class="text-grey-7">
+          {{ $t('tableHeading.subscriptionStatus') }}:
+        </span>
+        <span>
           <q-badge
             outline
             :color="subscriptionStatusColor(member.subscriptionStatus)"
@@ -63,7 +64,7 @@
               )
             }}
           </q-badge>
-        </div>
+        </span>
       </div>
     </q-card-section>
 
@@ -106,6 +107,15 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
+// Label and badge on one line, with the badges lined up.
+.status-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 4px;
+  align-items: center;
+}
+
 .member-summary-card {
   transition: box-shadow 0.2s;
 

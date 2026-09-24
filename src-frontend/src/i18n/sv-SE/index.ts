@@ -224,6 +224,7 @@ export default {
     email: 'Email',
     subscriptionStatus: 'Abonnemang Status',
     status: 'Status',
+    membershipStatus: 'Medlemsstatus',
   },
   access: {
     adminDisabled: 'Your access has been disabled by an administrator.',

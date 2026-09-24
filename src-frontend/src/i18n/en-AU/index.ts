@@ -231,6 +231,7 @@ export default {
     email: 'Email',
     subscriptionStatus: 'Subscription Status',
     status: 'Status',
+    membershipStatus: 'Membership Status',
   },
   access: {
     adminDisabled: 'Your access has been disabled by an administrator.',
