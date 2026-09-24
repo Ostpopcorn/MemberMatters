@@ -73,8 +73,7 @@
           @click="sendDirect"
         />
         <q-btn
-          color="primary"
-          outline
+          :color="workerTestAvailable === false ? 'grey-7' : 'primary'"
           label="Send via Celery worker"
           :loading="workerTestRunning"
           :disable="!testRecipient || !workerTestAvailable || directSending"
@@ -88,7 +87,7 @@
         </span>
       </q-card-section>
       <q-card-section
-        v-else-if="!statusLoading && !workerTestAvailable"
+        v-else-if="!statusLoading && workerTestAvailable === false"
         class="q-pt-none text-grey-7"
       >
         The worker test needs a queue. MM_REDIS_HOST is not set, so the web app
@@ -203,7 +202,8 @@ export default defineComponent({
     return {
       checks: [] as Check[],
       testRecipient: null as string | null,
-      workerTestAvailable: false,
+      // null until the status has loaded, so the button isn't greyed out early.
+      workerTestAvailable: null as boolean | null,
       statusLoading: true,
       statusError: '',
       directSending: false,

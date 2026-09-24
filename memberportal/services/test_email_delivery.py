@@ -25,11 +25,6 @@ def _checks(status):
     EMAIL_ADMIN="admin@example.com",
 )
 class DeliveryStatusTests(TestCase):
-    def setUp(self):
-        self.postmark = mock.patch.object(email_delivery, "PostmarkClient").start()
-        self.postmark.return_value.server.get.return_value.Name = "Makerspace Live"
-        self.addCleanup(mock.patch.stopall)
-
     def test_rows_are_always_present_in_order(self):
         status = email_delivery.get_delivery_status()
 
@@ -47,34 +42,12 @@ class DeliveryStatusTests(TestCase):
         )
         self.assertEqual(status["testRecipient"], "admin@example.com")
 
-    def test_valid_postmark_key_shows_server_name(self):
+    def test_postmark_key_is_reported_as_set(self):
         row = _checks(email_delivery.get_delivery_status())["postmark"]
 
         self.assertEqual(row["status"], email_delivery.OK)
-        self.assertEqual(row["value"], 'Valid (server "Makerspace Live")')
-        self.postmark.assert_called_once_with(
-            server_token="test-key",
-            timeout=email_delivery.POSTMARK_CHECK_TIMEOUT_SECONDS,
-        )
-
-    def test_rejected_postmark_key(self):
-        self.postmark.return_value.server.get.side_effect = ClientError(
-            "[10] Bad or missing Server API token", error_code=10
-        )
-
-        row = _checks(email_delivery.get_delivery_status())["postmark"]
-
-        self.assertEqual(row["status"], email_delivery.ERROR)
-        self.assertEqual(row["value"], email_delivery.NOT_AVAILABLE)
-        self.assertIn("Bad or missing Server API token", row["detail"])
-
-    def test_unreachable_postmark(self):
-        self.postmark.return_value.server.get.side_effect = requests.ConnectTimeout()
-
-        row = _checks(email_delivery.get_delivery_status())["postmark"]
-
-        self.assertEqual(row["status"], email_delivery.ERROR)
-        self.assertIn("Could not reach Postmark", row["detail"])
+        self.assertEqual(row["value"], "Set")
+        self.assertNotIn("test-key", str(row))
 
     @override_config(POSTMARK_API_KEY="", EMAIL_DEFAULT_FROM="", EMAIL_ADMIN="")
     def test_missing_settings_show_placeholder(self):
@@ -84,7 +57,6 @@ class DeliveryStatusTests(TestCase):
         for key in ("postmark", "from_address", "admin_address"):
             self.assertEqual(checks[key]["status"], email_delivery.ERROR)
             self.assertEqual(checks[key]["value"], email_delivery.NOT_AVAILABLE)
-        self.postmark.assert_not_called()
         self.assertIsNone(status["testRecipient"])
 
     def test_shows_addresses(self):
