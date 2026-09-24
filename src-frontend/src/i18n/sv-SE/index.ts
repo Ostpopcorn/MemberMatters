@@ -222,7 +222,7 @@ export default {
     screenName: 'Skärmnamn',
     rfid: 'RFID Tag',
     email: 'Email',
-    subscriptionStatus: 'Abonnemang Status',
+    subscriptionStatus: 'Abonnemangsstatus',
     status: 'Status',
     membershipStatus: 'Medlemsstatus',
   },
@@ -559,7 +559,7 @@ export default {
     memberState: 'Medlemsstatus',
     memberbucksTransactions: 'Spacebucks Transaktioner',
     subscriptionInfo: 'Abonnemang Info',
-    subscriptionStatus: 'Abonnemang Status',
+    subscriptionStatus: 'Abonnemangsstatus',
     subscriptionStatusString: {
       active: 'Aktiv',
       inactive: 'Inaktiv',
