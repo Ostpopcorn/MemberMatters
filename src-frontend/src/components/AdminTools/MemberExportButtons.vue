@@ -44,14 +44,13 @@
 <script lang="ts">
 import { defineComponent, PropType } from 'vue';
 import { copyToClipboard, exportFile } from 'quasar';
-import { stringify } from 'csv-stringify';
 import icons from '@icons';
 import { MemberProfile } from 'types/member';
 import {
-  buildCsvRows,
   CsvColumn,
   emailExportMembers,
   memberEmailList,
+  toCsv,
 } from '../../utils/memberExport';
 
 // Export CSV / Copy Email List for whatever rows the parent list is showing.
@@ -78,17 +77,19 @@ export default defineComponent({
   },
   methods: {
     exportCsv() {
-      stringify(buildCsvRows(this.members, this.csvColumns), (err, output) => {
-        const status = !err && exportFile(this.filename, output, 'text/csv');
+      const status = exportFile(
+        this.filename,
+        toCsv(this.members, this.csvColumns),
+        'text/csv'
+      );
 
-        if (status !== true) {
-          this.$q.notify({
-            message: this.$t('error.downloadFailed'),
-            color: 'negative',
-            icon: 'warning',
-          });
-        }
-      });
+      if (status !== true) {
+        this.$q.notify({
+          message: this.$t('error.downloadFailed'),
+          color: 'negative',
+          icon: 'warning',
+        });
+      }
     },
     copyEmailsToClipboard() {
       copyToClipboard(memberEmailList(this.members))
