@@ -478,6 +478,8 @@ export default {
       'Simply paste them into your email client to use them. We recommend using the BCC field to protect your members privacy. Excluded {n} @:member who you have opted out of email exports.',
     exportCsv: 'Export CSV',
     exportOptions: 'Export Options',
+    listView: 'List view',
+    cardView: 'Card view',
     filterOptions: 'Filter',
     searchMembers: 'Search',
     all: 'All',
