@@ -41,6 +41,8 @@ export default {
 
   search: 'mdi-magnify',
   filter: 'mdi-filter-variant',
+  sortAscending: 'mdi-sort-ascending',
+  sortDescending: 'mdi-sort-descending',
   viewList: 'mdi-view-list',
   viewGrid: 'mdi-view-grid',
   warning: 'mdi-alert',
