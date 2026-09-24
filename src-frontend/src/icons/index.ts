@@ -40,6 +40,8 @@ export default {
   register: 'mdi-account-plus',
 
   search: 'mdi-magnify',
+  viewList: 'mdi-view-list',
+  viewGrid: 'mdi-view-grid',
   warning: 'mdi-alert',
   info: 'mdi-information',
   clock: 'mdi-clock',
