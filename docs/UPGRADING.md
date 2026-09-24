@@ -2,18 +2,32 @@
 
 Notes for upgrading an existing MemberMatters instance. If you are installing for the first time, follow the [getting started](/docs/GETTING_STARTED.md) instructions instead — nothing here applies to a new install.
 
-Database migrations run automatically every time the web container starts, so an upgrade is normally just pulling the new image and restarting it:
+Database migrations run automatically every time the web container starts, so upgrading means replacing the container with one made from the new image. `docker restart` is not enough: it starts the same container again, on the image it was created from.
 
-```bash
-docker pull membermatters/membermatters
-docker restart membermatters
-```
+- **Single container**, as in the getting started instructions: follow [Updating your instance](/docs/GETTING_STARTED.md#updating-your-instance). Pull the new image, then stop, remove and re-create the container with the same `docker create` command you installed it with.
+- **docker compose**: from the directory holding your [docker-compose.yml](/docker/docker-compose.yml), run:
 
-**Back up your database first.** Some upgrades move data between tables and drop the old one, and downgrading will not undo that. Run this from the directory holding your [docker-compose.yml](/docker/docker-compose.yml), where `mm-postgres` is the database service:
+  ```bash
+  docker compose pull
+  docker compose up -d
+  ```
 
-```bash
-docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > membermatters-backup.sql
-```
+**Back up your database first.** Some upgrades move data between tables and drop the old one, and going back to the previous image does not undo that.
+
+- **SQLite**, the getting started default: stop the container and copy the database file out of the folder you mounted, which is `/usr/app/` in the getting started instructions. Then carry on with the upgrade.
+
+  ```bash
+  docker stop membermatters
+  cp /usr/app/db.sqlite3 /usr/app/db.sqlite3.backup
+  ```
+
+- **PostgreSQL under docker compose**, where `mm-postgres` is the database service:
+
+  ```bash
+  docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > membermatters-backup.sql
+  ```
+
+- **A database server you run yourself**: use its own backup tool, such as `pg_dump` or `mysqldump`.
 
 Sections are newest first. Read the ones between the version you are on and the version you are moving to.
 
@@ -68,41 +82,26 @@ Everything you edit under Admin Tools is stored in a single table, which used to
 
 There is nothing for you to do. The migration copies every row across, so your settings — including API keys, Stripe configuration and email templates — are preserved.
 
+On MySQL and MariaDB, django-constance's own copy fails without an error, so this release completes the move itself.
+
 If you want to check, count the rows before you upgrade:
 
 ```bash
-docker compose exec mm-postgres psql -U membermatters -d membermatters -c "select count(*) from constance_config;"
+docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_config'); print(c.fetchone()[0])"
 ```
 
-and count them again afterwards:
+and count them again in the new container:
 
 ```bash
-docker compose exec mm-postgres psql -U membermatters -d membermatters -c "select count(*) from constance_constance;"
+docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_constance'); print(c.fetchone()[0])"
 ```
 
-The two numbers should be the same. The copy is a single statement that either moves everything or nothing, so if the new table is empty, restore your backup and try again rather than re-entering the settings by hand.
+Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`.
 
-### Dashboard cards are not imported if you skip past their release
+The second number should be at least the first. It can be higher, because the portal saves a setting's default the first time it reads one that was never saved. If it is lower, restore your backup rather than re-entering the settings by hand.
 
-Older versions configured the member dashboard through a setting named `HOME_PAGE_CARDS`. When the Dashboard Cards editor was added to Admin Tools, a one-time migration came with it that reads that setting and creates a card for each entry.
+## Dashboard cards move to Admin Tools
 
-That import cannot run while the settings are being moved to the new table. So it is skipped if you upgrade from a version older than the Dashboard Cards editor directly to this version or a later one — your dashboard will show the default cards instead of your own.
+Older versions configured the member dashboard through a setting named `HOME_PAGE_CARDS`. It is replaced by the Dashboard Cards editor under Admin Tools, and the upgrade creates a card for each entry in your old setting, so your dashboard looks the same afterwards.
 
-Nothing is lost. The old setting is still in the database, so you can copy your cards out of it and recreate them. Open a shell in the web container:
-
-```bash
-docker exec -it membermatters bash
-python3 manage.py shell
-```
-
-and print the old value:
-
-```python
-from constance.models import Constance
-row = Constance.objects.filter(key="HOME_PAGE_CARDS").first()
-print(row.value if row else "nothing saved")
-```
-
-Then enter the cards under Admin Tools → Dashboard Cards. There is no way to trigger the import afterwards.
-
-To avoid this altogether, upgrade in two steps: first to a version that has the Dashboard Cards editor but not this settings change, let the container start and finish migrating, then upgrade the rest of the way.
+If the setting isn't valid JSON, no cards are imported and the container log says so. Enter them under Admin Tools → Dashboard Cards instead.

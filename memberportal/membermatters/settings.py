@@ -51,6 +51,11 @@ if os.environ.get("MM_ENV") == "Production":
 
     ENVIRONMENT = "Production"
     CORS_ALLOW_ALL_ORIGINS = False
+    # No extra trusted origins in production, and deliberately no
+    # MM_CSRF_TRUSTED_ORIGINS to add some. Django checks each POST's Origin
+    # against the scheme and host it is serving, so a reverse proxy has to
+    # forward the Host header (with any port) and X-Forwarded-Proto instead.
+    # See docs/UPGRADING.md.
     CSRF_TRUSTED_ORIGINS = []
     DEBUG = False
 

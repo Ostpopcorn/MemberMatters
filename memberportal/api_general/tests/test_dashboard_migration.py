@@ -16,6 +16,9 @@ from api_general.models import DashboardCard
 migration = importlib.import_module(
     "api_general.migrations.0005_import_home_page_cards"
 )
+second_import = importlib.import_module(
+    "api_general.migrations.0007_import_home_page_cards_after_constance"
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -150,3 +153,26 @@ def test_reverse_deletes_the_cards():
     migration.delete_dashboard_cards(apps, None)
 
     assert not DashboardCard.objects.exists()
+
+
+def test_the_second_import_fills_an_empty_dashboard():
+    set_constance(
+        "HOME_PAGE_CARDS", json.dumps([{"title": "Wiki", "icon": "mdi-book"}])
+    )
+
+    second_import.import_home_page_cards_if_none(apps, None)
+
+    assert list(DashboardCard.objects.values_list("title", flat=True)) == ["Wiki"]
+
+
+def test_the_second_import_leaves_existing_cards_alone():
+    DashboardCard.objects.create(title="Edited since", icon="mdi-book")
+    set_constance(
+        "HOME_PAGE_CARDS", json.dumps([{"title": "Wiki", "icon": "mdi-book"}])
+    )
+
+    second_import.import_home_page_cards_if_none(apps, None)
+
+    assert list(DashboardCard.objects.values_list("title", flat=True)) == [
+        "Edited since"
+    ]

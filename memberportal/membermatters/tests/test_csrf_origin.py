@@ -6,6 +6,13 @@ authenticate with a session, so this applies to every change they make, not
 just to the admin login form.
 """
 
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from django.test import Client
 
@@ -29,6 +36,19 @@ SOURCES = {
         "HTTP_ORIGIN": "https://portal.example.org",
         "HTTP_REFERER": "https://portal.example.org/",
     },
+    # The container's own nginx reached on its published port, as after
+    # GETTING_STARTED's `docker create -p 8000:8000`: no proxy and no TLS.
+    "container nginx on port 8000": {
+        "HTTP_HOST": "portal.example.org:8000",
+        "HTTP_ORIGIN": "http://portal.example.org:8000",
+        "HTTP_REFERER": "http://portal.example.org:8000/",
+    },
+    # The same request when nginx forwarded $host, which drops the port.
+    "container nginx dropping the port": {
+        "HTTP_HOST": "portal.example.org",
+        "HTTP_ORIGIN": "http://portal.example.org:8000",
+        "HTTP_REFERER": "http://portal.example.org:8000/",
+    },
     # quasar.config.js proxies /admin and /openid with changeOrigin: true
     "frontend dev server": {
         "HTTP_HOST": "127.0.0.1:8000",
@@ -51,6 +71,8 @@ SOURCES = {
     [
         ("production proxy", False),
         ("proxy without X-Forwarded-Proto", True),
+        ("container nginx on port 8000", False),
+        ("container nginx dropping the port", True),
         ("frontend dev server", False),
         ("another site", True),
     ],
@@ -71,3 +93,38 @@ def test_csrf_origin_check(path, source, rejected):
 
     rejected_by_csrf = response.status_code == 403 and b"CSRF" in response.content
     assert rejected_by_csrf is rejected
+
+
+def test_the_container_nginx_forwards_the_port_in_the_host_header():
+    # $host drops the port, which turns "container nginx on port 8000" above
+    # into "container nginx dropping the port".
+    nginx_conf = Path(__file__).resolve().parents[3] / "docker" / "nginx.conf"
+    host_headers = re.findall(
+        r"proxy_set_header\s+Host\s+(\S+);", nginx_conf.read_text()
+    )
+    assert host_headers and set(host_headers) == {"$http_host"}
+
+
+def test_production_trusts_no_extra_origins():
+    # Settings are read once per process, so load the production ones in a
+    # fresh interpreter.
+    env = {
+        **os.environ,
+        "MM_ENV": "Production",
+        "MM_SECRET_KEY": "test",
+        "MM_ALLOWED_HOSTS": "portal.example.org",
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import json, membermatters.settings as s; "
+            "print(json.dumps(s.CSRF_TRUSTED_ORIGINS))",
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert json.loads(result.stdout.splitlines()[-1]) == []
