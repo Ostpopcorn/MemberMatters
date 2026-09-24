@@ -40,6 +40,7 @@ export default {
   register: 'mdi-account-plus',
 
   search: 'mdi-magnify',
+  filter: 'mdi-filter-variant',
   viewList: 'mdi-view-list',
   viewGrid: 'mdi-view-grid',
   warning: 'mdi-alert',

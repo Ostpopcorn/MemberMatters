@@ -463,6 +463,9 @@ export default {
     complete: 'Complete',
     pending: 'Pending',
     required: 'Outstanding',
+    stepsFilter: 'Steps',
+    any: 'Any',
+    clearStepFilters: 'Clear step filters',
   },
   adminTools: {
     title: 'Tools',

@@ -452,6 +452,9 @@ export default {
     complete: 'Klart',
     pending: 'Väntar',
     required: 'Återstår',
+    stepsFilter: 'Steg',
+    any: 'Alla',
+    clearStepFilters: 'Rensa stegfilter',
   },
   adminTools: {
     title: 'Verktyg',
