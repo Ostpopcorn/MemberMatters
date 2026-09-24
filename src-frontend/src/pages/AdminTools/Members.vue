@@ -2,9 +2,14 @@
   <q-page :class="$q.screen.xs ? 'q-pa-sm' : 'q-pa-md'">
     <div class="row items-center q-col-gutter-sm q-mb-sm">
       <div class="col-12 col-md">
+        <!-- On phones the icon goes above the label so long labels (e.g. the
+             Swedish "Registreringsstatus") still fit; if they don't, the scroll
+             arrows sit outside the tabs instead of on top of them. -->
         <q-tabs
           v-model="tab"
-          inline-label
+          :inline-label="!$q.screen.xs"
+          outside-arrows
+          mobile-arrows
           align="left"
           active-color="primary"
           indicator-color="primary"
