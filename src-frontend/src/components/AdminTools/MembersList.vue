@@ -1,30 +1,21 @@
 <template>
   <div style="max-width: 100%">
     <q-table
-      :rows="displayMemberList"
+      :rows="filteredMembers"
       :no-data-label="$t('adminTools.noMembers')"
       :columns="columns"
-      row-key="email"
-      :filter="filter"
-      :filter-method="fuzzyFilter"
+      row-key="id"
       v-model:pagination="pagination"
       :loading="loading"
-      :grid="$q.screen.lt.md"
+      :grid="grid"
       class="full-width"
-      @row-click="
-        (evt, row) => {
-          $router.push({
-            name: 'manageMember',
-            params: { memberId: row.id },
-          });
-        }
-      "
+      @row-click="(evt, row) => goToMember(row)"
     >
       <template v-slot:top-left>
         <div class="row flex items-start">
           <member-export-buttons
             :class="{ 'full-width': $q.screen.lt.md }"
-            :members="displayMemberList"
+            :members="filteredMembers"
             :csv-columns="csvColumns"
           />
           <div v-if="$q.screen.lt.md" class="full-width">
@@ -94,6 +85,30 @@
           </q-icon>
         </q-td>
       </template>
+
+      <template v-slot:item="props">
+        <div class="q-pa-xs col-xs-12 col-sm-6 col-md-4 col-lg-3">
+          <member-summary-card
+            :member="props.row"
+            @click="goToMember(props.row)"
+          >
+            <div v-if="props.row.rfid" class="text-caption">
+              <q-icon :name="icons.rfid" class="q-mr-xs" />
+              {{ props.row.rfid }}
+            </div>
+            <div
+              v-if="
+                features?.signup?.collectVehicleRegistrationPlate &&
+                props.row.vehicleRegistrationPlate
+              "
+              class="text-caption"
+            >
+              {{ $t('form.vehicleRegistrationPlate') }}:
+              {{ props.row.vehicleRegistrationPlate }}
+            </div>
+          </member-summary-card>
+        </div>
+      </template>
     </q-table>
   </div>
 </template>
@@ -103,6 +118,7 @@ import icons from '@icons';
 import formatMixin from '@mixins/formatMixin';
 import { mapGetters } from 'vuex';
 import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
+import MemberSummaryCard from '@components/AdminTools/MemberSummaryCard.vue';
 import { MemberProfile } from 'types/member';
 import { memberMatchesQuery } from '../../utils/fuzzySearch';
 import { CsvColumn } from '../../utils/memberExport';
@@ -111,11 +127,17 @@ import type { QInput } from 'quasar';
 
 export default defineComponent({
   name: 'MembersList',
-  components: { MemberExportButtons },
+  components: { MemberExportButtons, MemberSummaryCard },
   mixins: [formatMixin],
+  props: {
+    grid: {
+      type: Boolean,
+      default: false,
+    },
+  },
   data() {
     return {
-      members: [],
+      members: [] as MemberProfile[],
       loading: false,
     };
   },
@@ -147,10 +169,13 @@ export default defineComponent({
         this.$store.commit('adminTools/setMembersPagination', value);
       },
     },
-    displayMemberList() {
-      if (this.memberState === 'all') return this.members;
+    // Filtered here rather than through QTable's filter so the exports get
+    // exactly the rows on screen.
+    filteredMembers(): MemberProfile[] {
       return this.members.filter(
-        (member: MemberProfile) => member.state === this.memberState
+        (member: MemberProfile) =>
+          (this.memberState === 'all' || member.state === this.memberState) &&
+          memberMatchesQuery(member, this.filter)
       );
     },
     icons() {
@@ -263,8 +288,11 @@ export default defineComponent({
     window.removeEventListener('keydown', this.onKeydown);
   },
   methods: {
-    fuzzyFilter(rows: MemberProfile[], terms: string) {
-      return rows.filter((row) => memberMatchesQuery(row, terms));
+    goToMember(member: MemberProfile) {
+      this.$router.push({
+        name: 'manageMember',
+        params: { memberId: member.id },
+      });
     },
     // Ctrl/Cmd+F jumps to the member search instead of the browser's find bar,
     // which can only see the current page of the table anyway. Typing in any
