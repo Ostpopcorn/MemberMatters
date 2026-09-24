@@ -1,6 +1,6 @@
 <template>
   <q-page class="column">
-    <members-list />
+    <members-list :grid="$q.screen.lt.md" />
   </q-page>
 </template>
 
