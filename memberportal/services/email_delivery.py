@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 from django_celery_beat.models import PeriodicTask
 from kombu import Connection
-from postmarker.core import ClientError
+from postmarker.core import PostmarkClient, ClientError
 
 from membermatters.celeryapp import app
 from services.emails import postmark_send, render_email
@@ -23,6 +23,7 @@ logger = logging.getLogger("emails")
 NOT_AVAILABLE = "----"
 OK, WARNING, ERROR, INFO, UNKNOWN = "ok", "warning", "error", "info", "unknown"
 
+POSTMARK_CHECK_TIMEOUT_SECONDS = 5
 BROKER_CHECK_TIMEOUT_SECONDS = 2
 WORKER_CHECK_TIMEOUT_SECONDS = 1
 
@@ -61,7 +62,20 @@ def _check_postmark():
             ERROR,
             detail="POSTMARK_API_KEY is not set, so no emails are sent.",
         )
-    return _row("postmark", label, OK, "Set")
+
+    try:
+        server = PostmarkClient(
+            server_token=config.POSTMARK_API_KEY,
+            timeout=POSTMARK_CHECK_TIMEOUT_SECONDS,
+        ).server.get()
+    except ClientError as e:
+        return _row(
+            "postmark", label, ERROR, "Set", f"Postmark rejected the API key: {e}"
+        )
+    except requests.RequestException as e:
+        return _row("postmark", label, ERROR, "Set", f"Could not reach Postmark: {e}")
+
+    return _row("postmark", label, OK, f'Set (server "{server.Name}")')
 
 
 def _check_address(key, label, address, missing_detail):
