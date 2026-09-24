@@ -11,55 +11,25 @@
       class="full-width"
       @row-click="(evt, row) => goToMember(row)"
     >
-      <template v-slot:top-left>
-        <div class="row flex items-start">
+      <template v-slot:top>
+        <div class="row items-start justify-between full-width">
+          <q-select
+            v-model="memberState"
+            class="q-mr-sm q-mb-sm"
+            style="min-width: 140px"
+            outlined
+            emit-value
+            map-options
+            :options="filterOptions"
+            :label="$t('adminTools.filterOptions')"
+            dense
+          />
+
           <member-export-buttons
-            :class="{ 'full-width': $q.screen.lt.md }"
             :members="filteredMembers"
             :csv-columns="csvColumns"
           />
-          <div v-if="$q.screen.lt.md" class="full-width">
-            <q-select
-              v-model="memberState"
-              class="q-mb-sm"
-              outlined
-              emit-value
-              map-options
-              :options="filterOptions"
-              :label="$t('adminTools.filterOptions')"
-              dense
-            />
-          </div>
         </div>
-      </template>
-      <template v-slot:top-right>
-        <q-select
-          v-if="$q.screen.gt.sm"
-          v-model="memberState"
-          class="q-mr-sm"
-          style="min-width: 100px"
-          outlined
-          emit-value
-          map-options
-          :options="filterOptions"
-          :label="$t('adminTools.filterOptions')"
-          dense
-        />
-
-        <q-input
-          ref="searchInput"
-          v-model="filter"
-          outlined
-          dense
-          clearable
-          :clear-icon="icons.close"
-          debounce="300"
-          :placeholder="$t('adminTools.searchMembers')"
-        >
-          <template v-slot:append>
-            <q-icon :name="icons.search" />
-          </template>
-        </q-input>
       </template>
 
       <template v-slot:body-cell-status="props">
@@ -123,7 +93,6 @@ import { MemberProfile } from 'types/member';
 import { memberMatchesQuery } from '../../utils/fuzzySearch';
 import { CsvColumn } from '../../utils/memberExport';
 import { defineComponent } from 'vue';
-import type { QInput } from 'quasar';
 
 export default defineComponent({
   name: 'MembersList',
@@ -134,6 +103,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    // Owned by the members page, which shares it with the signup tab.
+    search: {
+      type: String,
+      default: '',
+    },
   },
   data() {
     return {
@@ -143,16 +117,6 @@ export default defineComponent({
   },
   computed: {
     ...mapGetters('config', ['features']),
-    filter: {
-      get(): string {
-        return this.$store.getters['adminTools/membersFilter'];
-      },
-      // The clear button hands back null, but the store (and QTable's filter
-      // prop) expect a string.
-      set(value: string | null) {
-        this.$store.commit('adminTools/setMembersFilter', value ?? '');
-      },
-    },
     memberState: {
       get(): string {
         return this.$store.getters['adminTools/membersState'];
@@ -175,7 +139,7 @@ export default defineComponent({
       return this.members.filter(
         (member: MemberProfile) =>
           (this.memberState === 'all' || member.state === this.memberState) &&
-          memberMatchesQuery(member, this.filter)
+          memberMatchesQuery(member, this.search)
       );
     },
     icons() {
@@ -282,10 +246,6 @@ export default defineComponent({
   },
   mounted() {
     this.getMembers();
-    window.addEventListener('keydown', this.onKeydown);
-  },
-  beforeUnmount() {
-    window.removeEventListener('keydown', this.onKeydown);
   },
   methods: {
     goToMember(member: MemberProfile) {
@@ -293,25 +253,6 @@ export default defineComponent({
         name: 'manageMember',
         params: { memberId: member.id },
       });
-    },
-    // Ctrl/Cmd+F jumps to the member search instead of the browser's find bar,
-    // which can only see the current page of the table anyway. Typing in any
-    // other field still gets native find.
-    onKeydown(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) {
-        return;
-      }
-      // Caps Lock reports 'F' even with shift up.
-      if (event.key.toLowerCase() !== 'f') return;
-
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) {
-        return;
-      }
-
-      event.preventDefault();
-      (this.$refs.searchInput as QInput | undefined)?.focus();
     },
     getMembers() {
       this.loading = true;

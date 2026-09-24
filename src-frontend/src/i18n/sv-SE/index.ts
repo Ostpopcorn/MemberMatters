@@ -467,6 +467,8 @@ export default {
       'Klistra in i din email-app för att använda. Vi rekommenderar att skicka som BCC för att skydda dina medlemmars integritet. Exkluderade {n} @:member som har valt att avstå email exports.',
     exportCsv: 'Export CSV',
     exportOptions: 'Export Options',
+    listView: 'Listvy',
+    cardView: 'Kortvy',
     filterOptions: 'Filter',
     searchMembers: 'Sök',
     all: 'Alla',
