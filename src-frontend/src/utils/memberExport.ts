@@ -1,6 +1,11 @@
 // Shared by the admin member lists' "Export CSV" and "Copy Email List" so both
 // tabs export exactly the rows on screen, in the same shape.
 
+// The sync build: the default csv-stringify entry is a Node stream Transform,
+// which crashes in the browser bundle ("Cannot read properties of undefined
+// (reading 'call')"), so Export CSV never produced a file.
+import { stringify } from 'csv-stringify/sync';
+
 export interface CsvColumn<T> {
   header: string;
   value: (row: T) => string | number | null | undefined;
@@ -21,6 +26,10 @@ export function buildCsvRows<T>(
       })
     ),
   ];
+}
+
+export function toCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {
+  return stringify(buildCsvRows(rows, columns));
 }
 
 interface EmailExportable {
