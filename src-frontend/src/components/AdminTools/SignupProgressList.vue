@@ -116,7 +116,7 @@
 
       <template v-slot:row="props">
         <q-td key="member" :props="props">
-          {{ props.row.name.full || $t('error.noValue') }}
+          {{ props.row.name.full || '—' }}
           <span v-if="props.row.screenName" class="text-grey-7">
             ({{ props.row.screenName }})
           </span>
@@ -149,11 +149,7 @@
         </q-td>
 
         <q-td key="lastSeen" :props="props">
-          {{
-            props.row.lastSeen
-              ? formatDate(props.row.lastSeen)
-              : $t('error.noValue')
-          }}
+          {{ props.row.lastSeen ? formatDate(props.row.lastSeen) : '—' }}
         </q-td>
       </template>
 
@@ -511,7 +507,7 @@ export default defineComponent({
           label: this.$t('adminTools.lastSeen'),
           value: row.lastSeen
             ? formatDate(row.lastSeen as unknown as Date, false)
-            : this.$t('error.noValue'),
+            : '—',
         },
       ];
     },
