@@ -247,17 +247,13 @@ class TestConnection:
             "connection": "ok",
             "permissions": "ok",
             "webhook": "ok",
-            "webhook_endpoint_url": "ok",
-            "webhook_endpoint_status": "ok",
-            "webhook_events": "ok",
             "webhook_api_version": "ok",
         }
         assert checks["connection"]["value"] == "Connected, live mode"
+        assert checks["permissions"]["value"] == "Read access to all 7 resources"
         assert checks["webhook"]["value"] == "Looks correctly set up"
-        # Rows that pass carry no explanation.
-        assert all(
-            not row["detail"] for key, row in checks.items() if key != "permissions"
-        )
+        # Rows that pass carry no explanation or bullets.
+        assert all(not row["detail"] and not row["items"] for row in checks.values())
 
     def test_only_reads_are_sent_with_the_pinned_version(self, fake_stripe):
         connection_test()
@@ -301,14 +297,19 @@ class TestConnection:
         assert checks["connection"]["value"] == "Can't reach Stripe"
         assert checks["webhook"]["value"] == "Skipped"
 
-    def test_missing_permissions_are_named(self, fake_stripe):
+    def test_each_missing_permission_is_its_own_bullet(self, fake_stripe):
         fake_stripe.responses["/v1/invoices"] = denied()
         fake_stripe.responses["/v1/setup_intents"] = denied()
 
         row = connection_test()["permissions"]
 
         assert row["status"] == "error"
-        assert row["value"] == "No access to Invoices, Setup Intents"
+        assert row["value"] == "Missing 2 of 7"
+        assert row["items"] == [
+            "Missing permission: Invoices",
+            "Missing permission: Setup Intents",
+        ]
+        assert not row["detail"]
 
     def test_no_access_to_products_still_counts_as_connected(self, fake_stripe):
         fake_stripe.responses["/v1/products"] = denied()
@@ -316,15 +317,16 @@ class TestConnection:
         checks = connection_test()
 
         assert checks["connection"]["status"] == "ok"
-        assert checks["permissions"]["value"] == "No access to Products"
+        assert checks["permissions"]["items"] == ["Missing permission: Products"]
 
-    def test_no_access_to_webhook_endpoints_cant_be_checked(self, fake_stripe):
+    def test_no_access_to_webhook_endpoints_says_so(self, fake_stripe):
         fake_stripe.responses["/v1/webhook_endpoints"] = denied()
 
         row = connection_test()["webhook"]
 
         assert row["status"] == "unknown"
-        assert "Webhook Endpoints" in row["detail"]
+        assert row["value"] == "Can't check"
+        assert row["items"] == ["Missing permission: Webhook Endpoints (read)"]
 
     def test_the_connection_test_needs_a_secret_key(self, fake_stripe):
         with override_config(STRIPE_SECRET_KEY=""):
@@ -339,74 +341,95 @@ class TestWebhookEndpoint:
         fake_stripe.responses["/v1/webhook_endpoints"] = (200, listing(*endpoints))
         return connection_test()
 
+    def webhook(self, fake_stripe, *endpoints):
+        return self.check(fake_stripe, *endpoints)["webhook"]
+
     def test_no_endpoints_at_all(self, fake_stripe):
-        row = self.check(fake_stripe)["webhook"]
+        row = self.webhook(fake_stripe)
 
         assert row["status"] == "error"
-        assert "no webhook endpoints in live mode" in row["detail"]
+        assert row["value"] == "No endpoint for this site"
+        assert row["items"] == ["Stripe has no webhook endpoints in live mode."]
 
     def test_endpoints_for_other_sites_are_listed(self, fake_stripe):
-        row = self.check(
-            fake_stripe, endpoint(url="https://shop.example.org/stripe/hook")
-        )["webhook"]
+        row = self.webhook(fake_stripe, endpoint(url="https://shop.example.org/hook"))
 
         assert row["status"] == "error"
-        assert "https://shop.example.org/stripe/hook" in row["detail"]
+        assert "https://shop.example.org/hook" in row["items"][0]
 
     def test_a_missing_trailing_slash_is_pointed_out(self, fake_stripe):
-        row = self.check(fake_stripe, endpoint(url=WEBHOOK_URL.rstrip("/")))["webhook"]
+        row = self.webhook(fake_stripe, endpoint(url=WEBHOOK_URL.rstrip("/")))
 
         assert row["status"] == "error"
-        assert "missing the trailing slash" in row["detail"]
+        assert "missing the trailing slash" in row["items"][0]
 
     def test_http_instead_of_https_is_pointed_out(self, fake_stripe):
-        row = self.check(
+        row = self.webhook(
             fake_stripe, endpoint(url=WEBHOOK_URL.replace("https", "http"))
-        )["webhook"]
+        )
 
-        assert "uses http instead of https" in row["detail"]
+        assert "uses http instead of https" in row["items"][0]
 
     def test_another_host_on_our_path_points_at_site_url(self, fake_stripe):
-        row = self.check(
+        row = self.webhook(
             fake_stripe,
             endpoint(url="https://old.example.org/api/billing/stripe-webhook/"),
-        )["webhook"]
+        )
 
-        assert "but SITE_URL is portal.example.org" in row["detail"]
+        assert "but SITE_URL is portal.example.org" in row["items"][0]
 
     def test_a_disabled_endpoint_is_an_error(self, fake_stripe):
-        checks = self.check(fake_stripe, endpoint(status="disabled"))
+        row = self.webhook(fake_stripe, endpoint(status="disabled"))
 
-        assert checks["webhook_endpoint_status"]["status"] == "error"
-        assert checks["webhook"]["value"] == "Not set up correctly"
+        assert row["status"] == "error"
+        assert row["value"] == "Not set up correctly"
+        assert row["items"] == [
+            "The endpoint is disabled, so Stripe isn't sending events to it."
+        ]
 
     def test_missing_events_are_named(self, fake_stripe):
-        checks = self.check(
+        row = self.webhook(
             fake_stripe,
             endpoint(enabled_events=["invoice.paid", "invoice.payment_failed"]),
         )
 
-        row = checks["webhook_events"]
         assert row["status"] == "error"
-        assert row["value"] == "Missing 2 of 4"
-        assert (
-            "customer.subscription.deleted, customer.subscription.updated"
-            in row["detail"]
+        assert row["items"] == [
+            "Missing events: customer.subscription.deleted, "
+            "customer.subscription.updated."
+        ]
+
+    @pytest.mark.parametrize(
+        "events", [["*"], [*HANDLED, "charge.refunded"]], ids=["all", "extra"]
+    )
+    def test_all_or_extra_events_are_fine(self, fake_stripe, events):
+        row = self.webhook(fake_stripe, endpoint(enabled_events=events))
+
+        assert row["status"] == "ok"
+        assert row["items"] == []
+
+    def test_every_endpoint_problem_is_its_own_bullet(self, fake_stripe):
+        with override_config(STRIPE_WEBHOOK_SECRET=""):
+            row = self.webhook(
+                fake_stripe, endpoint(status="disabled", enabled_events=HANDLED[:3])
+            )
+
+        assert row["status"] == "error"
+        assert len(row["items"]) == 3
+        assert row["items"][2].startswith("STRIPE_WEBHOOK_SECRET is not set")
+
+    def test_two_endpoints_for_this_site_are_a_warning(self, fake_stripe):
+        row = self.webhook(
+            fake_stripe,
+            endpoint(id="we_1", status="disabled"),
+            endpoint(id="we_2"),
         )
 
-    def test_all_events_covers_the_handled_ones(self, fake_stripe):
-        row = self.check(fake_stripe, endpoint(enabled_events=["*"]))["webhook_events"]
-
-        assert row["status"] == "ok"
-        assert row["value"] == "All events"
-
-    def test_extra_events_are_fine(self, fake_stripe):
-        row = self.check(
-            fake_stripe, endpoint(enabled_events=[*HANDLED, "charge.refunded"])
-        )["webhook_events"]
-
-        assert row["status"] == "ok"
-        assert row["value"] == "All 4 used by MemberMatters"
+        assert row["status"] == "warning"
+        assert row["value"] == "Set up, with warnings"
+        # The enabled one is the one checked, so only the duplicate is reported.
+        [problem] = row["items"]
+        assert problem.startswith("Found 2 endpoints for this site")
 
     def test_an_endpoint_in_another_api_version_is_a_warning(self, fake_stripe):
         checks = self.check(fake_stripe, endpoint(api_version="2025-03-31.basil"))
@@ -414,7 +437,8 @@ class TestWebhookEndpoint:
         row = checks["webhook_api_version"]
         assert row["status"] == "warning"
         assert row["value"] == f"Enforced {VERSION}, endpoint sends 2025-03-31.basil"
-        assert checks["webhook"]["value"] == "Set up, with warnings"
+        # The version has its own row, so the endpoint itself is fine.
+        assert checks["webhook"]["status"] == "ok"
 
     def test_an_unpinned_endpoint_is_a_warning(self, fake_stripe):
         row = self.check(fake_stripe, endpoint(api_version=None))["webhook_api_version"]
@@ -422,29 +446,11 @@ class TestWebhookEndpoint:
         assert row["status"] == "warning"
         assert row["value"] == f"Enforced {VERSION}, endpoint sends the account default"
 
-    def test_two_endpoints_for_this_site_are_a_warning(self, fake_stripe):
-        checks = self.check(
-            fake_stripe,
-            endpoint(id="we_1", status="disabled"),
-            endpoint(id="we_2"),
-        )
-
-        assert checks["webhook_endpoint_url"]["value"] == "Found 2 endpoints"
-        # The enabled one is the one checked.
-        assert checks["webhook_endpoint_status"]["status"] == "ok"
-
-    def test_a_right_endpoint_without_a_signing_secret_is_an_error(self, fake_stripe):
-        with override_config(STRIPE_WEBHOOK_SECRET=""):
-            row = self.check(fake_stripe, endpoint())["webhook"]
-
-        assert row["status"] == "error"
-        assert row["value"] == "Signing secret missing"
-
     def test_webhook_problems_are_only_info_when_nothing_uses_webhooks(
         self, fake_stripe
     ):
         with override_config(ENABLE_STRIPE_MEMBERSHIP_PAYMENTS=False):
-            row = self.check(fake_stripe)["webhook"]
+            row = self.webhook(fake_stripe)
 
         assert row["status"] == "info"
 
