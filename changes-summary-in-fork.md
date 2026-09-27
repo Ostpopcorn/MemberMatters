@@ -6,6 +6,11 @@
   notes) plus a **Payment Overview** admin screen (formerly Pending Invoices)
   whose Stripe Subscription Invoices list has mark-as-paid. It is meant to
   grow a section per payment method as more are added.
+- Payment Overview opens with a **Stripe setup check**: keys, webhook secret
+  and URL on page load, and a read-only "Test connection" that checks the key,
+  its permissions and the webhook endpoint (URL, status, events, API version).
+  The Stripe API version is now pinned in `STRIPE_API_VERSION`; restricted keys
+  need Webhook Endpoints read access for the webhook check.
 - Extensive webhook hardening: idempotency, race/lock-contention fixes, scoping
   webhooks to the member's own subscription, unique `stripe_customer_id`.
 - `ENABLE_NEW_SUBSCRIPTIONS` kill-switch; payment-plan **descriptions**, "year"

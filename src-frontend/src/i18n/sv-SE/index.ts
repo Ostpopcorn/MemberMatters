@@ -855,6 +855,10 @@ export default {
   },
   paymentOverview: {
     title: 'Betalningsöversikt',
+    testConnection: 'Testa anslutningen',
+    connectionTest: 'Anslutningstest',
+    checksError: 'Kunde inte ladda kontrollerna.',
+    testError: 'Anslutningstestet kunde inte köras.',
   },
   pendingInvoices: {
     title: 'Fakturor för Stripe-abonnemang',

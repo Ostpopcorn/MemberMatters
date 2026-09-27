@@ -870,6 +870,10 @@ export default {
   },
   paymentOverview: {
     title: 'Payment Overview',
+    testConnection: 'Test connection',
+    connectionTest: 'Connection test',
+    checksError: 'Could not load the checks.',
+    testError: 'The connection test could not be run.',
   },
   pendingInvoices: {
     title: 'Stripe Subscription Invoices',

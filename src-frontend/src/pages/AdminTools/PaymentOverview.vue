@@ -2,6 +2,17 @@
   <q-page class="q-pa-md">
     <div class="text-h5 q-mb-lg">{{ $t('paymentOverview.title') }}</div>
 
+    <div class="row q-col-gutter-md q-mb-lg">
+      <div class="col-12 col-lg-6">
+        <payment-check-card
+          title="Stripe"
+          :icon="icons.billing"
+          checks-url="/api/admin/billing/stripe/checks/"
+          test-url="/api/admin/billing/stripe/connection-test/"
+        />
+      </div>
+    </div>
+
     <div class="text-h6 q-mb-md">
       <q-icon :name="icons.pendingInvoices" class="q-mr-sm" />
       {{ $t('pendingInvoices.title') }}
@@ -117,9 +128,11 @@
 <script>
 import icons from '@icons';
 import { mapGetters } from 'vuex';
+import PaymentCheckCard from '@components/AdminTools/PaymentCheckCard.vue';
 
 export default {
   name: 'PaymentOverview',
+  components: { PaymentCheckCard },
   data() {
     return {
       invoices: [],
