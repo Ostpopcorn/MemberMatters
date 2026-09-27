@@ -1,13 +1,11 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h5 q-mb-md">{{ $t('paymentOverview.title') }}</div>
-    <p class="text-grey-7 q-mb-lg">{{ $t('paymentOverview.description') }}</p>
+    <div class="text-h5 q-mb-lg">{{ $t('paymentOverview.title') }}</div>
 
-    <div class="text-h6 q-mb-sm">
+    <div class="text-h6 q-mb-md">
       <q-icon :name="icons.pendingInvoices" class="q-mr-sm" />
       {{ $t('pendingInvoices.title') }}
     </div>
-    <p class="text-grey-7 q-mb-md">{{ $t('pendingInvoices.description') }}</p>
 
     <q-banner
       v-if="!features.enableInvoiceBilling"
