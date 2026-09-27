@@ -47,6 +47,7 @@
       </q-tr>
     </template>
 
+    <!-- body-cell-* / header-cell-* overrides, passed straight to QTable. -->
     <template v-for="name in cellSlotNames" :key="name" v-slot:[name]="props">
       <slot :name="name" v-bind="props" />
     </template>
@@ -112,8 +113,9 @@ export default defineComponent({
   emits: ['update:pagination'],
   computed: {
     cellSlotNames(): string[] {
-      return Object.keys(this.$slots).filter((name) =>
-        name.startsWith('body-cell-')
+      return Object.keys(this.$slots).filter(
+        (name) =>
+          name.startsWith('body-cell-') || name.startsWith('header-cell-')
       );
     },
   },
