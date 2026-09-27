@@ -2,208 +2,178 @@
   <div style="max-width: 100%">
     <p class="text-grey-7 q-mb-sm">{{ $t('signupProgress.description') }}</p>
 
-    <q-table
+    <member-table-shell
+      v-model:pagination="pagination"
       :rows="filteredMembers"
       :columns="columns"
-      :no-data-label="$t('adminTools.noMembers')"
-      row-key="id"
-      v-model:pagination="pagination"
+      :csv-columns="csvColumns"
+      csv-filename="signup-progress-export.csv"
       :loading="loading"
       :grid="grid"
-      class="full-width"
     >
-      <template v-slot:top>
-        <div class="full-width">
-          <div class="row items-start justify-between">
-            <div class="row items-center q-gutter-sm q-mb-sm">
-              <q-select
-                v-model="stateFilter"
-                outlined
-                dense
-                emit-value
-                map-options
-                style="min-width: 140px"
-                :options="stateFilterOptions"
-                :label="$t('adminTools.filterOptions')"
-              />
+      <template v-slot:filters>
+        <q-select
+          v-model="stateFilter"
+          outlined
+          dense
+          emit-value
+          map-options
+          style="min-width: 140px"
+          :options="stateFilterOptions"
+          :label="$t('adminTools.filterOptions')"
+        />
 
-              <q-btn-dropdown
-                v-if="steps.length"
-                outline
-                color="primary"
-                :icon="icons.filter"
-                :label="stepsFilterLabel"
-              >
-                <q-list class="q-py-sm">
-                  <q-item v-for="step in steps" :key="step" class="q-py-md">
-                    <q-item-section>
-                      <q-item-label class="text-body1 q-mb-sm">
-                        <q-icon :name="stepIcon(step)" class="q-mr-sm" />
-                        {{ stepLabel(step) }}
-                      </q-item-label>
-                      <!-- Icon sits in the label, not an avatar column, so the
-                           buttons get the full menu width on a phone. -->
-                      <q-btn-toggle
-                        :model-value="stepFilters[step] || 'any'"
-                        no-caps
-                        unelevated
-                        class="step-toggle"
-                        :padding="$q.screen.xs ? '6px 8px' : '6px 12px'"
-                        color="grey-3"
-                        text-color="grey-9"
-                        toggle-color="primary"
-                        toggle-text-color="white"
-                        :options="stepFilterOptions(step)"
-                        @update:model-value="setStepFilter(step, $event)"
-                      />
-                    </q-item-section>
-                  </q-item>
-
-                  <q-separator />
-
-                  <q-item
-                    v-close-popup
-                    clickable
-                    :disable="!activeStepFilters.length"
-                    @click="stepFilters = {}"
-                  >
-                    <q-item-section avatar>
-                      <q-icon :name="icons.close" />
-                    </q-item-section>
-                    <q-item-section>
-                      {{ $t('signupProgress.clearStepFilters') }}
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
-
-              <card-sort-control
-                v-if="grid"
-                v-model:pagination="pagination"
-                :columns="columns"
-              />
-            </div>
-
-            <member-export-buttons
-              :members="filteredMembers"
-              :csv-columns="csvColumns"
-              filename="signup-progress-export.csv"
-            />
-          </div>
-
-          <!-- What the table and exports are narrowed to, at a glance. -->
-          <div
-            v-if="activeStepFilters.length"
-            class="row items-center q-gutter-sm q-mb-sm"
-          >
-            <q-chip
-              v-for="[step, state] in activeStepFilters"
-              :key="step"
-              removable
-              class="q-px-md"
-              color="primary"
-              text-color="white"
-              :icon="stepIcon(step)"
-              @remove="setStepFilter(step, 'any')"
-            >
-              {{ stepLabel(step) }}: {{ stepStateLabel(state) }}
-            </q-chip>
-          </div>
-        </div>
-      </template>
-
-      <template v-slot:body="props">
-        <q-tr
-          :props="props"
-          class="cursor-pointer"
-          @click="goToMember(props.row)"
+        <q-btn-dropdown
+          v-if="steps.length"
+          outline
+          color="primary"
+          :icon="icons.filter"
+          :label="stepsFilterLabel"
         >
-          <q-td key="member" :props="props">
-            {{ props.row.name.full || $t('error.noValue') }}
-            <span v-if="props.row.screenName" class="text-grey-7">
-              ({{ props.row.screenName }})
-            </span>
-            <div class="text-caption text-grey-7">{{ props.row.email }}</div>
-          </q-td>
+          <q-list class="q-py-sm">
+            <q-item v-for="step in steps" :key="step" class="q-py-md">
+              <q-item-section>
+                <q-item-label class="text-body1 q-mb-sm">
+                  <q-icon :name="stepIcon(step)" class="q-mr-sm" />
+                  {{ stepLabel(step) }}
+                </q-item-label>
+                <!-- Icon sits in the label, not an avatar column, so the
+                     buttons get the full menu width on a phone. -->
+                <q-btn-toggle
+                  :model-value="stepFilters[step] || 'any'"
+                  no-caps
+                  unelevated
+                  class="step-toggle"
+                  :padding="$q.screen.xs ? '6px 8px' : '6px 12px'"
+                  color="grey-3"
+                  text-color="grey-9"
+                  toggle-color="primary"
+                  toggle-text-color="white"
+                  :options="stepFilterOptions(step)"
+                  @update:model-value="setStepFilter(step, $event)"
+                />
+              </q-item-section>
+            </q-item>
 
-          <q-td key="state" :props="props">
-            <q-badge :color="memberStateColor(props.row.state)">
-              {{ $t(`adminTools.memberStatusString.${props.row.state}`) }}
-            </q-badge>
-          </q-td>
+            <q-separator />
 
-          <q-td
-            v-for="step in steps"
-            :key="`step_${step}`"
-            :props="props"
-            class="text-center"
-          >
-            <q-icon
-              :name="iconForStep(step, props.row)"
-              :color="colorForStep(step, props.row)"
-              size="sm"
+            <q-item
+              v-close-popup
+              clickable
+              :disable="!activeStepFilters.length"
+              @click="stepFilters = {}"
             >
-              <q-tooltip>{{ tooltipForStep(step, props.row) }}</q-tooltip>
-            </q-icon>
-          </q-td>
-
-          <q-td key="registered" :props="props">
-            {{ formatDate(props.row.registrationDate) }}
-          </q-td>
-
-          <q-td key="lastSeen" :props="props">
-            {{
-              props.row.lastSeen
-                ? formatDate(props.row.lastSeen)
-                : $t('error.noValue')
-            }}
-          </q-td>
-        </q-tr>
+              <q-item-section avatar>
+                <q-icon :name="icons.close" />
+              </q-item-section>
+              <q-item-section>
+                {{ $t('signupProgress.clearStepFilters') }}
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
       </template>
 
-      <template v-slot:item="props">
-        <div class="q-pa-xs col-xs-12 col-sm-6 col-md-4 col-lg-3">
-          <member-summary-card
-            :member="props.row"
-            @click="goToMember(props.row)"
+      <template v-slot:toolbar-extra>
+        <!-- What the table and exports are narrowed to, at a glance. -->
+        <div
+          v-if="activeStepFilters.length"
+          class="row items-center q-gutter-sm q-mb-sm"
+        >
+          <q-chip
+            v-for="[step, state] in activeStepFilters"
+            :key="step"
+            removable
+            class="q-px-md"
+            color="primary"
+            text-color="white"
+            :icon="stepIcon(step)"
+            @remove="setStepFilter(step, 'any')"
           >
-            <q-list dense class="q-mb-sm">
-              <q-item
-                v-for="step in steps"
-                :key="step"
-                dense
-                class="q-px-none step-item"
-              >
-                <q-item-section avatar class="step-icon">
-                  <q-icon
-                    :name="iconForStep(step, props.row)"
-                    :color="colorForStep(step, props.row)"
-                    size="xs"
-                  />
-                </q-item-section>
-                <q-item-section>{{ stepLabel(step) }}</q-item-section>
-                <q-item-section side class="text-caption">
-                  {{ tooltipForStep(step, props.row) }}
-                </q-item-section>
-              </q-item>
-            </q-list>
-
-            <div class="text-caption text-grey-7">
-              {{ $t('adminTools.registrationDate') }}:
-              {{ formatDate(props.row.registrationDate, false) }}
-            </div>
-            <div class="text-caption text-grey-7">
-              {{ $t('adminTools.lastSeen') }}:
-              {{
-                props.row.lastSeen
-                  ? formatDate(props.row.lastSeen, false)
-                  : $t('error.noValue')
-              }}
-            </div>
-          </member-summary-card>
+            {{ stepLabel(step) }}: {{ stepStateLabel(state) }}
+          </q-chip>
         </div>
       </template>
-    </q-table>
+
+      <template v-slot:row="props">
+        <q-td key="member" :props="props">
+          {{ props.row.name.full || $t('error.noValue') }}
+          <span v-if="props.row.screenName" class="text-grey-7">
+            ({{ props.row.screenName }})
+          </span>
+          <div class="text-caption text-grey-7">{{ props.row.email }}</div>
+        </q-td>
+
+        <q-td key="state" :props="props">
+          <q-badge :color="memberStateColor(props.row.state)">
+            {{ $t(`adminTools.memberStatusString.${props.row.state}`) }}
+          </q-badge>
+        </q-td>
+
+        <q-td
+          v-for="step in steps"
+          :key="`step_${step}`"
+          :props="props"
+          class="text-center"
+        >
+          <q-icon
+            :name="iconForStep(step, props.row)"
+            :color="colorForStep(step, props.row)"
+            size="sm"
+          >
+            <q-tooltip>{{ tooltipForStep(step, props.row) }}</q-tooltip>
+          </q-icon>
+        </q-td>
+
+        <q-td key="registered" :props="props">
+          {{ formatDate(props.row.registrationDate) }}
+        </q-td>
+
+        <q-td key="lastSeen" :props="props">
+          {{
+            props.row.lastSeen
+              ? formatDate(props.row.lastSeen)
+              : $t('error.noValue')
+          }}
+        </q-td>
+      </template>
+
+      <template v-slot:card="props">
+        <q-list dense class="q-mb-sm">
+          <q-item
+            v-for="step in steps"
+            :key="step"
+            dense
+            class="q-px-none step-item"
+          >
+            <q-item-section avatar class="step-icon">
+              <q-icon
+                :name="iconForStep(step, props.row)"
+                :color="colorForStep(step, props.row)"
+                size="xs"
+              />
+            </q-item-section>
+            <q-item-section>{{ stepLabel(step) }}</q-item-section>
+            <q-item-section side class="text-caption">
+              {{ tooltipForStep(step, props.row) }}
+            </q-item-section>
+          </q-item>
+        </q-list>
+
+        <div class="text-caption text-grey-7">
+          {{ $t('adminTools.registrationDate') }}:
+          {{ formatDate(props.row.registrationDate, false) }}
+        </div>
+        <div class="text-caption text-grey-7">
+          {{ $t('adminTools.lastSeen') }}:
+          {{
+            props.row.lastSeen
+              ? formatDate(props.row.lastSeen, false)
+              : $t('error.noValue')
+          }}
+        </div>
+      </template>
+    </member-table-shell>
   </div>
 </template>
 
@@ -212,11 +182,10 @@ import { defineComponent } from 'vue';
 import { mapGetters } from 'vuex';
 import icons from '@icons';
 import formatMixin, { formatDate } from '@mixins/formatMixin';
-import CardSortControl from '@components/AdminTools/CardSortControl.vue';
-import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
-import MemberSummaryCard from '@components/AdminTools/MemberSummaryCard.vue';
+import MemberTableShell from '@components/AdminTools/MemberTableShell.vue';
 import { MemberProfile } from 'types/member';
 import { memberMatchesQuery } from '../../utils/fuzzySearch';
+import { fetchAdminList } from '../../utils/adminFetch';
 import { CsvColumn } from '../../utils/memberExport';
 import { memberStateColor } from '../../utils/memberStatus';
 import {
@@ -250,7 +219,7 @@ const STEP_STATE_LABEL_KEYS: Record<SignupStepStateName, string> = {
 // query comes from the parent so it can be shared with the members tab.
 export default defineComponent({
   name: 'SignupProgressList',
-  components: { CardSortControl, MemberExportButtons, MemberSummaryCard },
+  components: { MemberTableShell },
   mixins: [formatMixin],
   props: {
     grid: {
@@ -414,25 +383,12 @@ export default defineComponent({
   },
   methods: {
     memberStateColor,
-    getMembers() {
+    async getMembers() {
       this.loading = true;
-      this.$axios
-        .get('/api/admin/signup-progress/')
-        .then((response) => {
-          this.members = response.data;
-        })
-        .catch(() => {
-          this.$q.dialog({
-            title: this.$t('error.error'),
-            message: this.$t('error.requestFailed'),
-          });
-        })
-        .finally(() => {
-          this.loading = false;
-        });
-    },
-    goToMember(row: SignupRow) {
-      this.$router.push({ name: 'manageMember', params: { memberId: row.id } });
+      this.members = await fetchAdminList<SignupRow>(
+        '/api/admin/signup-progress/'
+      );
+      this.loading = false;
     },
     stepLabel(step: SignupStep): string {
       return this.$t(STEP_LABEL_KEYS[step]);
