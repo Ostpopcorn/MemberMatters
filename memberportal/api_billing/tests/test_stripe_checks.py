@@ -135,15 +135,16 @@ class TestStaticChecks:
         assert result["canTest"] is True
         checks = rows(result)
         assert {key: row["status"] for key, row in checks.items()} == {
-            "secret_key": "ok",
-            "publishable_key": "ok",
+            "keys": "ok",
             "webhook_secret": "ok",
             "webhook_url": "ok",
             "api_version": "info",
         }
-        assert checks["secret_key"]["value"] == "Restricted key, live mode"
+        assert checks["keys"]["value"] == "Restricted key, live mode"
         assert checks["webhook_url"]["value"] == WEBHOOK_URL
         assert checks["api_version"]["value"] == f"Enforced {VERSION}"
+        # Rows that pass carry no explanation or bullets.
+        assert all(not row["detail"] and not row["items"] for row in checks.values())
 
     def test_no_row_shows_a_key(self):
         with override_config(STRIPE_SECRET_KEY="sk_live_secret123"):
@@ -155,10 +156,12 @@ class TestStaticChecks:
 
     def test_a_standard_secret_key_is_a_warning(self):
         with override_config(STRIPE_SECRET_KEY="sk_live_key"):
-            row = static()["secret_key"]
+            row = static()["keys"]
 
         assert row["status"] == "warning"
         assert row["value"] == "Standard key, live mode"
+        [problem] = row["items"]
+        assert problem.startswith("Secret key is a standard key")
 
     @pytest.mark.parametrize(
         "key, can_test", [("", False), ("pk_live_key", False), ("nonsense", False)]
@@ -167,15 +170,32 @@ class TestStaticChecks:
         with override_config(STRIPE_SECRET_KEY=key):
             result = stripe_checks.get_static_checks()
 
-        assert rows(result)["secret_key"]["status"] == "error"
+        row = rows(result)["keys"]
+        assert row["status"] == "error"
+        assert row["value"] == "Not usable"
+        assert row["items"][0].startswith("Secret key")
         assert result["canTest"] is can_test
 
     def test_a_publishable_key_in_the_other_mode_is_an_error(self):
         with override_config(STRIPE_PUBLISHABLE_KEY="pk_test_key"):
-            row = static()["publishable_key"]
+            row = static()["keys"]
 
         assert row["status"] == "error"
-        assert "live mode" in row["detail"]
+        [problem] = row["items"]
+        assert "test mode, but the secret key is in live mode" in problem
+
+    def test_every_key_problem_gets_its_own_bullet(self):
+        with override_config(
+            STRIPE_SECRET_KEY="sk_live_key", STRIPE_PUBLISHABLE_KEY=""
+        ):
+            row = static()["keys"]
+
+        # The worst of the two decides the row's status.
+        assert row["status"] == "error"
+        assert [problem.split(" is ")[0] for problem in row["items"]] == [
+            "Secret key",
+            "Publishable key",
+        ]
 
     def test_a_missing_webhook_secret_is_an_error(self):
         with override_config(STRIPE_WEBHOOK_SECRET=""):
@@ -234,7 +254,10 @@ class TestConnection:
         }
         assert checks["connection"]["value"] == "Connected, live mode"
         assert checks["webhook"]["value"] == "Looks correctly set up"
-        assert "couldn't be compared" in checks["webhook"]["detail"]
+        # Rows that pass carry no explanation.
+        assert all(
+            not row["detail"] for key, row in checks.items() if key != "permissions"
+        )
 
     def test_only_reads_are_sent_with_the_pinned_version(self, fake_stripe):
         connection_test()
@@ -383,7 +406,7 @@ class TestWebhookEndpoint:
         )["webhook_events"]
 
         assert row["status"] == "ok"
-        assert "also sends 1" in row["detail"]
+        assert row["value"] == "All 4 used by MemberMatters"
 
     def test_an_endpoint_in_another_api_version_is_a_warning(self, fake_stripe):
         checks = self.check(fake_stripe, endpoint(api_version="2025-03-31.basil"))

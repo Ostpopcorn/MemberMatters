@@ -47,6 +47,11 @@
               <q-item-label v-if="check.detail" caption>
                 {{ check.detail }}
               </q-item-label>
+              <q-item-label v-if="check.items.length" caption>
+                <ul class="check-items">
+                  <li v-for="item in check.items" :key="item">{{ item }}</li>
+                </ul>
+              </q-item-label>
             </q-item-section>
             <q-item-section side class="gt-xs check-value check-value--side">
               {{ check.value }}
@@ -72,6 +77,7 @@ interface Check {
   status: CheckStatus;
   value: string;
   detail: string;
+  items: string[];
 }
 
 interface Section {
@@ -179,5 +185,10 @@ export default defineComponent({
 .check-value--side {
   max-width: 45%;
   text-align: right;
+}
+
+.check-items {
+  margin: 0;
+  padding-left: 1.2em;
 }
 </style>
