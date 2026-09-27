@@ -165,16 +165,22 @@
             dense
             class="q-px-none step-item"
           >
+            <!-- Same step icon as the table header, then the same status
+                 icon as the table cell, so the two views read alike. -->
             <q-item-section avatar class="step-icon">
-              <q-icon
-                :name="iconForStep(step, props.row)"
-                :color="colorForStep(step, props.row)"
-                size="xs"
-              />
+              <q-icon :name="stepIcon(step)" color="grey-8" size="xs" />
             </q-item-section>
             <q-item-section>{{ stepLabel(step) }}</q-item-section>
             <q-item-section side class="text-caption">
-              {{ tooltipForStep(step, props.row) }}
+              <div class="row items-center no-wrap">
+                {{ tooltipForStep(step, props.row) }}
+                <q-icon
+                  :name="iconForStep(step, props.row)"
+                  :color="colorForStep(step, props.row)"
+                  size="xs"
+                  class="q-ml-xs"
+                />
+              </div>
             </q-item-section>
           </q-item>
         </q-list>
