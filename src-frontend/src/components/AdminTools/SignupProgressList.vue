@@ -199,10 +199,14 @@
                    gap (invisible), so dates end where the status words do. -->
               <div class="row items-center no-wrap">
                 {{ date.value }}
+                <!-- No date: the same grey dash as an outstanding step, in
+                     the same spot, instead of text. -->
                 <q-icon
-                  :name="icons.calendar"
+                  :name="date.value ? icons.calendar : icons.minus"
+                  color="grey-4"
                   size="xs"
-                  class="q-ml-xs invisible"
+                  class="q-ml-xs"
+                  :class="{ invisible: date.value }"
                 />
               </div>
             </q-item-section>
@@ -497,7 +501,7 @@ export default defineComponent({
       }
       return this.tooltipForStep(step, row);
     },
-    cardDates(row: SignupRow): { label: string; value: string }[] {
+    cardDates(row: SignupRow): { label: string; value: string | null }[] {
       return [
         {
           label: this.$t('adminTools.registrationDate'),
@@ -507,7 +511,7 @@ export default defineComponent({
           label: this.$t('adminTools.lastSeen'),
           value: row.lastSeen
             ? formatDate(row.lastSeen as unknown as Date, false)
-            : '—',
+            : null,
         },
       ];
     },
