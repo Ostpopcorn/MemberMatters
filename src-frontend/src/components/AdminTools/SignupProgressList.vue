@@ -95,6 +95,25 @@
         </div>
       </template>
 
+      <!-- Step headers are icons, with the name on hover, to keep the table
+           narrow. Cards keep the text: they're what phones get, and phones
+           can't hover. -->
+      <template
+        v-for="step in steps"
+        :key="step"
+        v-slot:[`header-cell-step_${step}`]="props"
+      >
+        <q-th :props="props">
+          <q-icon
+            :name="stepIcon(step)"
+            size="sm"
+            role="img"
+            :aria-label="stepLabel(step)"
+          />
+          <q-tooltip>{{ stepLabel(step) }}</q-tooltip>
+        </q-th>
+      </template>
+
       <template v-slot:row="props">
         <q-td key="member" :props="props">
           {{ props.row.name.full || $t('error.noValue') }}
@@ -323,6 +342,7 @@ export default defineComponent({
           field: step,
           align: 'center' as const,
           sortable: false,
+          headerStyle: 'width: 56px',
         })),
         {
           name: 'registered',
