@@ -185,17 +185,20 @@
           </q-item>
         </q-list>
 
-        <div class="text-caption text-grey-7">
-          {{ $t('adminTools.registrationDate') }}:
-          {{ formatDate(props.row.registrationDate, false) }}
+        <!-- Label left, date right, lined up with the step statuses. -->
+        <div class="row justify-between text-caption text-grey-7">
+          <span>{{ $t('adminTools.registrationDate') }}</span>
+          <span>{{ formatDate(props.row.registrationDate, false) }}</span>
         </div>
-        <div class="text-caption text-grey-7">
-          {{ $t('adminTools.lastSeen') }}:
-          {{
-            props.row.lastSeen
-              ? formatDate(props.row.lastSeen, false)
-              : $t('error.noValue')
-          }}
+        <div class="row justify-between text-caption text-grey-7">
+          <span>{{ $t('adminTools.lastSeen') }}</span>
+          <span>
+            {{
+              props.row.lastSeen
+                ? formatDate(props.row.lastSeen, false)
+                : $t('error.noValue')
+            }}
+          </span>
         </div>
       </template>
     </member-table-shell>
@@ -495,6 +498,10 @@ export default defineComponent({
 
 .step-item {
   min-height: 26px;
+  // Flush right, so the statuses line up with the dates below. Quasar's dense
+  // item padding otherwise wins over q-px-none.
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .step-icon {
