@@ -158,7 +158,7 @@
       </template>
 
       <template v-slot:card="props">
-        <q-list dense class="q-mb-sm">
+        <q-list dense>
           <q-item
             v-for="step in steps"
             :key="step"
@@ -173,7 +173,7 @@
             <q-item-section>{{ stepLabel(step) }}</q-item-section>
             <q-item-section side class="text-caption">
               <div class="row items-center no-wrap">
-                {{ tooltipForStep(step, props.row) }}
+                {{ cardStatusLabel(step, props.row) }}
                 <q-icon
                   :name="iconForStep(step, props.row)"
                   :color="colorForStep(step, props.row)"
@@ -183,23 +183,35 @@
               </div>
             </q-item-section>
           </q-item>
-        </q-list>
 
-        <!-- Label left, date right, lined up with the step statuses. -->
-        <div class="row justify-between text-caption text-grey-7">
-          <span>{{ $t('adminTools.registrationDate') }}</span>
-          <span>{{ formatDate(props.row.registrationDate, false) }}</span>
-        </div>
-        <div class="row justify-between text-caption text-grey-7">
-          <span>{{ $t('adminTools.lastSeen') }}</span>
-          <span>
-            {{
-              props.row.lastSeen
-                ? formatDate(props.row.lastSeen, false)
-                : $t('error.noValue')
-            }}
-          </span>
-        </div>
+          <!-- Dates use the same rows with an empty icon slot, so their labels
+               line up with the step names and their values with the statuses. -->
+          <q-item
+            v-for="(date, i) in cardDates(props.row)"
+            :key="date.label"
+            dense
+            class="q-px-none step-item text-caption text-grey-7"
+            :class="{ 'q-mt-xs': i === 0 }"
+          >
+            <q-item-section avatar class="step-icon">
+              <!-- Invisible stand-in so the slot is exactly icon-width. -->
+              <q-icon :name="icons.calendar" size="xs" class="invisible" />
+            </q-item-section>
+            <q-item-section>{{ date.label }}</q-item-section>
+            <q-item-section side class="text-caption text-grey-7">
+              <!-- Same structure as a step status: text, then an icon-sized
+                   gap (invisible), so dates end where the status words do. -->
+              <div class="row items-center no-wrap">
+                {{ date.value }}
+                <q-icon
+                  :name="icons.calendar"
+                  size="xs"
+                  class="q-ml-xs invisible"
+                />
+              </div>
+            </q-item-section>
+          </q-item>
+        </q-list>
       </template>
     </member-table-shell>
   </div>
@@ -476,6 +488,32 @@ export default defineComponent({
       if (state === 'pending') return 'warning';
       if (this.nextStepFor(row) === step) return 'blue';
       return 'grey-4';
+    },
+    // Card text next to the status icon. Plain "Outstanding" is left out:
+    // the dash says the same and it's the most common state.
+    cardStatusLabel(step: SignupStep, row: SignupRow): string {
+      if (
+        this.nextStepFor(row) !== step &&
+        signupStepState(step, row.requiredSteps, row.subscriptionStatus) ===
+          'outstanding'
+      ) {
+        return '';
+      }
+      return this.tooltipForStep(step, row);
+    },
+    cardDates(row: SignupRow): { label: string; value: string }[] {
+      return [
+        {
+          label: this.$t('adminTools.registrationDate'),
+          value: formatDate(row.registrationDate as unknown as Date, false),
+        },
+        {
+          label: this.$t('adminTools.lastSeen'),
+          value: row.lastSeen
+            ? formatDate(row.lastSeen as unknown as Date, false)
+            : this.$t('error.noValue'),
+        },
+      ];
     },
     tooltipForStep(step: SignupStep, row: SignupRow): string {
       if (this.nextStepFor(row) === step) {
