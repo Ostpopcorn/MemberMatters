@@ -8,26 +8,16 @@
   "scripts": {
     "dev": "quasar dev",
     "dev:electron": "quasar dev -m electron",
-    "dev:ios": "quasar dev -m capacitor -T ios",
-    "dev:android": "quasar dev -m capacitor -T android",
     "build": "quasar build -m spa",
-    "build:pwa": "quasar build -m pwa",
-    "build:ios": "API_BASE_URL=https://portal.brisbanemaker.space quasar build -m capacitor -T ios --ide",
-    "build:android": "quasar build -m capacitor -T android --ide",
     "build:electron": "quasar build -m electron",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "lint": "npm run format && eslint --cache --fix --ext .js,.vue,.ts ./",
     "lint:precommit": "npm run format && eslint --ext .js,.ts,.vue ./",
     "test": "vitest run",
     "test:watch": "vitest",
-    "icons": "icongenie generate -i app-icon.png",
-    "icons:bg": "icongenie generate -i app-icon.png -b app-bg.png"
+    "icons": "icongenie generate -i app-icon.png"
   },
   "dependencies": {
-    "@capacitor/core": "^3.5.0",
-    "@capacitor/splash-screen": "^1.2.2",
-    "@capacitor/storage": "^1.2.5",
-    "@ionic/pwa-elements": "^3.0.1",
     "@quasar/extras": "^1.13.5",
     "@rollup/plugin-inject": "^5.0.3",
     "@stripe/stripe-js": "^1.29.0",

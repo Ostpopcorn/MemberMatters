@@ -16,7 +16,7 @@ const esbuildShim = require.resolve('node-stdlib-browser/helpers/esbuild/shim');
 
 const tsconfigPaths = require('vite-tsconfig-paths');
 
-module.exports = configure(async function (ctx) {
+module.exports = configure(async function () {
   const { default: stdLibBrowser } = await import('node-stdlib-browser');
   return {
     eslint: {
@@ -30,7 +30,7 @@ module.exports = configure(async function (ctx) {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['sentry', 'i18n', 'axios', 'routeGuards', 'capacitor', 'apexcharts'],
+    boot: ['sentry', 'i18n', 'axios', 'routeGuards', 'apexcharts'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -51,7 +51,7 @@ module.exports = configure(async function (ctx) {
       htmlFilename: 'index.html',
 
       env: {
-        // When running with capacitor this value is used for the base URL for all API requests
+        // Base URL for API requests when the app is not served by the portal itself (the Electron kiosk)
         apiBaseUrl: process.env.API_BASE_URL,
         vueRouterMode: 'history',
       },
@@ -157,7 +157,7 @@ module.exports = configure(async function (ctx) {
       iconSet: 'mdi-v7',
       config: {
         dark: 'auto', // or Boolean true/false
-        loadingBar: { color: 'accent', skipHijack: ctx.mode.capacitor },
+        loadingBar: { color: 'accent' },
         iconSet: 'mdi-v7', // Quasar icon set
 
         // For special cases outside of where the auto-import strategy can have an impact
@@ -205,26 +205,6 @@ module.exports = configure(async function (ctx) {
       middlewares: [
         'render', // keep this as last one
       ],
-    },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
-    pwa: {
-      workboxMode: 'generateSW', // or 'injectManifest'
-      injectPwaMetaTags: true,
-      swFilename: 'sw.js',
-      manifestFilename: 'manifest.json',
-      useCredentialsForManifestTag: false,
-    },
-
-    // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-cordova-apps/configuring-cordova
-    cordova: {
-      // noIosLegacyBuildFlag: true, // uncomment only if you know what you are doing
-    },
-
-    // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor
-    capacitor: {
-      hideSplashscreen: false,
-      iosStatusBarPadding: true,
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/configuring-electron

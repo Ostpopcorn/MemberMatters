@@ -144,3 +144,16 @@ The first count leaves out settings stored without a value. The upgrade deletes 
 Older versions configured the member dashboard through a setting named `HOME_PAGE_CARDS`. It is replaced by the Dashboard Cards editor under Admin Tools, and the upgrade creates a card for each entry in your old setting, so your dashboard looks the same afterwards.
 
 If the setting isn't valid JSON, no cards are imported and the container log says so. Enter them under Admin Tools → Dashboard Cards instead.
+
+### The phone app and the installable web app are removed
+
+This release removes two ways of building the portal that were never finished or kept up to date:
+
+- **The iOS and Android app** (built with Capacitor). Each makerspace had to build and publish its own copy to the app stores, and its project files had not been updated since 2023.
+- **The installable web app (PWA) mode.** It was never finished and could not be built.
+
+Members keep using the portal in their phone's browser, which works as before. If your members use a browser or a kiosk, there is nothing to do.
+
+If your makerspace published its own MemberMatters app, it can no longer be built from this release. This release changes nothing on the server that those apps use, but once you turn on CAPTCHA, members can no longer sign in to them, so plan to retire the app.
+
+If you left the `CAPTCHA_ALLOWED_HOSTNAMES` setting empty because of the app, you can now fill it in with your portal's hostname. [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) explains what it protects against.

@@ -67,13 +67,7 @@
         </q-img>
       </router-link>
 
-      <q-scroll-area
-        :style="
-          $q.platform.is.capacitor
-            ? 'margin-top: 110px; height: calc(100% - 190px);'
-            : 'margin-top: 150px; height: calc(100% - 220px);'
-        "
-      >
+      <q-scroll-area style="margin-top: 150px; height: calc(100% - 220px)">
         <q-list>
           <template v-for="link in filteredLinks" :key="link.title">
             <EssentialLink v-bind="link" />
