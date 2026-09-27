@@ -10,7 +10,7 @@
     <q-card-section class="q-pb-sm">
       <div class="row items-center no-wrap">
         <div class="col ellipsis text-subtitle1 text-weight-medium">
-          {{ member.name?.full || $t('error.noValue') }}
+          {{ member.name?.full || '—' }}
           <span
             v-if="member.screenName"
             class="text-body2 text-weight-regular text-grey-7"
