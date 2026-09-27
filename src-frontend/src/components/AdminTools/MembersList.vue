@@ -1,111 +1,82 @@
 <template>
-  <div style="max-width: 100%">
-    <q-table
-      :rows="filteredMembers"
-      :no-data-label="$t('adminTools.noMembers')"
-      :columns="columns"
-      row-key="id"
-      v-model:pagination="pagination"
-      :loading="loading"
-      :grid="grid"
-      class="full-width"
-      @row-click="(evt, row) => goToMember(row)"
-    >
-      <template v-slot:top>
-        <div class="row items-start justify-between full-width">
-          <div class="row items-center">
-            <q-select
-              v-model="memberState"
-              class="q-mr-sm q-mb-sm"
-              style="min-width: 140px"
-              outlined
-              emit-value
-              map-options
-              :options="filterOptions"
-              :label="$t('adminTools.filterOptions')"
-              dense
-            />
-            <card-sort-control
-              v-if="grid"
-              v-model:pagination="pagination"
-              class="q-mr-sm q-mb-sm"
-              :columns="columns"
-            />
-          </div>
+  <member-table-shell
+    v-model:pagination="pagination"
+    :rows="filteredMembers"
+    :columns="columns"
+    :csv-columns="csvColumns"
+    :loading="loading"
+    :grid="grid"
+  >
+    <template v-slot:filters>
+      <q-select
+        v-model="memberState"
+        style="min-width: 140px"
+        outlined
+        emit-value
+        map-options
+        :options="filterOptions"
+        :label="$t('adminTools.filterOptions')"
+        dense
+      />
+    </template>
 
-          <member-export-buttons
-            :members="filteredMembers"
-            :csv-columns="csvColumns"
-          />
-        </div>
-      </template>
+    <template v-slot:body-cell-status="props">
+      <q-td :props="props">
+        {{ props.value }}
+        <q-icon
+          v-if="props.row.stateLocked"
+          :name="icons.lock"
+          color="warning"
+          size="sm"
+          class="q-ml-xs"
+        >
+          <q-tooltip>{{ $t('adminTools.stateLockedTooltip') }}</q-tooltip>
+        </q-icon>
+        <q-icon
+          v-if="props.row.adminDisabledAccess"
+          :name="icons.accessDisabled"
+          color="negative"
+          size="sm"
+          class="q-ml-xs"
+        >
+          <q-tooltip>{{ $t('adminTools.accessDisabledTooltip') }}</q-tooltip>
+        </q-icon>
+      </q-td>
+    </template>
 
-      <template v-slot:body-cell-status="props">
-        <q-td :props="props">
-          {{ props.value }}
-          <q-icon
-            v-if="props.row.stateLocked"
-            :name="icons.lock"
-            color="warning"
-            size="sm"
-            class="q-ml-xs"
-          >
-            <q-tooltip>{{ $t('adminTools.stateLockedTooltip') }}</q-tooltip>
-          </q-icon>
-          <q-icon
-            v-if="props.row.adminDisabledAccess"
-            :name="icons.accessDisabled"
-            color="negative"
-            size="sm"
-            class="q-ml-xs"
-          >
-            <q-tooltip>{{ $t('adminTools.accessDisabledTooltip') }}</q-tooltip>
-          </q-icon>
-        </q-td>
-      </template>
-
-      <template v-slot:item="props">
-        <div class="q-pa-xs col-xs-12 col-sm-6 col-md-4 col-lg-3">
-          <member-summary-card
-            :member="props.row"
-            @click="goToMember(props.row)"
-          >
-            <div v-if="props.row.rfid" class="text-caption">
-              <q-icon :name="icons.rfid" class="q-mr-xs" />
-              {{ props.row.rfid }}
-            </div>
-            <div
-              v-if="
-                features?.signup?.collectVehicleRegistrationPlate &&
-                props.row.vehicleRegistrationPlate
-              "
-              class="text-caption"
-            >
-              {{ $t('form.vehicleRegistrationPlate') }}:
-              {{ props.row.vehicleRegistrationPlate }}
-            </div>
-          </member-summary-card>
-        </div>
-      </template>
-    </q-table>
-  </div>
+    <template v-slot:card="props">
+      <div v-if="props.row.rfid" class="text-caption">
+        <q-icon :name="icons.rfid" class="q-mr-xs" />
+        {{ props.row.rfid }}
+      </div>
+      <div
+        v-if="
+          features?.signup?.collectVehicleRegistrationPlate &&
+          props.row.vehicleRegistrationPlate
+        "
+        class="text-caption"
+      >
+        {{ $t('form.vehicleRegistrationPlate') }}:
+        {{ props.row.vehicleRegistrationPlate }}
+      </div>
+    </template>
+  </member-table-shell>
 </template>
 
 <script lang="ts">
 import icons from '@icons';
 import formatMixin from '@mixins/formatMixin';
 import { mapGetters } from 'vuex';
-import CardSortControl from '@components/AdminTools/CardSortControl.vue';
-import MemberExportButtons from '@components/AdminTools/MemberExportButtons.vue';
-import MemberSummaryCard from '@components/AdminTools/MemberSummaryCard.vue';
+import MemberTableShell from '@components/AdminTools/MemberTableShell.vue';
 import { MemberProfile } from 'types/member';
 import { memberMatchesQuery } from '../../utils/fuzzySearch';
+import { fetchAdminList } from '../../utils/adminFetch';
 import { CsvColumn } from '../../utils/memberExport';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'MembersList',
-  components: { CardSortControl, MemberExportButtons, MemberSummaryCard },
+  components: { MemberTableShell },
   mixins: [formatMixin],
   props: {
     grid: {
@@ -257,35 +228,11 @@ export default defineComponent({
     this.getMembers();
   },
   methods: {
-    goToMember(member: MemberProfile) {
-      this.$router.push({
-        name: 'manageMember',
-        params: { memberId: member.id },
-      });
-    },
-    getMembers() {
+    async getMembers() {
       this.loading = true;
-      this.$axios
-        .get('/api/admin/members/')
-        .then((response) => {
-          this.members = response.data;
-        })
-        .catch(() => {
-          this.$q.dialog({
-            title: this.$t('error.error'),
-            message: this.$t('error.requestFailed'),
-          });
-        })
-        .finally(() => {
-          this.loading = false;
-        });
+      this.members = await fetchAdminList<MemberProfile>('/api/admin/members/');
+      this.loading = false;
     },
   },
 });
 </script>
-
-<style scoped lang="scss">
-.td {
-  padding: 0;
-}
-</style>
