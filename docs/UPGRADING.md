@@ -31,6 +31,31 @@ Database migrations run automatically every time the web container starts, so up
 
 Sections are newest first. Read the ones between the version you are on and the version you are moving to.
 
+## Check the key the portal signs sign-ins with (django-oidc-provider 0.9)
+
+If other services, such as Moodle or a wiki, let members sign in with their MemberMatters account, the portal signs those sign-ins with an RSA key stored under OpenID Connect Provider → RSA Keys in the Django admin. This release reads those keys with a stricter library. A key pasted in the OpenSSH format that `ssh-keygen` writes by default (it starts with `-----BEGIN OPENSSH PRIVATE KEY-----`), or a public key on its own, used to work and now stops every such sign-in until it is replaced.
+
+If no other service signs in through the portal, there is nothing to do. Otherwise, check your keys before or after you upgrade. Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`:
+
+```bash
+docker exec membermatters python3 manage.py shell -c "
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from oidc_provider.models import Client, RSAKey
+def usable(key):
+    try:
+        load_pem_private_key(key.encode(), None)
+        return True
+    except Exception:
+        return False
+for key in RSAKey.objects.all():
+    print('RSA key', key.id, 'is fine' if usable(key.key) else 'needs replacing')
+for client in Client.objects.filter(jwt_alg='HS256', client_secret=''):
+    print('Client', client.name, 'needs RS256')
+"
+```
+
+For each key that needs replacing, create a new one with `docker exec membermatters python3 manage.py creatersakey`, then delete the old one in the Django admin. The services pick up the new key the next time someone signs in. A client listed as needing RS256 has no secret to sign with: set its JWT algorithm to RS256 under OpenID Connect Provider → Clients.
+
 ## Redis TLS options must be lowercase (Channels 4)
 
 This release updates the library door, interlock and memberbucks devices use to reach Redis. If your `MM_REDIS_HOST` is a `rediss://` address with an `ssl_cert_reqs` option, write its value in lowercase: `ssl_cert_reqs=required`, `optional` or `none`. The uppercase form (`CERT_REQUIRED`) still works for background tasks, but devices can no longer connect with it, and the door buttons in Admin Tools fail.
