@@ -368,37 +368,28 @@ def _check_permissions(client):
         try:
             getattr(client, resource).list(params={"limit": 1})
         except stripe.PermissionError:
-            missing.append(name)
-        except stripe.StripeError:
-            unchecked.append(name)
+            missing.append(f"Missing permission: {name}")
+        except stripe.StripeError as e:
+            unchecked.append(f"Couldn't check {name}: {_error_text(e)}")
 
-    note = (
-        "Only read access can be checked from here; MemberMatters also needs "
-        "write access, and access to Payment Methods."
-    )
+    total = len(PERMISSION_PROBES)
     if missing:
         return _row(
             "permissions",
             label,
             ERROR,
-            f"No access to {', '.join(missing)}",
-            f"Give the key access to these in the Stripe dashboard. {note}",
+            f"Missing {len(missing)} of {total}",
+            items=missing + unchecked,
         )
     if unchecked:
         return _row(
             "permissions",
             label,
             UNKNOWN,
-            f"Couldn't check {', '.join(unchecked)}",
-            f"Stripe returned an error for these. {note}",
+            f"Couldn't check {len(unchecked)} of {total}",
+            items=unchecked,
         )
-    return _row(
-        "permissions",
-        label,
-        OK,
-        f"Read access to all {len(PERMISSION_PROBES)} resources",
-        note,
-    )
+    return _row("permissions", label, OK, f"Read access to all {total} resources")
 
 
 def _near_miss(url, expected):
@@ -433,83 +424,47 @@ def _webhook_version_row(endpoint):
     )
 
 
-def _check_endpoint(endpoint, duplicates):
-    rows = []
+def _endpoint_problems(endpoint, duplicates):
+    """(status, problem) for each thing wrong with this site's endpoint."""
+    problems = []
 
     if duplicates:
-        rows.append(
-            _row(
-                "webhook_endpoint_url",
-                "Endpoint URL",
+        problems.append(
+            (
                 WARNING,
-                f"Found {duplicates + 1} endpoints",
-                "Stripe sends every event to each of them, signed with each "
-                "one's own secret, so only one can match STRIPE_WEBHOOK_SECRET "
-                "and the others' deliveries are rejected. Delete the extras.",
+                f"Found {duplicates + 1} endpoints for this site. Each signs "
+                "events with its own secret, so only one can match "
+                "STRIPE_WEBHOOK_SECRET. Delete the extras.",
             )
         )
-    else:
-        rows.append(_row("webhook_endpoint_url", "Endpoint URL", OK, "Found"))
 
-    if endpoint.status == "enabled":
-        rows.append(_row("webhook_endpoint_status", "Endpoint status", OK, "Enabled"))
-    else:
-        rows.append(
-            _row(
-                "webhook_endpoint_status",
-                "Endpoint status",
+    if endpoint.status != "enabled":
+        problems.append(
+            (
                 ERROR,
-                endpoint.status.capitalize(),
-                "Stripe isn't sending events to it. Enable it in the Stripe "
-                "dashboard; Stripe can disable an endpoint whose deliveries "
-                "keep failing.",
+                f"The endpoint is {endpoint.status}, so Stripe isn't sending "
+                "events to it.",
             )
         )
 
     enabled = set(endpoint.enabled_events or [])
     missing = [event for event in HANDLED_EVENTS if event not in enabled]
-    if "*" in enabled:
-        rows.append(_row("webhook_events", "Events", OK, "All events"))
-    elif missing:
-        rows.append(
-            _row(
-                "webhook_events",
-                "Events",
-                ERROR,
-                f"Missing {len(missing)} of {len(HANDLED_EVENTS)}",
-                f"Add these events to the endpoint: {', '.join(missing)}.",
-            )
-        )
-    else:
-        rows.append(
-            _row(
-                "webhook_events",
-                "Events",
-                OK,
-                f"All {len(HANDLED_EVENTS)} used by MemberMatters",
-            )
-        )
+    if missing and "*" not in enabled:
+        problems.append((ERROR, f"Missing events: {', '.join(missing)}."))
 
-    rows.append(_webhook_version_row(endpoint))
-    return rows
-
-
-def _webhook_verdict(rows):
-    label = "Webhook setup"
     if not config.STRIPE_WEBHOOK_SECRET:
-        return _row("webhook", label, ERROR, "Signing secret missing")
+        problems.append(
+            (
+                ERROR,
+                "STRIPE_WEBHOOK_SECRET is not set, so every webhook is rejected.",
+            )
+        )
 
-    worst = _worst(rows)
-    if worst == ERROR:
-        return _row("webhook", label, ERROR, "Not set up correctly")
-    if worst == WARNING:
-        return _row("webhook", label, WARNING, "Set up, with warnings")
-    # Stripe never shows an endpoint's signing secret again, so this can't
-    # confirm STRIPE_WEBHOOK_SECRET matches it.
-    return _row("webhook", label, OK, "Looks correctly set up")
+    return problems
 
 
 def _check_webhook(client, mode):
+    label = "Webhook endpoint"
     try:
         endpoints = list(
             client.webhook_endpoints.list(params={"limit": 100}).auto_paging_iter()
@@ -518,21 +473,20 @@ def _check_webhook(client, mode):
         return [
             _row(
                 "webhook",
-                "Webhook setup",
+                label,
                 UNKNOWN,
                 "Can't check",
-                "The key has no access to webhook endpoints. Give it read "
-                "access to Webhook Endpoints to check them here.",
+                items=["Missing permission: Webhook Endpoints (read)"],
             )
         ]
     except stripe.StripeError as e:
         return [
             _row(
                 "webhook",
-                "Webhook setup",
+                label,
                 UNKNOWN,
                 "Can't check",
-                f"Stripe returned an error: {_error_text(e)}",
+                items=[f"Stripe returned an error: {_error_text(e)}"],
             )
         ]
 
@@ -542,26 +496,38 @@ def _check_webhook(client, mode):
         near = [_near_miss(endpoint.url, expected) for endpoint in endpoints]
         near = [reason for reason in near if reason]
         if near:
-            detail = " ".join(near)
+            items = near
         elif endpoints:
-            others = ", ".join(endpoint.url for endpoint in endpoints)
-            detail = f"Stripe has endpoints for other addresses: {others}."
+            items = [
+                f"Stripe only has endpoints for other addresses: "
+                f"{', '.join(endpoint.url for endpoint in endpoints)}."
+            ]
         else:
-            detail = f"Stripe has no webhook endpoints in {mode} mode."
-        return [
-            _row(
-                "webhook",
-                "Webhook setup",
-                ERROR,
-                "No endpoint for this site",
-                f"No {mode} mode endpoint points at {expected}. {detail}",
-            )
-        ]
+            items = [f"Stripe has no webhook endpoints in {mode} mode."]
+        return [_row("webhook", label, ERROR, "No endpoint for this site", items=items)]
 
     # Prefer an enabled endpoint when there are several.
     matches.sort(key=lambda endpoint: endpoint.status != "enabled")
-    rows = _check_endpoint(matches[0], duplicates=len(matches) - 1)
-    return [_webhook_verdict(rows), *rows]
+    endpoint = matches[0]
+    problems = _endpoint_problems(endpoint, duplicates=len(matches) - 1)
+    status = _worst([{"status": status} for status, _ in problems])
+    # Stripe never shows an endpoint's signing secret again, so even a clean
+    # result can't confirm STRIPE_WEBHOOK_SECRET matches it.
+    value = {
+        OK: "Looks correctly set up",
+        WARNING: "Set up, with warnings",
+        ERROR: "Not set up correctly",
+    }[status]
+    return [
+        _row(
+            "webhook",
+            label,
+            status,
+            value,
+            items=[problem for _, problem in problems],
+        ),
+        _webhook_version_row(endpoint),
+    ]
 
 
 def run_connection_test():
@@ -592,7 +558,7 @@ def run_connection_test():
             "checks": [
                 connection,
                 _row("permissions", "Permissions", UNKNOWN, "Skipped", SKIPPED),
-                _row("webhook", "Webhook setup", UNKNOWN, "Skipped", SKIPPED),
+                _row("webhook", "Webhook endpoint", UNKNOWN, "Skipped", SKIPPED),
             ]
         }
 
