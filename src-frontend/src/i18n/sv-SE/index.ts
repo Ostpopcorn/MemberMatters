@@ -28,7 +28,8 @@ export default {
     interlocks: 'Lås',
     devices: 'Enheter',
     kiosks: 'Kiosks',
-    pendingInvoices: 'Väntande fakturor',
+    paymentOverview: 'Betalningsöversikt',
+    pendingInvoices: 'Betalningsöversikt', // old link to the payment overview page
     signupPreview: 'Signup Preview',
     manageDashboard: 'Dashboard Cards',
 
@@ -852,10 +853,14 @@ export default {
     stripeError:
       'Något gick fel i kommunikationen med vår betalleverantör. Försök igen om en stund eller kontakta oss om det inte löser sig.',
   },
+  paymentOverview: {
+    title: 'Betalningsöversikt',
+    description: 'Utestående medlemsbetalningar, uppdelade per betalningssätt.',
+  },
   pendingInvoices: {
-    title: 'Väntande fakturor',
+    title: 'Fakturor för Stripe-abonnemang',
     description:
-      'Medlemmar med en utestående faktura för sitt medlemskapsabonnemang. Använd den här panelen för att registrera betalningar mottagna utanför Stripe (banköverföring, kontanter, etc.).',
+      'Medlemmar med en utestående Stripe-faktura för sitt medlemskapsabonnemang. Använd Markera som betald för att registrera betalningar mottagna utanför Stripe (banköverföring, kontanter, etc.).',
     invoiceDisabledWarning:
       'Fakturabetalning är för närvarande inaktiverad, så nya medlemmar kan inte registrera sig via faktura. Befintliga fakturaabonnemang debiteras fortfarande av Stripe — använd den här sidan för att registrera betalningar utanför Stripe för dessa medlemmar.',
     noInvoices: 'Inga väntande fakturor.',
