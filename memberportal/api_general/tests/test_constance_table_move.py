@@ -2,7 +2,9 @@
 
 On MySQL and MariaDB, constance's own copy fails without an error and leaves
 every setting in constance_config. These tests recreate that state and run the
-repair directly, as the suite runs with --no-migrations.
+repair directly, as the suite runs with --no-migrations. Both tables still hold
+pickled values then, since the repair runs before constance's 0003 converts
+them to JSON.
 """
 
 import importlib
@@ -12,7 +14,8 @@ import pytest
 from constance.models import Constance
 from django.apps import apps
 from django.db import connection
-from picklefield.fields import dbsafe_encode
+
+from tests.helpers import pickled_setting
 
 migration = importlib.import_module(
     "api_general.migrations.0006_finish_constance_table_move"
@@ -34,7 +37,7 @@ def leave_settings_in_the_old_table(settings):
         cursor.executemany(
             f"INSERT INTO {table} ({id_}, {key}, {value}) VALUES (%s, %s, %s)",
             [
-                (row_id, name, dbsafe_encode(setting))
+                (row_id, name, pickled_setting(setting))
                 for row_id, (name, setting) in enumerate(settings.items(), start=1)
             ],
         )
@@ -57,29 +60,34 @@ def test_settings_left_in_the_old_table_are_moved():
 
     run_repair()
 
-    assert saved_settings() == {"SITE_NAME": "Old Makerspace", "ENABLE_X": True}
+    assert saved_settings() == {
+        "SITE_NAME": pickled_setting("Old Makerspace"),
+        "ENABLE_X": pickled_setting(True),
+    }
     assert not old_table_exists()
 
 
 def test_defaults_written_since_the_failed_move_are_replaced():
     # Reading a setting constance can't find stores its default, so a portal
     # that ran on the empty table has filled it with defaults.
-    Constance.objects.create(key="SITE_NAME", value="MemberMatters Portal")
-    Constance.objects.create(key="ENABLE_Y", value=False)
+    Constance.objects.create(
+        key="SITE_NAME", value=pickled_setting("MemberMatters Portal")
+    )
+    Constance.objects.create(key="ENABLE_Y", value=pickled_setting(False))
     leave_settings_in_the_old_table({"SITE_NAME": "Old Makerspace", "ENABLE_X": True})
 
     run_repair()
 
     assert saved_settings() == {
-        "SITE_NAME": "Old Makerspace",
-        "ENABLE_X": True,
-        "ENABLE_Y": False,
+        "SITE_NAME": pickled_setting("Old Makerspace"),
+        "ENABLE_X": pickled_setting(True),
+        "ENABLE_Y": pickled_setting(False),
     }
 
 
 def test_nothing_happens_once_the_old_table_is_gone():
-    Constance.objects.create(key="SITE_NAME", value="Makerspace")
+    Constance.objects.create(key="SITE_NAME", value=pickled_setting("Makerspace"))
 
     run_repair()
 
-    assert saved_settings() == {"SITE_NAME": "Makerspace"}
+    assert saved_settings() == {"SITE_NAME": pickled_setting("Makerspace")}

@@ -8,6 +8,7 @@ import stripe
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from constance import config
+from constance.codecs import dumps, loads
 from constance.models import Constance as ConstanceSetting
 from django.db import IntegrityError, transaction
 from django.db.models import F, Sum, Value, CharField, Count, Max
@@ -1342,7 +1343,7 @@ class ManageSettings(APIView):
     def get_setting(self, setting):
         return {
             "key": setting.key,
-            "value": setting.value,
+            "value": loads(setting.value),
         }
 
     def get(self, request, setting_key=None):
@@ -1370,7 +1371,7 @@ class ManageSettings(APIView):
 
         try:
             setting = ConstanceSetting.objects.get(key=setting_key)
-            setting.value = body["value"]
+            setting.value = dumps(body["value"])
             setting.save()
 
             return Response(self.get_setting(setting))

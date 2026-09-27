@@ -12,7 +12,7 @@ Database migrations run automatically every time the web container starts, so up
   docker compose up -d
   ```
 
-**Back up your database first.** Some upgrades move data between tables and drop the old one, and going back to the previous image does not undo that.
+**Back up your database first.** Some upgrades move or convert data, and going back to the previous image does not undo that.
 
 - **SQLite**, the getting started default: stop the container and copy the database file out of the folder you mounted, which is `/usr/app/` in the getting started instructions. Then carry on with the upgrade.
 
@@ -76,13 +76,13 @@ proxy_set_header Host $host;
 proxy_set_header X-Forwarded-Proto $scheme;
 ```
 
-## Settings move to a new table (django-constance 3.1)
+## Settings move to a new table and format (django-constance 4)
 
-Everything you edit under Admin Tools is stored in a single table, which used to be named `constance_config`. django-constance 3.1 moves those rows into a table named `constance_constance` and drops the old one.
+The settings you edit in the Django admin, under Constance → Config, are stored in a single table, which used to be named `constance_config`. django-constance moves those rows into a table named `constance_constance` and drops the old one. It then converts each saved value from Python's pickle format to JSON.
 
-There is nothing for you to do. The migration copies every row across, so your settings — including API keys, Stripe configuration and email templates — are preserved.
+There is nothing for you to do. The migration copies every row across and converts it, so your settings — including API keys, Stripe configuration and email templates — keep their values.
 
-On MySQL and MariaDB, django-constance's own copy fails without an error, so this release completes the move itself.
+The conversion can't be undone. To go back to an older version after upgrading, restore the backup you took first. Older versions don't understand the converted settings.
 
 If you want to check, count the rows before you upgrade:
 

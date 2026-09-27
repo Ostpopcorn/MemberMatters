@@ -1,5 +1,7 @@
 import json
+import pickle
 import re
+from base64 import b64decode
 
 from django.db import migrations
 
@@ -50,7 +52,10 @@ def import_home_page_cards(apps, schema_editor):
         return
 
     try:
-        cards = json.loads(home_page_cards.value)
+        # Still pickled, as constance kept every setting until its 0003
+        # migration, and since constance 4 its model doesn't unpickle them.
+        # 0008 runs before 0003 to keep it that way.
+        cards = json.loads(pickle.loads(b64decode(home_page_cards.value)))
     except (TypeError, ValueError):
         cards = None
 

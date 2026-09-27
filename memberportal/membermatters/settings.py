@@ -453,7 +453,10 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
 
 # Django constance configuration
-CONSTANCE_BACKEND = "membermatters.constance_backend.DatabaseBackend"
+# Until 4.0 this backend treated a failed read as a missing setting, so the
+# portal stored the default over the real value (jazzband/django-constance#348).
+# MemberMatters had its own copy with that fixed, which is no longer needed.
+CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
 CONSTANCE_CONFIG = CONSTANCE_CONFIG
 CONSTANCE_CONFIG_FIELDSETS = CONSTANCE_CONFIG_FIELDSETS
 CONSTANCE_ADDITIONAL_FIELDS = CONSTANCE_ADDITIONAL_FIELDS

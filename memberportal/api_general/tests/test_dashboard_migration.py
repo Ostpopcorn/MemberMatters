@@ -12,6 +12,7 @@ from constance.models import Constance
 from django.apps import apps
 
 from api_general.models import DashboardCard
+from tests.helpers import pickled_setting
 
 migration = importlib.import_module(
     "api_general.migrations.0005_import_home_page_cards"
@@ -24,7 +25,10 @@ pytestmark = pytest.mark.django_db
 
 
 def set_constance(key, value):
-    Constance.objects.update_or_create(key=key, defaults={"value": value})
+    # Pickled, as the import reads it before constance's 0003 converts it.
+    Constance.objects.update_or_create(
+        key=key, defaults={"value": pickled_setting(value)}
+    )
 
 
 def run_import():
