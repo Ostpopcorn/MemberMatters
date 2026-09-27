@@ -49,13 +49,15 @@ PERMISSION_PROBES = [
 SKIPPED = "Skipped because the connection to Stripe failed."
 
 
-def _row(key, label, status, value="", detail=""):
+def _row(key, label, status, value="", detail="", items=None):
     return {
         "key": key,
         "label": label,
         "status": status,
         "value": value,
         "detail": detail,
+        # Problems listed one per bullet under the row.
+        "items": items or [],
     }
 
 
@@ -108,73 +110,84 @@ def _not_needed(rows):
     return rows
 
 
-def _check_secret_key():
-    label = "Secret key"
-    key = config.STRIPE_SECRET_KEY or ""
-    if not key:
-        return _row(
-            "secret_key",
-            label,
-            ERROR,
-            "Not set",
-            "STRIPE_SECRET_KEY is not set, so MemberMatters can't talk to Stripe.",
-        )
+def _key_problems():
+    """(status, problem) for each thing wrong with the two API keys."""
+    problems = []
 
+    secret = config.STRIPE_SECRET_KEY or ""
     kind_and_mode = _secret_key()
-    if kind_and_mode is None:
-        detail = "Stripe secret keys start with rk_ (restricted) or sk_."
-        if key.startswith("pk_"):
-            detail = f"This is a publishable key. {detail}"
-        return _row("secret_key", label, ERROR, "Not a Stripe secret key", detail)
-
-    kind, mode = kind_and_mode
-    value = f"{kind} key, {mode} mode"
-    if kind == "Standard":
-        return _row(
-            "secret_key",
-            label,
-            WARNING,
-            value,
-            "A standard key can do anything in the Stripe account. Use a "
-            "restricted key with only the permissions MemberMatters needs.",
+    if not secret:
+        problems.append(
+            (ERROR, "Secret key is not set, so MemberMatters can't talk to Stripe.")
         )
-    return _row("secret_key", label, OK, value)
-
-
-def _check_publishable_key():
-    label = "Publishable key"
-    key = config.STRIPE_PUBLISHABLE_KEY or ""
-    if not key:
-        return _row(
-            "publishable_key",
-            label,
-            ERROR,
-            "Not set",
-            "STRIPE_PUBLISHABLE_KEY is not set, so members can't enter card "
-            "details.",
+    elif kind_and_mode is None:
+        what = (
+            "is a publishable key"
+            if secret.startswith("pk_")
+            else "doesn't look like a Stripe secret key"
+        )
+        problems.append(
+            (
+                ERROR,
+                f"Secret key {what}. Secret keys start with rk_ (restricted) "
+                "or sk_.",
+            )
+        )
+    elif kind_and_mode[0] == "Standard":
+        problems.append(
+            (
+                WARNING,
+                "Secret key is a standard key, which can do anything in the "
+                "Stripe account. Use a restricted key with only the permissions "
+                "MemberMatters needs.",
+            )
         )
 
+    publishable = config.STRIPE_PUBLISHABLE_KEY or ""
     mode = _publishable_key_mode()
-    if mode is None:
-        return _row(
-            "publishable_key",
-            label,
-            ERROR,
-            "Not a Stripe publishable key",
-            "Stripe publishable keys start with pk_live_ or pk_test_.",
+    if not publishable:
+        problems.append(
+            (
+                ERROR,
+                "Publishable key is not set, so members can't enter card details.",
+            )
+        )
+    elif mode is None:
+        problems.append(
+            (
+                ERROR,
+                "Publishable key doesn't look like a Stripe publishable key. "
+                "Publishable keys start with pk_live_ or pk_test_.",
+            )
+        )
+    elif kind_and_mode is not None and kind_and_mode[1] != mode:
+        problems.append(
+            (
+                ERROR,
+                f"Publishable key is in {mode} mode, but the secret key is in "
+                f"{kind_and_mode[1]} mode. Both must come from the same mode, or "
+                "card payments fail.",
+            )
         )
 
-    secret = _secret_key()
-    if secret is not None and secret[1] != mode:
-        return _row(
-            "publishable_key",
-            label,
-            ERROR,
-            f"{mode.capitalize()} mode",
-            f"The secret key is in {secret[1]} mode. Both keys must come from "
-            "the same mode, or card payments fail.",
-        )
-    return _row("publishable_key", label, OK, f"{mode.capitalize()} mode")
+    return problems
+
+
+def _check_keys():
+    kind_and_mode = _secret_key()
+    value = (
+        f"{kind_and_mode[0]} key, {kind_and_mode[1]} mode"
+        if kind_and_mode
+        else "Not usable"
+    )
+    problems = _key_problems()
+    return _row(
+        "keys",
+        "API keys",
+        _worst([{"status": status} for status, _ in problems]),
+        value,
+        items=[problem for _, problem in problems],
+    )
 
 
 def _check_webhook_secret():
@@ -231,13 +244,7 @@ def _check_webhook_url():
             url,
             "Stripe only sends live mode webhooks to https addresses.",
         )
-    return _row(
-        "webhook_url",
-        label,
-        OK,
-        url,
-        "The Stripe webhook endpoint should point here.",
-    )
+    return _row("webhook_url", label, OK, url)
 
 
 def get_static_checks():
@@ -262,15 +269,13 @@ def get_static_checks():
 
     return {
         "checks": [
-            _check_secret_key(),
-            _check_publishable_key(),
+            _check_keys(),
             *webhook_rows,
             _row(
                 "api_version",
                 "API version",
                 INFO,
                 f"Enforced {settings.STRIPE_API_VERSION}",
-                "MemberMatters sends this version with every Stripe request.",
             ),
         ],
         "canTest": _secret_key() is not None,
@@ -416,32 +421,16 @@ def _near_miss(url, expected):
 
 
 def _webhook_version_row(endpoint):
-    label = "Webhook API version"
     ours = settings.STRIPE_API_VERSION
-    theirs = endpoint.api_version
-    if not theirs:
-        return _row(
-            "webhook_api_version",
-            label,
-            WARNING,
-            f"Enforced {ours}, endpoint sends the account default",
-            "The endpoint isn't pinned to a version, so Stripe uses the "
-            "account's default version, which changes when the account is "
-            "upgraded in the Stripe dashboard.",
-        )
-    value = f"Enforced {ours}, endpoint sends {theirs}"
-    if theirs != ours:
-        return _row(
-            "webhook_api_version",
-            label,
-            WARNING,
-            value,
-            "Webhook events arrive in a different API version than "
-            "MemberMatters uses. An endpoint's version is set when it's "
-            "created, so changing it means creating a new endpoint (with a "
-            "new signing secret).",
-        )
-    return _row("webhook_api_version", label, OK, value)
+    # No version on the endpoint means Stripe uses the account's default,
+    # which changes whenever the account is upgraded.
+    theirs = endpoint.api_version or "the account default"
+    return _row(
+        "webhook_api_version",
+        "Webhook API version",
+        OK if theirs == ours else WARNING,
+        f"Enforced {ours}, endpoint sends {theirs}",
+    )
 
 
 def _check_endpoint(endpoint, duplicates):
@@ -478,44 +467,28 @@ def _check_endpoint(endpoint, duplicates):
         )
 
     enabled = set(endpoint.enabled_events or [])
+    missing = [event for event in HANDLED_EVENTS if event not in enabled]
     if "*" in enabled:
+        rows.append(_row("webhook_events", "Events", OK, "All events"))
+    elif missing:
+        rows.append(
+            _row(
+                "webhook_events",
+                "Events",
+                ERROR,
+                f"Missing {len(missing)} of {len(HANDLED_EVENTS)}",
+                f"Add these events to the endpoint: {', '.join(missing)}.",
+            )
+        )
+    else:
         rows.append(
             _row(
                 "webhook_events",
                 "Events",
                 OK,
-                "All events",
-                f"MemberMatters uses {len(HANDLED_EVENTS)} of them and ignores "
-                "the rest.",
+                f"All {len(HANDLED_EVENTS)} used by MemberMatters",
             )
         )
-    else:
-        missing = [event for event in HANDLED_EVENTS if event not in enabled]
-        if missing:
-            rows.append(
-                _row(
-                    "webhook_events",
-                    "Events",
-                    ERROR,
-                    f"Missing {len(missing)} of {len(HANDLED_EVENTS)}",
-                    f"Add these events to the endpoint: {', '.join(missing)}.",
-                )
-            )
-        else:
-            extra = len(enabled) - len(HANDLED_EVENTS)
-            rows.append(
-                _row(
-                    "webhook_events",
-                    "Events",
-                    OK,
-                    f"All {len(HANDLED_EVENTS)} used by MemberMatters",
-                    (
-                        f"It also sends {extra} that MemberMatters ignores."
-                        if extra
-                        else ""
-                    ),
-                )
-            )
 
     rows.append(_webhook_version_row(endpoint))
     return rows
@@ -524,36 +497,16 @@ def _check_endpoint(endpoint, duplicates):
 def _webhook_verdict(rows):
     label = "Webhook setup"
     if not config.STRIPE_WEBHOOK_SECRET:
-        return _row(
-            "webhook",
-            label,
-            ERROR,
-            "Signing secret missing",
-            "The endpoint is there, but STRIPE_WEBHOOK_SECRET is not set, so "
-            "every webhook is rejected.",
-        )
+        return _row("webhook", label, ERROR, "Signing secret missing")
 
     worst = _worst(rows)
     if worst == ERROR:
-        return _row(
-            "webhook", label, ERROR, "Not set up correctly", "See the rows below."
-        )
+        return _row("webhook", label, ERROR, "Not set up correctly")
     if worst == WARNING:
-        return _row(
-            "webhook",
-            label,
-            WARNING,
-            "Set up, with warnings",
-            "See the rows below.",
-        )
-    return _row(
-        "webhook",
-        label,
-        OK,
-        "Looks correctly set up",
-        "Stripe doesn't show an endpoint's signing secret, so it couldn't be "
-        "compared with STRIPE_WEBHOOK_SECRET.",
-    )
+        return _row("webhook", label, WARNING, "Set up, with warnings")
+    # Stripe never shows an endpoint's signing secret again, so this can't
+    # confirm STRIPE_WEBHOOK_SECRET matches it.
+    return _row("webhook", label, OK, "Looks correctly set up")
 
 
 def _check_webhook(client, mode):
