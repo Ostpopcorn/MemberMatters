@@ -234,6 +234,15 @@ The following permissions are needed for all Member Matters payment features to 
 * PaymentMethods - Write
 * Payment Intents - Write
 * Invoices - Write (required for "Pay by Invoice" billing)
+* Webhook Endpoints - Read (lets the Payment Overview page check the webhook endpoint)
+
+#### Checking the Stripe setup
+
+The Stripe card at the top of "Admin Tools" > "Payment Overview" checks the Stripe settings when the page opens: the secret and publishable keys (their type and test/live mode, never their values), the webhook signing secret and the webhook URL this site expects.
+
+"Test connection" then calls Stripe with read-only requests. It checks that Stripe accepts the secret key, that the key can read each resource MemberMatters uses, and that a webhook endpoint points at this site's URL, is enabled and sends the four events above. Stripe never shows an endpoint's signing secret again after creating it, so the test can't tell whether `STRIPE_WEBHOOK_SECRET` matches.
+
+MemberMatters sends Stripe API version `STRIPE_API_VERSION` (set in `settings.py`) with every request. Stripe sends webhook events in the endpoint's own API version instead, which is chosen when the endpoint is created and can't be changed afterwards. The test shows both, and warns when they differ or when the endpoint follows the account's default version.
 
 #### Pay by Invoice setup
 
