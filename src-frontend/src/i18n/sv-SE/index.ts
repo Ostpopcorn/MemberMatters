@@ -855,12 +855,9 @@ export default {
   },
   paymentOverview: {
     title: 'Betalningsöversikt',
-    description: 'Utestående medlemsbetalningar, uppdelade per betalningssätt.',
   },
   pendingInvoices: {
     title: 'Fakturor för Stripe-abonnemang',
-    description:
-      'Medlemmar med en utestående Stripe-faktura för sitt medlemskapsabonnemang. Använd Markera som betald för att registrera betalningar mottagna utanför Stripe (banköverföring, kontanter, etc.).',
     invoiceDisabledWarning:
       'Fakturabetalning är för närvarande inaktiverad, så nya medlemmar kan inte registrera sig via faktura. Befintliga fakturaabonnemang debiteras fortfarande av Stripe — använd den här sidan för att registrera betalningar utanför Stripe för dessa medlemmar.',
     noInvoices: 'Inga väntande fakturor.',
