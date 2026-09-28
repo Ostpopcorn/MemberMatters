@@ -26,6 +26,7 @@ from services.email_i18n import (
 )
 from services import sms
 from sentry_sdk import capture_exception
+from membermatters.fields import Char32UUIDField
 from django_prometheus.models import ExportModelOperationsMixin
 
 logger = logging.getLogger("profile")
@@ -185,7 +186,7 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
     )
     id = models.AutoField(primary_key=True)
     email_verified = models.BooleanField(default=True)
-    password_reset_key = models.UUIDField(default=None, blank=True, null=True)
+    password_reset_key = Char32UUIDField(default=None, blank=True, null=True)
     password_reset_expire = models.DateTimeField(default=None, blank=True, null=True)
     staff = models.BooleanField(default=False)  # an admin user for the portal
     admin = models.BooleanField(default=False)  # a portal superuser
@@ -473,7 +474,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
-    digital_id_token = models.UUIDField(
+    digital_id_token = Char32UUIDField(
         "Digital ID Token", default=uuid.uuid4, null=True, blank=True
     )
     digital_id_token_expire = models.DateTimeField(

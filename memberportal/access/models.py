@@ -25,6 +25,7 @@ from constance import config
 import hashlib
 from django.core.validators import URLValidator
 from django_prometheus.models import ExportModelOperationsMixin
+from membermatters.fields import Char32UUIDField
 import access.metrics as metrics
 
 logger = logging.getLogger("access")
@@ -487,7 +488,7 @@ class DoorLog(ExportModelOperationsMixin("door-log"), models.Model):
 
 
 class InterlockLog(ExportModelOperationsMixin("interlock-log"), models.Model):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
+    id = Char32UUIDField(default=uuid.uuid4, primary_key=True)
     interlock = models.ForeignKey(Interlock, on_delete=models.CASCADE)
     user_started = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     user_ended = models.ForeignKey(
