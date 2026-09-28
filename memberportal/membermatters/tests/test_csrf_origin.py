@@ -25,6 +25,7 @@ SOURCES = {
     # nginx as set up in docs/POST_INSTALL_STEPS.md
     "production proxy": {
         "HTTP_HOST": "portal.example.org",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org",
         "HTTP_ORIGIN": "https://portal.example.org",
         "HTTP_REFERER": "https://portal.example.org/",
         "HTTP_X_FORWARDED_PROTO": "https",
@@ -33,6 +34,7 @@ SOURCES = {
     # doesn't say so, so Django compares against http://portal.example.org.
     "proxy without X-Forwarded-Proto": {
         "HTTP_HOST": "portal.example.org",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org",
         "HTTP_ORIGIN": "https://portal.example.org",
         "HTTP_REFERER": "https://portal.example.org/",
     },
@@ -40,12 +42,14 @@ SOURCES = {
     # GETTING_STARTED's `docker create -p 8000:8000`: no proxy and no TLS.
     "container nginx on port 8000": {
         "HTTP_HOST": "portal.example.org:8000",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org:8000",
         "HTTP_ORIGIN": "http://portal.example.org:8000",
         "HTTP_REFERER": "http://portal.example.org:8000/",
     },
     # The same request when nginx forwarded $host, which drops the port.
     "container nginx dropping the port": {
         "HTTP_HOST": "portal.example.org",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org",
         "HTTP_ORIGIN": "http://portal.example.org:8000",
         "HTTP_REFERER": "http://portal.example.org:8000/",
     },
@@ -57,6 +61,7 @@ SOURCES = {
     },
     "another site": {
         "HTTP_HOST": "portal.example.org",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org",
         "HTTP_ORIGIN": "https://attacker.example",
         "HTTP_REFERER": "https://attacker.example/",
         "HTTP_X_FORWARDED_PROTO": "https",
@@ -95,14 +100,17 @@ def test_csrf_origin_check(path, source, rejected):
     assert rejected_by_csrf is rejected
 
 
-def test_the_container_nginx_forwards_the_port_in_the_host_header():
+def test_the_container_nginx_forwards_the_port_in_the_host_headers():
     # $host drops the port, which turns "container nginx on port 8000" above
-    # into "container nginx dropping the port".
+    # into "container nginx dropping the port". USE_X_FORWARDED_HOST makes
+    # Django read X-Forwarded-Host rather than Host, so both need the port.
     nginx_conf = Path(__file__).resolve().parents[3] / "docker" / "nginx.conf"
     host_headers = re.findall(
-        r"proxy_set_header\s+Host\s+(\S+);", nginx_conf.read_text()
+        r"proxy_set_header\s+((?:X-Forwarded-)?Host)\s+(\S+);",
+        nginx_conf.read_text(),
     )
-    assert host_headers and set(host_headers) == {"$http_host"}
+    assert {name for name, _ in host_headers} == {"Host", "X-Forwarded-Host"}
+    assert {value for _, value in host_headers} == {"$http_host"}
 
 
 def test_production_trusts_no_extra_origins():
