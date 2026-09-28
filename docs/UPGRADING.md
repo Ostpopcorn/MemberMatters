@@ -12,6 +12,8 @@ Database migrations run automatically every time the web container starts, so up
   docker compose up -d
   ```
 
+- **CapRover, Kubernetes or another setup** that runs the web app, the Celery worker and the Celery beat scheduler as separate services: move all three to the new image at the same time. Only the web app runs the migrations, and a worker or scheduler left on the old image expects the database as its own version left it. Moving the settings to a new table (django-constance 4, below) is one such change: an old worker can no longer read any setting.
+
 **Back up your database first.** Some upgrades move or convert data, and going back to the previous image does not undo that.
 
 - **SQLite**, the getting started default: stop the container and copy the database file out of the folder you mounted, which is `/usr/app/` in the getting started instructions. Then carry on with the upgrade.
@@ -29,9 +31,11 @@ Database migrations run automatically every time the web container starts, so up
 
 - **A database server you run yourself**: use its own backup tool, such as `pg_dump` or `mysqldump`.
 
-Sections are newest first. Read the ones between the version you are on and the version you are moving to.
+Changes are grouped by the releases they apply to, newest first. Read every group that includes the version you are on.
 
-## Check the key the portal signs sign-ins with (django-oidc-provider 0.9)
+## Upgrading from 3.8 or earlier
+
+### Check the key the portal signs sign-ins with (django-oidc-provider 0.9)
 
 If other services, such as Moodle or a wiki, let members sign in with their MemberMatters account, the portal signs those sign-ins with an RSA key stored under OpenID Connect Provider → RSA Keys in the Django admin. This release reads those keys with a stricter library. A key pasted in the OpenSSH format that `ssh-keygen` writes by default (it starts with `-----BEGIN OPENSSH PRIVATE KEY-----`), or a public key on its own, used to work and now stops every such sign-in until it is replaced.
 
@@ -56,17 +60,17 @@ for client in Client.objects.filter(jwt_alg='HS256', client_secret=''):
 
 For each key that needs replacing, create a new one with `docker exec membermatters python3 manage.py creatersakey`, then delete the old one in the Django admin. The services pick up the new key the next time someone signs in. A client listed as needing RS256 has no secret to sign with: set its JWT algorithm to RS256 under OpenID Connect Provider → Clients.
 
-## Redis TLS options must be lowercase (Channels 4)
+### Redis TLS options must be lowercase (Channels 4)
 
 This release updates the library door, interlock and memberbucks devices use to reach Redis. If your `MM_REDIS_HOST` is a `rediss://` address with an `ssl_cert_reqs` option, write its value in lowercase: `ssl_cert_reqs=required`, `optional` or `none`. The uppercase form (`CERT_REQUIRED`) still works for background tasks, but devices can no longer connect with it, and the door buttons in Admin Tools fail.
 
 Plain `redis://` addresses, including the one in the bundled [docker-compose.yml](/docker/docker-compose.yml), need no change.
 
-## Database and proxy requirements (Django 5.2)
+### Database and proxy requirements (Django 5.2)
 
 This release moves the portal from Django 3.2 to 5.2, which is stricter about two parts of your setup.
 
-### Newer database versions
+#### Newer database versions
 
 Django 5.2 will not work with a database server older than:
 
@@ -86,7 +90,7 @@ docker exec membermatters python3 manage.py shell -c "from django.db import conn
 
 If the server is too old, upgrade it first. Otherwise the container still starts and the page still loads, but nobody can log in: every request that needs the database fails, and the container log shows an error such as `PostgreSQL 14 or later is required (found 13.4).` Going back to the previous image fixes it: the upgrade can't reach a database that old, so it hasn't changed any of your data.
 
-### Your reverse proxy must pass on X-Forwarded-Proto
+#### Your reverse proxy must pass on X-Forwarded-Proto
 
 Django now checks that every change a signed-in person sends — saving their profile, logging in to the Django admin — comes from the same address the portal is served at. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so in the `X-Forwarded-Proto` header. If the proxy leaves it out, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
 
@@ -94,14 +98,22 @@ Django now checks that every change a signed-in person sends — saving their pr
 Forbidden (Origin checking failed - https://portal.example.org does not match any trusted origins.): /admin/login/
 ```
 
-If you set up nginx as described in [Post Installation Steps](/docs/POST_INSTALL_STEPS.md), your proxy already sends the header and there is nothing to do. Otherwise, check your proxy's configuration before you upgrade. For nginx, the location that forwards to MemberMatters needs both of these lines; other proxies have an equivalent setting:
+If you set up nginx as described in [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) and nothing sits in front of it, your proxy already sends the header and there is nothing to do. Otherwise, check your proxy's configuration before you upgrade. For nginx, the location that forwards to MemberMatters needs both of these lines; other proxies have an equivalent setting:
 
 ```nginx
-proxy_set_header Host $host;
+proxy_set_header Host $http_host;
 proxy_set_header X-Forwarded-Proto $scheme;
 ```
 
-## Settings move to a new table and format (django-constance 4)
+`$http_host` keeps the port when the portal's address has one, such as `https://portal.example.org:8443`. The `$host` in Post Installation Steps drops it, which works only on the standard ports 80 and 443.
+
+**Cloudflare in front of your proxy.** Cloudflare tells your proxy in `X-Forwarded-Proto` whether the visitor used HTTPS. In its Flexible SSL mode, though, it connects to your proxy over plain HTTP, so the `$scheme` line above replaces that `https` with `http` and the check fails. In the Cloudflare dashboard, under SSL/TLS → Overview, set the encryption mode to Full (strict): Cloudflare then connects to your proxy over HTTPS, which needs a certificate from a public authority such as the one certbot set up in Post Installation Steps. If Cloudflare has to reach your proxy over plain HTTP, for example through a Cloudflare Tunnel to an `http://` address, and every request comes through Cloudflare, pass on its header instead:
+
+```nginx
+proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+```
+
+### Settings move to a new table and format (django-constance 4)
 
 The settings you edit in the Django admin, under Constance → Config, are stored in a single table, which used to be named `constance_config`. django-constance moves those rows into a table named `constance_constance` and drops the old one. It then converts each saved value from Python's pickle format to JSON.
 
@@ -109,10 +121,10 @@ There is nothing for you to do. The migration copies every row across and conver
 
 The conversion can't be undone. To go back to an older version after upgrading, restore the backup you took first. Older versions don't understand the converted settings.
 
-If you want to check, count the rows before you upgrade:
+If you want to check, count the settings that have a value before you upgrade:
 
 ```bash
-docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_config'); print(c.fetchone()[0])"
+docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_config where value is not null'); print(c.fetchone()[0])"
 ```
 
 and count them again in the new container:
@@ -125,7 +137,9 @@ Under docker compose, replace `docker exec membermatters` with `docker compose e
 
 The second number should be at least the first. It can be higher, because the portal saves a setting's default the first time it reads one that was never saved. If it is lower, restore your backup rather than re-entering the settings by hand.
 
-## Dashboard cards move to Admin Tools
+The first count leaves out settings stored without a value. The upgrade deletes those, and the portal saves their default the next time it reads them.
+
+### Dashboard cards move to Admin Tools
 
 Older versions configured the member dashboard through a setting named `HOME_PAGE_CARDS`. It is replaced by the Dashboard Cards editor under Admin Tools, and the upgrade creates a card for each entry in your old setting, so your dashboard looks the same afterwards.
 
