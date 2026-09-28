@@ -34,7 +34,3 @@ python-dateutil~=2.9.0
 django-import-export[ods,xls,xlsx,yaml]~=4.4.1
 tablib~=3.10.0
 nh3~=0.3.5
-
-# Django 3.2 depended on pytz and 4.x does not, so it has to be declared here:
-# api_general/views.py still calls pytz's localize().
-pytz~=2026.3
