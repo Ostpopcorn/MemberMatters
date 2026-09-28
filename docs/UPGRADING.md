@@ -2,47 +2,63 @@
 
 Notes for upgrading an existing MemberMatters instance. If you are installing for the first time, follow the [getting started](/docs/GETTING_STARTED.md) instructions instead — nothing here applies to a new install.
 
-Database migrations run automatically every time the web container starts, so upgrading means replacing the container with one made from the new image. `docker restart` is not enough: it starts the same container again, on the image it was created from.
+Upgrade in this order:
 
-- **Single container**, as in the getting started instructions: follow [Updating your instance](/docs/GETTING_STARTED.md#updating-your-instance). Pull the new image, then stop, remove and re-create the container with the same `docker create` command you installed it with.
-- **docker compose**: from the directory holding your [docker-compose.yml](/docker/docker-compose.yml), run:
+1. **Read the notes for your version.** Changes are grouped by the releases they apply to, newest first. Read every group that includes the version you are on, and do what they ask before you go on. Some checks run on the portal while it is still on the old version, so do them before you stop it.
+2. **Back up your database.** Some upgrades move or convert data, and going back to the previous image does not undo that.
 
-  ```bash
-  docker compose pull
-  docker compose up -d
-  ```
+   - **SQLite**, the getting started default: stop the container and copy the database file out of the folder you mounted, which is `/usr/app/` in the getting started instructions.
 
-- **CapRover, Kubernetes or another setup** that runs the web app, the Celery worker and the Celery beat scheduler as separate services: move all three to the new image at the same time. Only the web app runs the migrations, and a worker or scheduler left on the old image expects the database as its own version left it. Moving the settings to a new table (django-constance 4, below) is one such change: an old worker can no longer read any setting.
+     ```bash
+     docker stop membermatters
+     cp /usr/app/db.sqlite3 /usr/app/db.sqlite3.backup
+     ```
 
-**Back up your database first.** Some upgrades move or convert data, and going back to the previous image does not undo that.
+   - **PostgreSQL under docker compose**, where `mm-postgres` is the database service:
 
-- **SQLite**, the getting started default: stop the container and copy the database file out of the folder you mounted, which is `/usr/app/` in the getting started instructions. Then carry on with the upgrade.
+     ```bash
+     docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > membermatters-backup.sql
+     ```
 
-  ```bash
-  docker stop membermatters
-  cp /usr/app/db.sqlite3 /usr/app/db.sqlite3.backup
-  ```
+   - **A database server you run yourself**: use its own backup tool, such as `pg_dump` or `mysqldump`.
 
-- **PostgreSQL under docker compose**, where `mm-postgres` is the database service:
+3. **Move to the new image.** Database migrations run automatically every time the web container starts, so upgrading means replacing the container with one made from the new image. `docker restart` is not enough: it starts the same container again, on the image it was created from.
 
-  ```bash
-  docker compose exec -T mm-postgres pg_dump -U membermatters membermatters > membermatters-backup.sql
-  ```
+   - **Single container**, as in the getting started instructions: follow [Updating your instance](/docs/GETTING_STARTED.md#updating-your-instance). Pull the new image, then stop, remove and re-create the container with the same `docker create` command you installed it with, and start it.
+   - **docker compose**: from the directory holding your [docker-compose.yml](/docker/docker-compose.yml), run:
 
-- **A database server you run yourself**: use its own backup tool, such as `pg_dump` or `mysqldump`.
+     ```bash
+     docker compose pull
+     docker compose up -d
+     ```
 
-Changes are grouped by the releases they apply to, newest first. Read every group that includes the version you are on.
+   - **CapRover, Kubernetes or another setup** that runs the web app, the Celery worker and the Celery beat scheduler as separate services: move all three to the new image at the same time. Only the web app runs the migrations, and a worker or scheduler left on the old image expects the database as its own version left it. Moving the settings to a new table (django-constance 4, below) is one such change: an old worker can no longer read any setting.
 
 ## Upgrading from 3.8 or earlier
 
+### Set MM_SECRET_KEY and MM_ALLOWED_HOSTS
+
+With `MM_ENV=Production`, the portal now refuses to start unless both are set. Older versions fell back to a secret key that is published with the source code, and answered on any hostname. The getting started instructions for 3.8 didn't mention either variable, so check yours before you upgrade. A container missing one keeps restarting, and its log ends with an error such as:
+
+```
+django.core.exceptions.ImproperlyConfigured: MM_ALLOWED_HOSTS must be set when MM_ENV=Production.
+```
+
+- `MM_SECRET_KEY`: if you already set one, keep it. Otherwise generate a long random value, for example with `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`, and keep it private. The new key signs everyone out once, in the browser and in the mobile app.
+- `MM_ALLOWED_HOSTS`: every hostname the portal is reached by, separated by commas, such as `portal.example.org`. Leave out `https://` and any port. A request for a name that isn't listed gets `400 Bad Request`, so include any local name or IP address that kiosks or a monitoring service use.
+
+For a single container, add both to your `env.list`. Under docker compose, CapRover or Kubernetes, set them on the web app, the Celery worker and the Celery beat scheduler: each one reads the settings, so each one stops without them. Give all three the same `MM_SECRET_KEY`, and replace a placeholder such as `CHANGE_ME` from the example [docker-compose.yml](/docker/docker-compose.yml).
+
+While you are there, consider setting `MM_NUM_PROXIES` too. Rate limiting on sign-up, login and password reset, new in this release, needs it to tell visitors apart. See [Getting Started](/docs/GETTING_STARTED.md) for the value.
+
 ### Check the key the portal signs sign-ins with (django-oidc-provider 0.9)
 
-If other services, such as Moodle or a wiki, let members sign in with their MemberMatters account, the portal signs those sign-ins with an RSA key stored under OpenID Connect Provider → RSA Keys in the Django admin. This release reads those keys with a stricter library. A key pasted in the OpenSSH format that `ssh-keygen` writes by default (it starts with `-----BEGIN OPENSSH PRIVATE KEY-----`), or a public key on its own, used to work and now stops every such sign-in until it is replaced.
+If other services, such as Moodle or a wiki, let members sign in with their MemberMatters account, the portal signs those sign-ins with an RSA key stored under OpenID Connect Provider → RSA Keys in the Django admin. This release reads those keys with a stricter library. Two kinds of key used to work and now stop every such sign-in until they are removed: a key pasted in the OpenSSH format that `ssh-keygen` writes by default (it starts with `-----BEGIN OPENSSH PRIVATE KEY-----`), and a public key stored next to a working private one.
 
 If no other service signs in through the portal, there is nothing to do. Otherwise, check your keys before or after you upgrade. Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`:
 
 ```bash
-docker exec membermatters python3 manage.py shell -c "
+docker exec membermatters python3 manage.py shell -v 0 -c "
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from oidc_provider.models import Client, RSAKey
 def usable(key):
@@ -58,11 +74,11 @@ for client in Client.objects.filter(jwt_alg='HS256', client_secret=''):
 "
 ```
 
-For each key that needs replacing, create a new one with `docker exec membermatters python3 manage.py creatersakey`, then delete the old one in the Django admin. The services pick up the new key the next time someone signs in. A client listed as needing RS256 has no secret to sign with: set its JWT algorithm to RS256 under OpenID Connect Provider → Clients.
+For each key that needs replacing, create a new one with `docker exec membermatters python3 manage.py creatersakey`, then delete the old one in the Django admin. The services pick up the new key the next time someone signs in. A client listed as needing RS256 has no secret to sign with: set its JWT algorithm to RS256 under OpenID Connect Provider → Clients. RS256 needs an RSA key, so if the check listed none, create one with `creatersakey` first.
 
 ### Redis TLS options must be lowercase (Channels 4)
 
-This release updates the library door, interlock and memberbucks devices use to reach Redis. If your `MM_REDIS_HOST` is a `rediss://` address with an `ssl_cert_reqs` option, write its value in lowercase: `ssl_cert_reqs=required`, `optional` or `none`. The uppercase form (`CERT_REQUIRED`) still works for background tasks, but devices can no longer connect with it, and the door buttons in Admin Tools fail.
+This release updates the library the portal uses to reach Redis, which carries messages between the portal and door, interlock and memberbucks devices. If your `MM_REDIS_HOST` is a `rediss://` address with an `ssl_cert_reqs` option, write its value in lowercase: `ssl_cert_reqs=required`, `optional` or `none`. The uppercase form (`CERT_REQUIRED`) still works for background tasks, but devices can no longer connect with it, and the door buttons in Admin Tools fail.
 
 Plain `redis://` addresses, including the one in the bundled [docker-compose.yml](/docker/docker-compose.yml), need no change.
 
@@ -85,14 +101,14 @@ If you use SQLite (the default in the [getting started](/docs/GETTING_STARTED.md
 If MemberMatters connects to a database server you run yourself, check its version **before** you pull the new image. This asks the running portal, so it reports the database it is actually configured to use. Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`:
 
 ```bash
-docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select version()'); print(c.fetchone()[0])"
+docker exec membermatters python3 manage.py shell -v 0 -c "from django.db import connection; c = connection.cursor(); c.execute('select version()'); print(c.fetchone()[0])"
 ```
 
 If the server is too old, upgrade it first. Otherwise the container still starts and the page still loads, but nobody can log in: every request that needs the database fails, and the container log shows an error such as `PostgreSQL 14 or later is required (found 13.4).` Going back to the previous image fixes it: the upgrade can't reach a database that old, so it hasn't changed any of your data.
 
 #### Your reverse proxy must pass on X-Forwarded-Proto
 
-Django now checks that every change a signed-in person sends — saving their profile, logging in to the Django admin — comes from the same address the portal is served at. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so in the `X-Forwarded-Proto` header. If the proxy leaves it out, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
+Django now checks that changes sent from a browser — a member saving their profile, an admin logging in to the Django admin — come from the same address the portal is served at. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so in the `X-Forwarded-Proto` header. If the proxy leaves it out, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
 
 ```
 Forbidden (Origin checking failed - https://portal.example.org does not match any trusted origins.): /admin/login/
@@ -107,7 +123,7 @@ proxy_set_header X-Forwarded-Proto $scheme;
 
 `$http_host` keeps the port when the portal's address has one, such as `https://portal.example.org:8443`. The `$host` in Post Installation Steps drops it, which works only on the standard ports 80 and 443.
 
-**Cloudflare in front of your proxy.** Cloudflare tells your proxy in `X-Forwarded-Proto` whether the visitor used HTTPS. In its Flexible SSL mode, though, it connects to your proxy over plain HTTP, so the `$scheme` line above replaces that `https` with `http` and the check fails. In the Cloudflare dashboard, under SSL/TLS → Overview, set the encryption mode to Full (strict): Cloudflare then connects to your proxy over HTTPS, which needs a certificate from a public authority such as the one certbot set up in Post Installation Steps. If Cloudflare has to reach your proxy over plain HTTP, for example through a Cloudflare Tunnel to an `http://` address, and every request comes through Cloudflare, pass on its header instead:
+**Cloudflare in front of your proxy.** Cloudflare tells your proxy in `X-Forwarded-Proto` whether the visitor used HTTPS. In its Flexible SSL mode, though, it connects to your proxy over plain HTTP, so the `$scheme` line above replaces that `https` with `http` and the check fails. In the Cloudflare dashboard, under SSL/TLS → Overview, set the encryption mode to Full (strict): Cloudflare then connects to your proxy over HTTPS, which needs a certificate from a public authority, such as the one certbot set up in Post Installation Steps, or a Cloudflare Origin CA certificate. If Cloudflare has to reach your proxy over plain HTTP, for example through a Cloudflare Tunnel to an `http://` address, and every request comes through Cloudflare, pass on its header instead:
 
 ```nginx
 proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
@@ -124,13 +140,13 @@ The conversion can't be undone. To go back to an older version after upgrading, 
 If you want to check, count the settings that have a value before you upgrade:
 
 ```bash
-docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_config where value is not null'); print(c.fetchone()[0])"
+docker exec membermatters python3 manage.py shell -v 0 -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_config where value is not null'); print(c.fetchone()[0])"
 ```
 
 and count them again in the new container:
 
 ```bash
-docker exec membermatters python3 manage.py shell -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_constance'); print(c.fetchone()[0])"
+docker exec membermatters python3 manage.py shell -v 0 -c "from django.db import connection; c = connection.cursor(); c.execute('select count(*) from constance_constance'); print(c.fetchone()[0])"
 ```
 
 Under docker compose, replace `docker exec membermatters` with `docker compose exec mm-webapp`.
