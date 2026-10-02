@@ -45,7 +45,7 @@ module.exports = configure(async function () {
     build: {
       target: {
         browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
-        node: 'node18',
+        node: 'node24',
       },
 
       htmlFilename: 'index.html',

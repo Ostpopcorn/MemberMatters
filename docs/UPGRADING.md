@@ -157,3 +157,11 @@ Members keep using the portal in their phone's browser, which works as before. I
 If your makerspace published its own MemberMatters app, it can no longer be built from this release. This release changes nothing on the server that those apps use, but once you turn on CAPTCHA, members can no longer sign in to them, so plan to retire the app.
 
 If you left the `CAPTCHA_ALLOWED_HOSTNAMES` setting empty because of the app, you can now fill it in with your portal's hostname. [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) explains what it protects against.
+
+### Kiosks need a 64-bit system (Electron 44)
+
+The kiosk app ([Kiosk Mode](/docs/GETTING_STARTED.md#kiosk-mode)) now runs on Electron 44. Electron 26, which it used before, stopped getting security fixes in February 2024. If you only run the Docker image and have no kiosk, there is nothing to do.
+
+- Electron 44 only exists for 64-bit systems. A kiosk on a 32-bit operating system, such as 32-bit Raspberry Pi OS or 32-bit Windows, can't run it. On a Raspberry Pi 3 or later, install the 64-bit Raspberry Pi OS, then build the kiosk again. On a Mac it needs macOS 13 or later.
+- Building the kiosk needs Node 22, version 22.22 or later, for example `nvm install 22`.
+- On a Wayland desktop, such as Raspberry Pi OS since Bookworm, the kiosk now runs as a native Wayland app. X11 tools in its startup script, such as `unclutter` or `xdotool`, no longer reach its window. Start it with `--ozone-platform=x11` to keep the old behaviour.
