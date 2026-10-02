@@ -14,7 +14,7 @@ RUN mkdir -p /usr/src/app/frontend && mkdir /usr/src/logs && mkdir /usr/src/data
 RUN apt-get update -y && apt-get install -y nginx curl gettext
 
 # Install Node
-ENV NODE_VERSION=22.2.0
+ENV NODE_VERSION=22.23.3
 SHELL ["/bin/bash", "--login", "-c"]
 
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
