@@ -14,8 +14,6 @@ const path = require('path');
 const inject = require('@rollup/plugin-inject');
 const esbuildShim = require.resolve('node-stdlib-browser/helpers/esbuild/shim');
 
-const tsconfigPaths = require('vite-tsconfig-paths');
-
 module.exports = configure(async function () {
   const { default: stdLibBrowser } = await import('node-stdlib-browser');
   return {
@@ -68,7 +66,13 @@ module.exports = configure(async function () {
       minify: true,
 
       extendViteConf(viteConf, {}) {
-        viteConf.plugins.push(tsconfigPaths.default());
+        // The Node polyfills are for the page only. @quasar/app-vite 3 also
+        // applies `alias` to the kiosk's main process and preload, which need
+        // the real Node modules.
+        viteConf.resolve.alias = {
+          ...viteConf.resolve.alias,
+          ...stdLibBrowser,
+        };
 
         viteConf.plugins.push({
           ...inject({
@@ -93,12 +97,22 @@ module.exports = configure(async function () {
       viteVuePluginOptions: {},
 
       alias: {
+        // Every import prefix the code uses. @quasar/app-vite 3 only adds `@`
+        // by itself, so the ones version 1 added that the code needs are
+        // listed here, plus `types`, which came from tsconfig.json through
+        // vite-tsconfig-paths.
+        src: path.join(__dirname, 'src'),
+        app: __dirname,
+        components: path.join(__dirname, 'src/components'),
+        layouts: path.join(__dirname, 'src/layouts'),
+        pages: path.join(__dirname, 'src/pages'),
+        boot: path.join(__dirname, 'src/boot'),
+        types: path.join(__dirname, 'src/types'),
         '@components': path.join(__dirname, 'src/components/'),
         '@icons': path.join(__dirname, 'src/icons/'),
         '@store': path.join(__dirname, 'src/store/'),
         '@mixins': path.join(__dirname, 'src/mixins/'),
         '@assets': path.join(__dirname, 'src/assets/'),
-        ...stdLibBrowser,
       },
 
       vitePlugins: [
