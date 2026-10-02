@@ -76,7 +76,17 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
 
     // in plain CommonJS modules, you can't use `import foo = require('foo')` to pass this rule, so it has to be disabled
-    '@typescript-eslint/no-var-requires': 'off',
+    '@typescript-eslint/no-require-imports': 'off',
+
+    // typescript-eslint 6 turned these warnings into errors, and 8 also reports
+    // unused `catch` bindings. The build stops on any lint error, so keep the
+    // earlier behaviour.
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': ['warn', { caughtErrors: 'none' }],
+
+    // typescript-eslint 8 leaves this check to ESLint's own rule, which only
+    // 'eslint:recommended' (disabled above) would turn on.
+    'no-loss-of-precision': 'error',
 
     // The core 'no-unused-vars' rules (in the eslint:recommended ruleset)
     // does not work with type definitions
