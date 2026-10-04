@@ -17,7 +17,7 @@
     "lint": "npm run format && eslint --cache --fix --ext .js,.vue,.ts ./",
     "lint:precommit": "npm run format && eslint --ext .js,.ts,.vue ./",
     "test": "quasar prepare && vitest run",
-    "test:watch": "quasar prepare && vitest",
+    "test:watch": "quasar prepare && vitest watch",
     "icons": "icongenie generate -i app-icon.png"
   },
   "dependencies": {
@@ -55,7 +55,7 @@
     "prettier": "^2.5.1",
     "typescript": "~6.0.3",
     "vite-plugin-checker": "^0.11.0",
-    "vitest": "^0.34.6"
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || ^26.0.0",
@@ -63,7 +63,6 @@
     "yarn": ">= 1.21.1"
   },
   "allowScripts": {
-    "esbuild": false,
     "@parcel/watcher": false,
     "fsevents": false
   }
