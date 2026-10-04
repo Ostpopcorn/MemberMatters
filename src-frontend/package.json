@@ -58,8 +58,13 @@
     "vitest": "^0.34.6"
   },
   "engines": {
-    "node": "^22.22.0",
+    "node": "^22.22.2 || ^24.15.0 || ^26.0.0",
     "npm": ">= 6.13.4",
     "yarn": ">= 1.21.1"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "@parcel/watcher": false,
+    "fsevents": false
   }
 }

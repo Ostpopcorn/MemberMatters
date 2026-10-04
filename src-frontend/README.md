@@ -13,7 +13,7 @@ The frontend can be built into a normal SPA web app and a desktop "kiosk" app.
 
 ### Node
 
-Ensure you have [nvm](https://github.com/nvm-sh/nvm) (node version manager) installed. Once you've installed nvm, you should install node 22 with `nvm install 22`.
+Ensure you have [nvm](https://github.com/nvm-sh/nvm) (node version manager) installed. Once you've installed nvm, you should install node 26 with `nvm install 26`.
 
 ### Linux Tips (skip if not using Linux)
 

@@ -163,7 +163,7 @@ If you left the `CAPTCHA_ALLOWED_HOSTNAMES` setting empty because of the app, yo
 The kiosk app ([Kiosk Mode](/docs/GETTING_STARTED.md#kiosk-mode)) now runs on Electron 44. Electron 26, which it used before, stopped getting security fixes in February 2024. If you only run the Docker image and have no kiosk, there is nothing to do.
 
 - Electron 44 only exists for 64-bit systems. A kiosk on a 32-bit operating system, such as 32-bit Raspberry Pi OS or 32-bit Windows, can't run it. On a Raspberry Pi 3 or later, install the 64-bit Raspberry Pi OS, then build the kiosk again. On a Mac it needs macOS 13 or later.
-- Building the kiosk needs Node 22, version 22.22 or later, for example `nvm install 22`.
+- Building the kiosk needs Node 26, for example `nvm install 26`, which the Docker image and the project's own checks use. Node 22 (22.22.2 or later) and Node 24 (24.15 or later) also work, for example on a Mac older than macOS 13.5, which Node 26 doesn't support.
 - On a Wayland desktop, such as Raspberry Pi OS since Bookworm, the kiosk now runs as a native Wayland app. X11 tools in its startup script, such as `unclutter` or `xdotool`, no longer reach its window. Start it with `--ozone-platform=x11` to keep the old behaviour.
 - The packaged kiosk now keeps its files in a single `resources/app.asar` archive instead of a `resources/app` folder. If you used to change files in that folder after building, make the change in the source instead and build again.
 
