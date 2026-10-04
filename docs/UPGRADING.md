@@ -165,3 +165,14 @@ The kiosk app ([Kiosk Mode](/docs/GETTING_STARTED.md#kiosk-mode)) now runs on El
 - Electron 44 only exists for 64-bit systems. A kiosk on a 32-bit operating system, such as 32-bit Raspberry Pi OS or 32-bit Windows, can't run it. On a Raspberry Pi 3 or later, install the 64-bit Raspberry Pi OS, then build the kiosk again. On a Mac it needs macOS 13 or later.
 - Building the kiosk needs Node 22, version 22.22 or later, for example `nvm install 22`.
 - On a Wayland desktop, such as Raspberry Pi OS since Bookworm, the kiosk now runs as a native Wayland app. X11 tools in its startup script, such as `unclutter` or `xdotool`, no longer reach its window. Start it with `--ozone-platform=x11` to keep the old behaviour.
+- The packaged kiosk now keeps its files in a single `resources/app.asar` archive instead of a `resources/app` folder. If you used to change files in that folder after building, make the change in the source instead and build again.
+
+### Members need a browser from 2022 or later
+
+This release moves the portal to a newer version of its interface library, Quasar 2.34. It uses browser features that older versions lack, so the login page and the rest of the portal no longer work in:
+
+- Chrome or Edge older than version 93
+- Firefox older than version 92
+- Safari older than version 15.4, which includes iPhones and iPads that haven't been updated to iOS 15.4 or later
+
+Chrome, Edge and Firefox normally update themselves, and every device that runs iOS 15 can install 15.4 or later, so few members should notice. A member who can't log in after the upgrade should update their browser or device. In browsers older than Chrome 111, Firefox 113 or Safari 16.2, shadows look flat, but everything else works. Kiosks are not affected: they bring their own browser.

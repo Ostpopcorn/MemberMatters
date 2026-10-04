@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { boot } from 'quasar/wrappers';
+import { defineBoot } from '#q-app';
 
 declare module '@vue/runtime-core' {
   interface ComponentCustomProperties {
@@ -8,13 +8,13 @@ declare module '@vue/runtime-core' {
 }
 
 const api = axios.create({
-  baseURL: process.env.apiBaseUrl || '',
+  baseURL: import.meta.env.apiBaseUrl || '',
   withCredentials: true,
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFTOKEN',
 });
 
-export default boot(({ app }) => {
+export default defineBoot(({ app }) => {
   app.config.globalProperties.$axios = api;
 });
 

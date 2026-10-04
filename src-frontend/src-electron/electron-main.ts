@@ -1,4 +1,5 @@
 import { app, BrowserWindow, nativeTheme, session } from 'electron';
+import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
@@ -7,9 +8,7 @@ const platform = process.platform || os.platform();
 
 try {
   if (platform === 'win32' && nativeTheme.shouldUseDarkColors === true) {
-    require('fs').unlinkSync(
-      path.join(app.getPath('userData'), 'DevTools Extensions')
-    );
+    fs.unlinkSync(path.join(app.getPath('userData'), 'DevTools Extensions'));
   }
 } catch (_) {}
 
@@ -20,13 +19,13 @@ function createWindow() {
    * Initial window options
    */
   mainWindow = new BrowserWindow({
-    icon: path.resolve(__dirname, 'icons/icon.png'), // tray icon
+    icon: path.resolve(import.meta.dirname, 'electron-assets/icons/icon.png'), // tray icon
     fullscreen: process.env.NODE_ENV !== 'Development',
     useContentSize: true,
     webPreferences: {
       contextIsolation: true,
       // More info: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/electron-preload-script
-      preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD),
+      preload: path.resolve(import.meta.dirname, 'electron-preload.cjs'),
     },
   });
 
@@ -42,9 +41,13 @@ function createWindow() {
     callback({ cancel: false, responseHeaders: details.responseHeaders });
   });
 
-  mainWindow.loadURL(process.env.APP_URL);
+  if (import.meta.env.QUASAR_DEV) {
+    mainWindow.loadURL(import.meta.env.QUASAR_APP_URL);
+  } else {
+    mainWindow.loadFile('index.html');
+  }
 
-  if (process.env.DEBUGGING) {
+  if (import.meta.env.QUASAR_DEBUG) {
     // if on DEV or Production with debug enabled
     mainWindow.webContents.openDevTools();
   } else {

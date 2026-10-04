@@ -8,27 +8,27 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js
 
-const { configure } = require('quasar/wrappers');
-const path = require('path');
+import { defineConfig } from '#q-app';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const inject = require('@rollup/plugin-inject');
-const esbuildShim = require.resolve('node-stdlib-browser/helpers/esbuild/shim');
+const esbuildShim = fileURLToPath(
+  import.meta.resolve('node-stdlib-browser/helpers/esbuild/shim')
+);
+const emptyModule = fileURLToPath(
+  import.meta.resolve('node-stdlib-browser/mock/empty')
+);
 
-module.exports = configure(async function () {
+export default defineConfig(async function () {
   const { default: stdLibBrowser } = await import('node-stdlib-browser');
   return {
-    eslint: {
-      warnings: true,
-      errors: true,
-    },
-
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
 
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['sentry', 'i18n', 'axios', 'routeGuards', 'apexcharts'],
+    boot: ['store', 'sentry', 'i18n', 'axios', 'routeGuards', 'apexcharts'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -46,23 +46,24 @@ module.exports = configure(async function () {
         node: 'node24',
       },
 
-      htmlFilename: 'index.html',
-
-      env: {
+      defineEnv: {
         // Base URL for API requests when the app is not served by the portal itself (the Electron kiosk)
         apiBaseUrl: process.env.API_BASE_URL,
-        vueRouterMode: 'history',
+      },
+
+      define: {
+        // The app uses vue-i18n's legacy API ($tc and friends), which
+        // @quasar/app-vite 3 leaves out of the build unless this is set.
+        __VUE_I18N_LEGACY_API__: 'true',
       },
 
       vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
       // vueDevtools,
-      polyfillModulePreload: true,
       vueOptionsAPI: true,
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      showProgress: true,
       minify: true,
 
       extendViteConf(viteConf, {}) {
@@ -72,24 +73,43 @@ module.exports = configure(async function () {
         viteConf.resolve.alias = {
           ...viteConf.resolve.alias,
           ...stdLibBrowser,
+          // crypto-js only falls back to Node's crypto when the browser has
+          // none, so the old build never bundled it. Rolldown follows that
+          // guarded require and would put crypto-browserify (about 600 KB)
+          // into every page.
+          crypto: emptyModule,
         };
 
-        viteConf.plugins.push({
-          ...inject({
-            global: [esbuildShim, 'global'],
-            process: [esbuildShim, 'process'],
-            Buffer: [esbuildShim, 'Buffer'],
-          }),
-          enforce: 'post',
-        });
-
-        viteConf.optimizeDeps.esbuildOptions = {
-          ...viteConf.optimizeDeps.esbuildOptions,
-          define: {
-            global: 'globalThis',
+        // Rolldown's own inject rather than @rollup/plugin-inject: Vite 8
+        // replaces process.env.NODE_ENV in that same native pass, before
+        // `process` becomes the polyfill. Through the plugin, libraries read
+        // the polyfill's empty env and run their development code.
+        viteConf.build.rolldownOptions = {
+          ...viteConf.build.rolldownOptions,
+          transform: {
+            ...viteConf.build.rolldownOptions?.transform,
+            inject: {
+              global: [esbuildShim, 'global'],
+              process: [esbuildShim, 'process'],
+              Buffer: [esbuildShim, 'Buffer'],
+            },
           },
-          // Enable esbuild polyfill plugins
-          plugins: [],
+        };
+
+        viteConf.optimizeDeps.rolldownOptions = {
+          ...viteConf.optimizeDeps.rolldownOptions,
+          transform: {
+            ...viteConf.optimizeDeps.rolldownOptions?.transform,
+            define: {
+              global: 'globalThis',
+            },
+            // The dev server serves dependencies pre-bundled, so they need
+            // the polyfills injected here as well.
+            inject: {
+              process: [esbuildShim, 'process'],
+              Buffer: [esbuildShim, 'Buffer'],
+            },
+          },
         };
 
         viteConf.optimizeDeps.include = ['buffer', 'process'];
@@ -117,17 +137,14 @@ module.exports = configure(async function () {
 
       vitePlugins: [
         [
-          '@intlify/vite-plugin-vue-i18n',
+          'vite-plugin-checker',
           {
-            // if you want to use Vue I18n Legacy API, you need to set `compositionOnly: false`
-            compositionOnly: false,
-
-            // if you want to use named tokens in your Vue I18n messages, such as 'Hello {name}',
-            // you need to set `runtimeOnly: false`
-            runtimeOnly: false,
-
-            // you need to set i18n resource including paths !
-            include: path.join(__dirname, './src/i18n/**'),
+            // Lints in dev and on build, and a lint error fails the build,
+            // like the ESLint support built into @quasar/app-vite 1 did.
+            eslint: { lintCommand: 'eslint --ext .js,.ts,.vue ./' },
+            // Warnings stay in the terminal, as before; only errors cover
+            // the page.
+            overlay: { initialIsOpen: 'error' },
           },
         ],
       ],

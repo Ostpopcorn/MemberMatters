@@ -4,7 +4,7 @@ import path from 'path';
 // Standalone from quasar.config.js: Quasar builds its Vite config through the
 // CLI, and Vitest ships its own Vite. Only the aliases that pure `src/` modules
 // actually import need mirroring here — keep this in sync with the `alias`
-// block in quasar.config.js and the `paths` in tsconfig.json.
+// block in quasar.config.js, from which Quasar also generates tsconfig paths.
 export default defineConfig({
   resolve: {
     alias: {
