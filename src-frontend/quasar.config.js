@@ -51,12 +51,6 @@ export default defineConfig(async function () {
         apiBaseUrl: process.env.API_BASE_URL,
       },
 
-      define: {
-        // The app uses vue-i18n's legacy API ($tc and friends), which
-        // @quasar/app-vite 3 leaves out of the build unless this is set.
-        __VUE_I18N_LEGACY_API__: 'true',
-      },
-
       vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
       // vueDevtools,

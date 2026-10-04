@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { defineBoot } from '#q-app';
 
-declare module '@vue/runtime-core' {
+declare module 'vue' {
   interface ComponentCustomProperties {
     $axios: AxiosInstance;
   }

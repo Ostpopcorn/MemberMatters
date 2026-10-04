@@ -9,8 +9,9 @@ export const i18n = createI18n({
   fallbackLocale: 'en-AU',
   numberFormats,
   messages,
-  silentFallbackWarn: true,
-  silentTranslationWarn: true,
+  legacy: false,
+  fallbackWarn: false,
+  missingWarn: false,
 });
 
 export default defineBoot(({ app }) => {
