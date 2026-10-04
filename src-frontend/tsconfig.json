@@ -1,3 +1,8 @@
 {
-  "extends": "./.quasar/tsconfig.json"
+  "extends": "./.quasar/tsconfig.json",
+  "compilerOptions": {
+    // TypeScript 6 turns strict on when a project doesn't set it, and the
+    // code was written without it.
+    "strict": false
+  }
 }
