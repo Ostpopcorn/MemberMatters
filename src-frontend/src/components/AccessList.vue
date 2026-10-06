@@ -92,8 +92,8 @@
                     interlock.locked_out
                       ? 'orange'
                       : interlock.access
-                      ? 'green'
-                      : 'red'
+                        ? 'green'
+                        : 'red'
                   "
                   text-color="white"
                 />
