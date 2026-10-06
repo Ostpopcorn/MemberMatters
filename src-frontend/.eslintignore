@@ -1,6 +1,0 @@
-/dist
-/.quasar
-/quasar.config.*.temporary.compiled*
-/node_modules
-.eslintrc.js
-/src-ssr
