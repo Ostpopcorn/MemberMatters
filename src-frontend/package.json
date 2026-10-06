@@ -21,7 +21,7 @@
     "icons": "icongenie generate -i app-icon.png"
   },
   "dependencies": {
-    "@quasar/extras": "^1.13.5",
+    "@quasar/extras": "^2.1.0",
     "@stripe/stripe-js": "^5.10.0",
     "address": "^1.1.2",
     "apexcharts": "^5.10.0",

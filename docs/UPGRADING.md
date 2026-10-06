@@ -145,6 +145,33 @@ Older versions configured the member dashboard through a setting named `HOME_PAG
 
 If the setting isn't valid JSON, no cards are imported and the container log says so. Enter them under Admin Tools → Dashboard Cards instead.
 
+### Check the icons on your cards (Material Design Icons 7)
+
+The portal now uses version 7.4 of Material Design Icons instead of version 5. Version 7.4 adds about 1,600 icons, which the [Pictogrammers library](https://pictogrammers.com/library/mdi/) lists. Before this release, a card whose icon was added after version 5, such as `mdi-account-school`, showed no icon.
+
+Version 7 also removes 105 icons, including brand logos such as Discord and Telegram. A card that uses one of them still shows its title, but no icon. Open Admin Tools → Dashboard Cards and give a new icon to any card that shows none.
+
+| Removed icon | Use instead |
+| --- | --- |
+| `mdi-discord`, `mdi-telegram` | No replacement. Try `mdi-chat` or `mdi-forum` |
+| `mdi-cash-usd` | `mdi-cash` |
+| `mdi-file-pdf` | `mdi-file-pdf-box` |
+| `mdi-face`, `mdi-face-outline` | `mdi-face-man`, `mdi-face-man-outline` |
+| `mdi-hand` | `mdi-hand-front-right` |
+| `mdi-email-send`, `mdi-email-receive` | `mdi-email-arrow-right`, `mdi-email-arrow-left` |
+| `mdi-check-box-outline` | `mdi-checkbox-outline` |
+| `mdi-desktop-mac` | `mdi-monitor` |
+| `mdi-laptop-mac`, `mdi-laptop-windows` | `mdi-laptop` |
+| `mdi-cellphone-android`, `mdi-cellphone-iphone` | `mdi-cellphone` |
+| `mdi-tablet-android`, `mdi-tablet-ipad` | `mdi-tablet` |
+
+<details>
+<summary>All 105 removed icons</summary>
+
+`mdi-adobe`, `mdi-adobe-acrobat`, `mdi-amazon`, `mdi-amazon-alexa`, `mdi-android-auto`, `mdi-android-debug-bridge`, `mdi-android-messages`, `mdi-apple-airplay`, `mdi-bandcamp`, `mdi-battlenet`, `mdi-blogger`, `mdi-bolnisi-cross`, `mdi-book-variant-multiple`, `mdi-boom-gate-down`, `mdi-boom-gate-down-outline`, `mdi-buddhism`, `mdi-buffer`, `mdi-cash-usd`, `mdi-cash-usd-outline`, `mdi-cellphone-android`, `mdi-cellphone-erase`, `mdi-cellphone-iphone`, `mdi-celtic-cross`, `mdi-check-box-multiple-outline`, `mdi-check-box-outline`, `mdi-christianity`, `mdi-christianity-outline`, `mdi-concourse-ci`, `mdi-currency-usd-circle`, `mdi-currency-usd-circle-outline`, `mdi-desktop-mac`, `mdi-desktop-mac-dashboard`, `mdi-discord`, `mdi-do-not-disturb`, `mdi-do-not-disturb-off`, `mdi-douban`, `mdi-email-receive`, `mdi-email-receive-outline`, `mdi-email-send`, `mdi-email-send-outline`, `mdi-face`, `mdi-face-outline`, `mdi-face-profile`, `mdi-face-profile-woman`, `mdi-face-shimmer`, `mdi-face-shimmer-outline`, `mdi-file-pdf`, `mdi-file-pdf-box-outline`, `mdi-file-pdf-outline`, `mdi-flash-circle`, `mdi-floor-lamp-variant`, `mdi-format-textdirection-l-to-r`, `mdi-format-textdirection-r-to-l`, `mdi-gif`, `mdi-google-controller`, `mdi-google-controller-off`, `mdi-google-home`, `mdi-google-photos`, `mdi-gradient`, `mdi-hand`, `mdi-hand-left`, `mdi-hand-right`, `mdi-hinduism`, `mdi-home-currency-usd`, `mdi-iframe`, `mdi-iframe-array`, `mdi-iframe-array-outline`, `mdi-iframe-braces`, `mdi-iframe-braces-outline`, `mdi-iframe-outline`, `mdi-iframe-parentheses`, `mdi-iframe-parentheses-outline`, `mdi-iframe-variable`, `mdi-iframe-variable-outline`, `mdi-islam`, `mdi-judaism`, `mdi-laptop-chromebook`, `mdi-laptop-mac`, `mdi-laptop-windows`, `mdi-microsoft-edge-legacy`, `mdi-microsoft-yammer`, `mdi-monitor-clean`, `mdi-pdf-box`, `mdi-pharmacy`, `mdi-plus-one`, `mdi-poll-box`, `mdi-poll-box-outline`, `mdi-sparkles`, `mdi-tablet-android`, `mdi-tablet-ipad`, `mdi-teach`, `mdi-telegram`, `mdi-television-clean`, `mdi-text-subject`, `mdi-text-to-speech`, `mdi-text-to-speech-off`, `mdi-timeline-help`, `mdi-timeline-help-outline`, `mdi-twitter-retweet`, `mdi-untappd`, `mdi-vk`, `mdi-voice-off`, `mdi-xamarin-outline`, `mdi-xing`, `mdi-y-combinator`
+
+</details>
+
 ### The phone app and the installable web app are removed
 
 This release removes two ways of building the portal that were never finished or kept up to date:

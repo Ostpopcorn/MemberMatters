@@ -35,7 +35,7 @@ export default defineConfig(async function () {
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [
-      'mdi-v5',
+      'mdi-v7',
       'roboto-font', // optional, you are not bound to it
     ],
 
