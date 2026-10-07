@@ -53,6 +53,16 @@ SOURCES = {
         "HTTP_ORIGIN": "http://portal.example.org:8000",
         "HTTP_REFERER": "http://portal.example.org:8000/",
     },
+    # A proxy in front that adds the default port, as nginx's
+    # `Host $host:$server_port` does. The browser leaves it out of Origin, so
+    # the container's nginx has to drop it before Django compares the two.
+    "default port left in": {
+        "HTTP_HOST": "portal.example.org:443",
+        "HTTP_X_FORWARDED_HOST": "portal.example.org:443",
+        "HTTP_ORIGIN": "https://portal.example.org",
+        "HTTP_REFERER": "https://portal.example.org/",
+        "HTTP_X_FORWARDED_PROTO": "https",
+    },
     # quasar.config.js proxies /admin and /openid with changeOrigin: true
     "frontend dev server": {
         "HTTP_HOST": "127.0.0.1:8000",
@@ -78,6 +88,7 @@ SOURCES = {
         ("proxy without X-Forwarded-Proto", True),
         ("container nginx on port 8000", False),
         ("container nginx dropping the port", True),
+        ("default port left in", True),
         ("frontend dev server", False),
         ("another site", True),
     ],
@@ -100,17 +111,51 @@ def test_csrf_origin_check(path, source, rejected):
     assert rejected_by_csrf is rejected
 
 
-def test_the_container_nginx_forwards_the_port_in_the_host_headers():
-    # $host drops the port, which turns "container nginx on port 8000" above
-    # into "container nginx dropping the port". USE_X_FORWARDED_HOST makes
-    # Django read X-Forwarded-Host rather than Host, so both need the port.
-    nginx_conf = Path(__file__).resolve().parents[3] / "docker" / "nginx.conf"
+NGINX_CONF = Path(__file__).resolve().parents[3] / "docker" / "nginx.conf"
+
+
+def container_nginx_forwarded_host(scheme, host):
+    """Evaluates the container nginx's $forwarded_host map as nginx does: the
+    regexes in order, the first match wins, and otherwise the default."""
+    entries = re.search(
+        r'map "\$proxied_scheme://\$http_host" \$forwarded_host \{(.*?)\}',
+        NGINX_CONF.read_text(),
+        re.S,
+    ).group(1)
+    for pattern, value in re.findall(r"~(\S+)\s+(\S+);", entries):
+        match = re.search(pattern.replace("(?<", "(?P<"), f"{scheme}://{host}")
+        if match:
+            return match.expand(re.sub(r"\$(\w+)", r"\\g<\1>", value))
+    return host
+
+
+def test_the_container_nginx_forwards_the_mapped_host():
+    # USE_X_FORWARDED_HOST makes Django read X-Forwarded-Host rather than
+    # Host, so both carry the same value.
     host_headers = re.findall(
         r"proxy_set_header\s+((?:X-Forwarded-)?Host)\s+(\S+);",
-        nginx_conf.read_text(),
+        NGINX_CONF.read_text(),
     )
     assert {name for name, _ in host_headers} == {"Host", "X-Forwarded-Host"}
-    assert {value for _, value in host_headers} == {"$http_host"}
+    assert {value for _, value in host_headers} == {"$forwarded_host"}
+
+
+@pytest.mark.parametrize(
+    "scheme, host, forwarded",
+    [
+        ("https", "portal.example.org", "portal.example.org"),
+        # "default port left in" above
+        ("https", "portal.example.org:443", "portal.example.org"),
+        ("http", "portal.example.org:80", "portal.example.org"),
+        ("https", "portal.example.org:8443", "portal.example.org:8443"),
+        # "container nginx on port 8000" above
+        ("http", "portal.example.org:8000", "portal.example.org:8000"),
+        # Not the scheme's default port, so the browser shows it too.
+        ("http", "portal.example.org:443", "portal.example.org:443"),
+    ],
+)
+def test_the_container_nginx_drops_only_the_default_port(scheme, host, forwarded):
+    assert container_nginx_forwarded_host(scheme, host) == forwarded
 
 
 def test_production_trusts_no_extra_origins():

@@ -106,22 +106,22 @@ docker exec membermatters python3 manage.py shell -v 0 -c "from django.db import
 
 If the server is too old, upgrade it first. Otherwise the container still starts and the page still loads, but nobody can log in: every request that needs the database fails, and the container log shows an error such as `PostgreSQL 14 or later is required (found 13.4).` Going back to the previous image fixes it: the upgrade can't reach a database that old, so it hasn't changed any of your data.
 
-#### Your reverse proxy must pass on X-Forwarded-Proto
+#### Your reverse proxy must pass on the address the browser used
 
-Django now checks that changes sent from a browser — a member saving their profile, an admin logging in to the Django admin — come from the same address the portal is served at. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so in the `X-Forwarded-Proto` header. If the proxy leaves it out, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
+Django now checks that changes sent from a browser — a member saving their profile, an admin logging in to the Django admin — come from the same address the portal is served at. The portal learns that address from two headers your reverse proxy sends: `Host`, with the name and any port the browser used, and `X-Forwarded-Proto`, which says whether the browser used HTTPS. When a reverse proxy handles HTTPS for you, the portal only knows it is being reached over HTTPS if the proxy says so. If either header is wrong or missing, that check fails: members can still log in, but nothing they save goes through, and the Django admin login answers with "CSRF verification failed". Each failed admin login leaves a line like this in the container log:
 
 ```
 Forbidden (Origin checking failed - https://portal.example.org does not match any trusted origins.): /admin/login/
 ```
 
-If you set up nginx as described in [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) and nothing sits in front of it, your proxy already sends the header and there is nothing to do. Otherwise, check your proxy's configuration before you upgrade. For nginx, the location that forwards to MemberMatters needs both of these lines; other proxies have an equivalent setting:
+If you set up nginx as described in [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) and nothing sits in front of it, your proxy already sends both headers and there is nothing to do. Otherwise, check your proxy's configuration before you upgrade. For nginx, the location that forwards to MemberMatters needs both of these lines; other proxies have an equivalent setting:
 
 ```nginx
 proxy_set_header Host $http_host;
 proxy_set_header X-Forwarded-Proto $scheme;
 ```
 
-`$http_host` keeps the port when the portal's address has one, such as `https://portal.example.org:8443`. The `$host` in Post Installation Steps drops it, which works only on the standard ports 80 and 443.
+`$http_host` passes on the address as the browser sent it, including a port such as the one in `https://portal.example.org:8443`. The `$host` in Post Installation Steps drops the port, which works only on the standard ports 80 and 443. A proxy that adds the standard port itself, as `proxy_set_header Host $host:$server_port;` does, works too: like browsers, the portal leaves out `:443` for HTTPS and `:80` for HTTP.
 
 **Cloudflare in front of your proxy.** Cloudflare tells your proxy in `X-Forwarded-Proto` whether the visitor used HTTPS. In its Flexible SSL mode, though, it connects to your proxy over plain HTTP, so the `$scheme` line above replaces that `https` with `http` and the check fails. In the Cloudflare dashboard, under SSL/TLS → Overview, set the encryption mode to Full (strict): Cloudflare then connects to your proxy over HTTPS, which needs a certificate from a public authority, such as the one certbot set up in Post Installation Steps, or a Cloudflare Origin CA certificate. If Cloudflare has to reach your proxy over plain HTTP, for example through a Cloudflare Tunnel to an `http://` address, and every request comes through Cloudflare, pass on its header instead:
 
