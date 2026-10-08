@@ -285,7 +285,7 @@
                 ),
                 interval: $t(
                   `paymentPlans.interval.${selectedPlan.interval.toLowerCase()}`,
-                  selectedPlan.intervalCount
+                  selectedPlan.intervalAmount
                 ),
               }),
             })
