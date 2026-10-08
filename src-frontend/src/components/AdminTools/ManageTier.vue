@@ -270,7 +270,11 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-    <q-dialog v-model="editPlanDialog" persistent>
+    <q-dialog
+      v-model="editPlanDialog"
+      persistent
+      @hide="stopPriceChangePolling()"
+    >
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center">
           <span class="q-ml-sm">{{ $t('paymentPlans.edit') }}</span>
@@ -341,6 +345,103 @@
             </q-card-actions>
           </q-form>
         </q-card-actions>
+
+        <q-separator />
+
+        <q-card-section v-if="editPlan" style="max-width: 500px">
+          <div class="text-subtitle1">
+            {{ $t('paymentPlans.price.title') }}
+          </div>
+          <p>
+            {{
+              $t('paymentPlans.price.current', {
+                amount: formatPlanAmount(
+                  Math.round(editPlan.cost * 100),
+                  editPlan.currency
+                ),
+              })
+            }}
+          </p>
+
+          <template v-if="showPriceChange && priceChange">
+            <q-banner
+              :class="priceChangeBannerClass"
+              class="text-white q-mb-md"
+            >
+              {{ priceChangeStatusText }}
+              <div v-if="priceChange.error">{{ priceChange.error }}</div>
+            </q-banner>
+            <q-linear-progress
+              v-if="priceChangeInFlight"
+              indeterminate
+              class="q-mb-md"
+            />
+            <q-list
+              v-if="priceChange.failures.length"
+              dense
+              bordered
+              class="q-mb-md"
+            >
+              <q-item-label header>
+                {{ $t('paymentPlans.price.failuresTitle') }}
+              </q-item-label>
+              <q-item
+                v-for="failure in priceChange.failures"
+                :key="failure.subscription"
+              >
+                <q-item-section>
+                  <q-item-label>
+                    {{ failure.member || failure.customer }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ failure.subscription }}: {{ failure.error }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <q-btn
+              v-if="priceChangeResumable"
+              color="primary"
+              class="q-mb-md"
+              :label="$t('paymentPlans.price.resume')"
+              :loading="priceForm.loading"
+              :disable="priceForm.loading"
+              @click="resumePriceChange()"
+            />
+          </template>
+
+          <q-form
+            v-if="canChangePrice"
+            class="row q-col-gutter-sm items-start"
+            @submit="confirmPriceChange()"
+          >
+            <q-input
+              class="col-sm-8 col-xs-12"
+              v-model="priceForm.costString"
+              outlined
+              :label="$t('paymentPlans.price.new')"
+              prefix="$"
+              :rules="[
+                (val) =>
+                  validPriceString(val) || $t('paymentPlans.invalidCost'),
+              ]"
+              :disable="priceForm.loading"
+            />
+            <div class="col-sm-4 col-xs-12">
+              <q-btn
+                color="primary"
+                type="submit"
+                :label="$t('paymentPlans.price.change')"
+                :loading="priceForm.loading"
+                :disable="priceForm.loading"
+              />
+            </div>
+          </q-form>
+
+          <q-banner v-if="priceForm.error" class="bg-negative text-white">
+            {{ priceForm.error }}
+          </q-banner>
+        </q-card-section>
       </q-card>
     </q-dialog>
   </div>
@@ -354,6 +455,35 @@ import { api } from 'boot/axios';
 import icons from '../../icons';
 import formatMixin from '../../mixins/formatMixin';
 import formMixin from '../../mixins/formMixin';
+
+interface PriceChangeFailure {
+  subscription: string;
+  customer: string | null;
+  member: string | null;
+  memberId: number | null;
+  error: string;
+}
+
+interface PriceChange {
+  id: number;
+  oldCost: number;
+  newCost: number;
+  currency: string;
+  status: 'pending' | 'running' | 'completed' | 'partial' | 'interrupted';
+  runs: number;
+  migratedCount: number;
+  remainingCount: number;
+  failures: PriceChangeFailure[];
+  error: string;
+  // ISO 8601 UTC
+  updatedAt: string;
+}
+
+const PRICE_CHANGE_POLL_MS = 2000;
+// Mirrors the backend: a queued job no worker has picked up, or a run that
+// stopped saving progress, can be resumed after this long.
+const PENDING_RESUMABLE_AFTER_MS = 60 * 1000;
+const RUNNING_RESUMABLE_AFTER_MS = 10 * 60 * 1000;
 
 export default defineComponent({
   name: 'ManageTier',
@@ -412,6 +542,20 @@ export default defineComponent({
         error: false,
         success: false,
       },
+      priceChange: null as PriceChange | null,
+      // Show a completed change only if it finished while the dialog was open.
+      priceChangeStartedHere: false,
+      subscriptionCount: 0,
+      // After a resume, the job keeps its last run's status until a worker
+      // starts the next run; this is that last run's number.
+      awaitingRunAfter: null as number | null,
+      resumedAt: 0,
+      priceChangePoll: null as ReturnType<typeof setInterval> | null,
+      priceForm: {
+        loading: false,
+        error: '',
+        costString: '',
+      },
       filter: '',
       pagination: {
         sortBy: 'name',
@@ -425,9 +569,63 @@ export default defineComponent({
     this.getTier();
     this.getPlans();
   },
+  beforeUnmount() {
+    this.stopPriceChangePolling();
+  },
   computed: {
     icons() {
       return icons;
+    },
+    priceChangeStatus(): string {
+      if (this.awaitingRunAfter !== null) return 'pending';
+      return this.priceChange?.status ?? '';
+    },
+    priceChangeInFlight(): boolean {
+      return ['pending', 'running'].includes(this.priceChangeStatus);
+    },
+    showPriceChange(): boolean {
+      if (!this.priceChange) return false;
+      return (
+        this.priceChange.status !== 'completed' || this.priceChangeStartedHere
+      );
+    },
+    canChangePrice(): boolean {
+      return !this.priceChange || this.priceChange.status === 'completed';
+    },
+    priceChangeResumable(): boolean {
+      const change = this.priceChange;
+      if (!change) return false;
+      const status = this.priceChangeStatus;
+      if (['partial', 'interrupted'].includes(status)) return true;
+      const lastActivity =
+        this.awaitingRunAfter !== null
+          ? this.resumedAt
+          : Date.parse(change.updatedAt);
+      const idle = Date.now() - lastActivity;
+      if (status === 'pending') return idle > PENDING_RESUMABLE_AFTER_MS;
+      if (status === 'running') return idle > RUNNING_RESUMABLE_AFTER_MS;
+      return false;
+    },
+    priceChangeBannerClass(): string {
+      switch (this.priceChangeStatus) {
+        case 'completed':
+          return 'bg-positive';
+        case 'partial':
+        case 'interrupted':
+          return 'bg-negative';
+        default:
+          return 'bg-info';
+      }
+    },
+    priceChangeStatusText(): string {
+      const change = this.priceChange;
+      if (!change) return '';
+      return this.$t(`paymentPlans.price.status.${this.priceChangeStatus}`, {
+        old: this.formatPlanAmount(change.oldCost, change.currency),
+        new: this.formatPlanAmount(change.newCost, change.currency),
+        migrated: change.migratedCount,
+        remaining: change.remainingCount,
+      });
     },
   },
   methods: {
@@ -528,7 +726,122 @@ export default defineComponent({
     managePlan(evt: InputEvent, row: any) {
       this.editPlan = { ...row };
       this.editPlanForm = { loading: false, error: false, success: false };
+      this.priceChange = null;
+      this.priceChangeStartedHere = false;
+      this.awaitingRunAfter = null;
+      this.priceForm = { loading: false, error: '', costString: '' };
       this.editPlanDialog = true;
+      this.getPriceChanges(row.id);
+    },
+    formatPlanAmount(cents: number, currency: string) {
+      return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+    },
+    validPriceString(val: string) {
+      return /^\d+(\.\d{1,2})?$/.test(val?.trim() ?? '') && parseFloat(val) > 0;
+    },
+    priceChangeErrorText(error: {
+      response?: { data?: { message?: string } };
+    }) {
+      const key = error?.response?.data?.message;
+      return key && this.$te(key)
+        ? this.$tc(key)
+        : this.$tc('error.requestFailed');
+    },
+    getPriceChanges(planId: number) {
+      api
+        .get(`/api/admin/plans/${planId}/price-changes/`)
+        .then((response: AxiosResponse) => {
+          this.subscriptionCount = response.data.subscriptionCount;
+          this.setPriceChange(response.data.priceChanges[0] ?? null);
+        })
+        .catch(() => {
+          this.priceForm.error = this.$tc('error.requestFailed');
+        });
+    },
+    setPriceChange(change: PriceChange | null) {
+      this.priceChange = change;
+      if (
+        change &&
+        this.awaitingRunAfter !== null &&
+        change.runs > this.awaitingRunAfter
+      ) {
+        this.awaitingRunAfter = null;
+      }
+      if (this.priceChangeInFlight) {
+        this.startPriceChangePolling();
+      } else {
+        this.stopPriceChangePolling();
+      }
+    },
+    startPriceChangePolling() {
+      if (this.priceChangePoll) return;
+      this.priceChangePoll = setInterval(() => {
+        if (!this.priceChange) return;
+        api
+          .get(`/api/admin/price-changes/${this.priceChange.id}/`)
+          .then((response: AxiosResponse) => this.setPriceChange(response.data))
+          .catch(() => {
+            // Keep polling; a blip shouldn't drop the progress view.
+          });
+      }, PRICE_CHANGE_POLL_MS);
+    },
+    stopPriceChangePolling() {
+      if (this.priceChangePoll) clearInterval(this.priceChangePoll);
+      this.priceChangePoll = null;
+    },
+    confirmPriceChange() {
+      if (!this.editPlan) return;
+      const cost = Math.round(parseFloat(this.priceForm.costString) * 100);
+      this.$q
+        .dialog({
+          title: this.$tc('paymentPlans.price.confirmTitle'),
+          message: this.$t('paymentPlans.price.confirmMessage', {
+            amount: this.formatPlanAmount(cost, this.editPlan.currency),
+            count: this.subscriptionCount,
+          }),
+          cancel: true,
+          persistent: true,
+        })
+        .onOk(() => this.submitPriceChange(cost));
+    },
+    submitPriceChange(cost: number) {
+      if (!this.editPlan) return;
+      this.priceForm.loading = true;
+      this.priceForm.error = '';
+      api
+        .post(`/api/admin/plans/${this.editPlan.id}/price-changes/`, { cost })
+        .then((response: AxiosResponse) => {
+          this.priceChangeStartedHere = true;
+          this.priceForm.costString = '';
+          // New signups pay the new price from now on.
+          if (this.editPlan) this.editPlan.cost = cost / 100;
+          this.setPriceChange(response.data.priceChange);
+          this.getPlans();
+        })
+        .catch((error) => {
+          this.priceForm.error = this.priceChangeErrorText(error);
+          // 409: another change is unfinished; show it so it can be resumed.
+          const existing = error?.response?.data?.priceChange;
+          if (existing) this.setPriceChange(existing);
+        })
+        .finally(() => (this.priceForm.loading = false));
+    },
+    resumePriceChange() {
+      if (!this.priceChange) return;
+      this.priceForm.loading = true;
+      this.priceForm.error = '';
+      api
+        .post(`/api/admin/price-changes/${this.priceChange.id}/resume/`)
+        .then((response: AxiosResponse) => {
+          this.priceChangeStartedHere = true;
+          this.awaitingRunAfter = response.data.priceChange.runs;
+          this.resumedAt = Date.now();
+          this.setPriceChange(response.data.priceChange);
+        })
+        .catch((error) => {
+          this.priceForm.error = this.priceChangeErrorText(error);
+        })
+        .finally(() => (this.priceForm.loading = false));
     },
     submitEditPlanForm() {
       if (!this.editPlan) return;

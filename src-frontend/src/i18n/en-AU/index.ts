@@ -623,6 +623,36 @@ export default {
     remove: 'Remove this Membership Payment Plan',
     add: 'Add a new Membership Payment Plan',
     edit: 'Edit Payment Plan',
+    invalidCost: 'Enter a price greater than zero, with at most two decimals.',
+    priceUnchanged: 'That is already the price of this plan.',
+    priceNotSupported:
+      "This plan's Stripe price is not a simple recurring price, so it can't be changed here.",
+    priceChangeInProgress:
+      'An earlier price change for this plan has not finished. Resume it first.',
+    priceChangeNotResumable:
+      'This price change has finished or is still running, so there is nothing to resume.',
+    price: {
+      title: 'Price',
+      current: 'Current price: {amount}',
+      new: 'New price',
+      change: 'Change price',
+      confirmTitle: 'Change the price of this plan?',
+      confirmMessage:
+        'New signups pay {amount} straight away. The {count} member(s) subscribed to this plan are moved to the new price in the background and pay it from their next renewal, with no proration. This can take a few minutes.',
+      resume: 'Resume',
+      failuresTitle: 'Subscriptions not moved',
+      status: {
+        pending: 'Waiting to move subscriptions to the new price.',
+        running:
+          'Moving subscriptions to the new price: {migrated} moved, {remaining} to go.',
+        completed:
+          'Price changed from {old} to {new}. {migrated} subscription(s) moved.',
+        partial:
+          '{migrated} subscription(s) moved to {new}, but {remaining} could not be. Fix them in Stripe, then resume.',
+        interrupted:
+          'Stopped with {remaining} subscription(s) still on {old}. Resume to try again.',
+      },
+    },
     success: 'Successfully added a new Membership Payment Plan.',
     fail: 'Failed to add a new Membership Payment Plan.',
     select: 'Payment Plan',

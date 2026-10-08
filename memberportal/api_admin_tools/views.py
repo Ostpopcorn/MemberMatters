@@ -28,6 +28,16 @@ from sentry_sdk import capture_message
 from access import models
 from access.models import DoorLog, InterlockLog
 from api_general.models import DashboardCard
+from api_billing.models import PlanPriceChange
+from api_billing.price_change import (
+    MAX_UNIT_AMOUNT,
+    PriceChangeInProgress,
+    PriceChangeRefused,
+    enqueue_price_change,
+    format_amount,
+    is_resumable,
+    start_price_change,
+)
 from api_billing.stripe_utils import invoice_subscription_id
 from api_billing.views import (
     ensure_stripe_customer,
@@ -1172,8 +1182,11 @@ class ManageMembershipTierPlan(StripeAPIView):
         plan.name = body["name"]
         plan.description = body.get("description", "")
         plan.visible = body["visible"]
-        plan.cost = body["cost"]
-        plan.save()
+        # cost is deliberately not writable here: it has to match the Stripe
+        # price members are billed, so it changes through PlanPriceChanges.
+        # update_fields so this can't write back a stripe_id that a price
+        # change replaced after this request read the plan.
+        plan.save(update_fields=["name", "description", "visible"])
 
         return Response(self.get_plan(plan))
 
@@ -1182,6 +1195,134 @@ class ManageMembershipTierPlan(StripeAPIView):
         plan.delete()
 
         return Response()
+
+
+class PlanPriceChanges(StripeAPIView):
+    """
+    get: lists a plan's price changes, newest first, and how many members
+    are subscribed to it.
+    post: changes a plan's price. Creates a new Stripe price, points the plan
+    at it, and moves the plan's subscriptions across in the background.
+    Members pay the new price from their next renewal.
+    Body: {"cost": <new price in cents>}
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, plan_id):
+        plan = get_object_or_404(PaymentPlan, pk=plan_id)
+        subscription_count = (
+            Profile.objects.filter(membership_plan=plan)
+            .exclude(stripe_subscription_id__isnull=True)
+            .exclude(stripe_subscription_id="")
+            .count()
+        )
+        price_changes = plan.price_changes.select_related("created_by__profile")
+        return Response(
+            {
+                "subscriptionCount": subscription_count,
+                "priceChanges": [job.get_object() for job in price_changes],
+            }
+        )
+
+    def post(self, request, plan_id):
+        get_object_or_404(PaymentPlan, pk=plan_id)
+
+        if not config.ENABLE_STRIPE:
+            return Response(
+                {"success": False, "message": "error.stripeNotConfigured"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        cost = request.data.get("cost")
+        # bool is an int subclass; True must not become a 1 cent price.
+        if (
+            not isinstance(cost, int)
+            or isinstance(cost, bool)
+            or not 0 < cost <= MAX_UNIT_AMOUNT
+        ):
+            return Response(
+                {"success": False, "message": "paymentPlans.invalidCost"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            job = start_price_change(plan_id, cost, request.user)
+        except PriceChangeInProgress as e:
+            return Response(
+                {
+                    "success": False,
+                    "message": "paymentPlans.priceChangeInProgress",
+                    "priceChange": e.job.get_object(),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        except PriceChangeRefused as e:
+            return Response(
+                {"success": False, "message": e.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            return Response(
+                {"success": False, "message": "billing.stripeError"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        request.user.log_event(
+            f"Changed the price of plan {job.plan.name} from "
+            f"{format_amount(job.old_cost, job.currency)} to "
+            f"{format_amount(job.new_cost, job.currency)} "
+            f"(price change #{job.pk}).",
+            "admin",
+        )
+        return Response(
+            {"success": True, "priceChange": job.get_object()},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class PlanPriceChangeDetail(APIView):
+    """
+    get: a price change's progress, for polling while it runs.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, price_change_id):
+        job = get_object_or_404(
+            PlanPriceChange.objects.select_related("created_by__profile"),
+            pk=price_change_id,
+        )
+        return Response(job.get_object())
+
+
+class PlanPriceChangeResume(APIView):
+    """
+    post: queues another run of a price change that stopped before moving
+    every subscription. Only what is still on the old price is retried.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, price_change_id):
+        job = get_object_or_404(PlanPriceChange, pk=price_change_id)
+        if not is_resumable(job):
+            return Response(
+                {
+                    "success": False,
+                    "message": "paymentPlans.priceChangeNotResumable",
+                    "priceChange": job.get_object(),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        enqueue_price_change(job.pk)
+        request.user.log_event(f"Resumed plan price change #{job.pk}.", "admin")
+        return Response(
+            {"success": True, "priceChange": job.get_object()},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class MemberBillingInfo(StripeAPIView):

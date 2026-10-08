@@ -114,6 +114,21 @@ urlpatterns = [
         name="ManageMembershipTierPlan",
     ),
     path(
+        "api/admin/plans/<int:plan_id>/price-changes/",
+        views.PlanPriceChanges.as_view(),
+        name="PlanPriceChanges",
+    ),
+    path(
+        "api/admin/price-changes/<int:price_change_id>/",
+        views.PlanPriceChangeDetail.as_view(),
+        name="PlanPriceChangeDetail",
+    ),
+    path(
+        "api/admin/price-changes/<int:price_change_id>/resume/",
+        views.PlanPriceChangeResume.as_view(),
+        name="PlanPriceChangeResume",
+    ),
+    path(
         "api/admin/billing/pending-invoices/",
         views.PendingInvoices.as_view(),
         name="PendingInvoices",

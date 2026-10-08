@@ -610,6 +610,36 @@ export default {
     recurringDescription: 'Betala för denna nivå varje:',
     remove: 'Ta bort denna medlemskapsnivå',
     add: 'Lägg till en ny medlemskapsnivå',
+    invalidCost: 'Ange ett pris större än noll, med högst två decimaler.',
+    priceUnchanged: 'Detta är redan priset för betalningsalternativet.',
+    priceNotSupported:
+      'Betalningsalternativets pris i Stripe är inte ett enkelt återkommande pris och kan inte ändras här.',
+    priceChangeInProgress:
+      'En tidigare prisändring för detta betalningsalternativ är inte klar. Återuppta den först.',
+    priceChangeNotResumable:
+      'Prisändringen är klar eller pågår fortfarande, så det finns inget att återuppta.',
+    price: {
+      title: 'Pris',
+      current: 'Nuvarande pris: {amount}',
+      new: 'Nytt pris',
+      change: 'Ändra pris',
+      confirmTitle: 'Ändra priset för detta betalningsalternativ?',
+      confirmMessage:
+        'Nya medlemmar betalar {amount} direkt. De {count} medlemmar som har detta betalningsalternativ flyttas till det nya priset i bakgrunden och betalar det från sin nästa förnyelse, utan justering för innevarande period. Det kan ta några minuter.',
+      resume: 'Återuppta',
+      failuresTitle: 'Prenumerationer som inte flyttades',
+      status: {
+        pending: 'Väntar på att flytta prenumerationer till det nya priset.',
+        running:
+          'Flyttar prenumerationer till det nya priset: {migrated} flyttade, {remaining} kvar.',
+        completed:
+          'Priset ändrat från {old} till {new}. {migrated} prenumeration(er) flyttade.',
+        partial:
+          '{migrated} prenumeration(er) flyttade till {new}, men {remaining} kunde inte flyttas. Åtgärda dem i Stripe och återuppta sedan.',
+        interrupted:
+          'Avbröts med {remaining} prenumeration(er) kvar på {old}. Återuppta för att försöka igen.',
+      },
+    },
     success: 'Ny medlemskapsnivå tillagd.',
     fail: 'Misslyckades att lägga till en ny medlemskapsnivå.',
     select: 'Betalningsalternativ',
