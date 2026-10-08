@@ -26,7 +26,7 @@ export default defineConfig(async function () {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['store', 'sentry', 'i18n', 'axios', 'routeGuards', 'apexcharts'],
+    boot: ['store', 'i18n', 'axios', 'routeGuards', 'apexcharts'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
     css: ['app.scss'],
@@ -202,32 +202,9 @@ export default defineConfig(async function () {
       //   rootComponent: 'src/App.vue',
       //   router: 'src/router/index',
       //   store: 'src/store/index',
-      //   registerServiceWorker: 'src-pwa/register-service-worker',
-      //   serviceWorker: 'src-pwa/custom-service-worker',
-      //   pwaManifestFile: 'src-pwa/manifest.json',
       //   electronMain: 'src-electron/electron-main',
       //   electronPreload: 'src-electron/electron-preload'
       // },
-    },
-    // https://v2.quasar.dev/quasar-cli-vite/developing-ssr/configuring-ssr
-    ssr: {
-      // ssrPwaHtmlFilename: 'offline.html', // do NOT use index.html as name!
-      // will mess up SSR
-
-      // extendSSRWebserverConf (esbuildConf) {},
-      // extendPackageJson (json) {},
-
-      pwa: false,
-
-      // manualStoreHydration: true,
-      // manualPostHydrationTrigger: true,
-
-      prodPort: 3000, // The default port that the production server should use
-      // (gets superseded if process.env.PORT is specified at runtime)
-
-      middlewares: [
-        'render', // keep this as last one
-      ],
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/configuring-electron
@@ -240,7 +217,7 @@ export default defineConfig(async function () {
       bundler: 'packager', // 'packager' or 'builder'
 
       packager: {
-        // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
+        // https://electron.github.io/packager/main/
         // OS X / Mac App Store
         // appBundleId: '',
         // appCategoryType: '',
@@ -255,17 +232,6 @@ export default defineConfig(async function () {
 
         appId: 'membermatters',
       },
-
-      nodeIntegration: true,
-    },
-
-    // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-browser-extensions/configuring-bex
-    bex: {
-      // contentScripts: [
-      //   'my-content-script'
-      // ],
-      // extendBexScriptsConf (esbuildConf) {}
-      // extendBexManifestJson (json) {}
     },
   };
 });

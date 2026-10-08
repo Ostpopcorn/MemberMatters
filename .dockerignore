@@ -1,8 +1,9 @@
 .git
 venv
-frontend/node_modules
-frontend/dist
-frontend/src-*
+src-frontend/node_modules
+src-frontend/dist
+src-frontend/.quasar
+src-frontend/src-electron/node_modules
 **/*.sqlite3
 **/*.log
 # Compiled translations are built inside the image, never copied in
