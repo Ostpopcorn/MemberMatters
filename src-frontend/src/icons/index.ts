@@ -16,7 +16,7 @@ export default {
   meetings: 'mdi-calendar-clock',
   plans: 'mdi-receipt',
   pendingInvoices: 'mdi-invoice-text-clock',
-  dollar: 'fas fa-dollar-sign',
+  dollar: 'mdi-currency-usd',
   doors: 'mdi-door-closed-lock',
   interlocks: 'mdi-power-plug',
   kiosks: 'mdi-monitor',

@@ -2,6 +2,7 @@ import { app, BrowserWindow, nativeTheme, session } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { resolveElectronAssetsPath } from '#q-app/electron/main';
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform();
@@ -19,7 +20,7 @@ function createWindow() {
    * Initial window options
    */
   mainWindow = new BrowserWindow({
-    icon: path.resolve(import.meta.dirname, 'electron-assets/icons/icon.png'), // tray icon
+    icon: resolveElectronAssetsPath('icons/icon.png'), // tray icon
     fullscreen: process.env.NODE_ENV !== 'Development',
     useContentSize: true,
     webPreferences: {
