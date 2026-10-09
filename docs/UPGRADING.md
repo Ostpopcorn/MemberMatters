@@ -147,9 +147,7 @@ If the setting isn't valid JSON, no cards are imported and the container log say
 
 ### Check the icons on your cards (Material Design Icons 7)
 
-The portal now uses version 7.4 of Material Design Icons instead of version 5. Version 7.4 adds about 1,600 icons, which the [Pictogrammers library](https://pictogrammers.com/library/mdi/) lists. Before this release, a card whose icon was added after version 5, such as `mdi-account-school`, showed no icon.
-
-Version 7 also removes 105 icons, including brand logos such as Discord and Telegram. A card that uses one of them still shows its title, but no icon. Open Admin Tools → Dashboard Cards and give a new icon to any card that shows none.
+The portal now uses Material Design Icons 7.4 instead of version 5. Version 7 removes 105 icons, including brand logos such as Discord and Telegram, and a dashboard card that uses one of them shows no icon. After upgrading, open Admin Tools → Dashboard Cards and give a new icon to any card that shows none. The [Pictogrammers library](https://pictogrammers.com/library/mdi/) lists the icons you can use, including about 1,600 added since version 5, which didn't show before.
 
 | Removed icon | Use instead |
 | --- | --- |
@@ -174,32 +172,19 @@ Version 7 also removes 105 icons, including brand logos such as Discord and Tele
 
 ### The phone app and the installable web app are removed
 
-This release removes two ways of building the portal that were never finished or kept up to date:
+This release removes the iOS and Android app (built with Capacitor), whose project files had not been updated since 2023, and the installable web app (PWA) mode, which could not be built. Members keep using the portal in their phone's browser. If your members use a browser or a kiosk, there is nothing to do.
 
-- **The iOS and Android app** (built with Capacitor). Each makerspace had to build and publish its own copy to the app stores, and its project files had not been updated since 2023.
-- **The installable web app (PWA) mode.** It was never finished and could not be built.
-
-Members keep using the portal in their phone's browser, which works as before. If your members use a browser or a kiosk, there is nothing to do.
-
-If your makerspace published its own MemberMatters app, it can no longer be built from this release. This release changes nothing on the server that those apps use, but once you turn on CAPTCHA, members can no longer sign in to them, so plan to retire the app.
-
-If you left the `CAPTCHA_ALLOWED_HOSTNAMES` setting empty because of the app, you can now fill it in with your portal's hostname. [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) explains what it protects against.
+If your makerspace published its own MemberMatters app, it can no longer be built from this release. The server still accepts its sign-ins, but not once you turn on CAPTCHA, so plan to retire the app. If you left the `CAPTCHA_ALLOWED_HOSTNAMES` setting empty because of the app, you can now set it to your portal's hostname; [Post Installation Steps](/docs/POST_INSTALL_STEPS.md) explains what it protects against.
 
 ### Kiosks need a 64-bit system (Electron 44)
 
-The kiosk app ([Kiosk Mode](/docs/GETTING_STARTED.md#kiosk-mode)) now runs on Electron 44. Electron 26, which it used before, stopped getting security fixes in February 2024. If you only run the Docker image and have no kiosk, there is nothing to do.
+The kiosk app ([Kiosk Mode](/docs/GETTING_STARTED.md#kiosk-mode)) moves from Electron 26, which stopped getting security fixes in February 2024, to Electron 44. If you have no kiosk, there is nothing to do. Otherwise, build your kiosks again, and note:
 
-- Electron 44 only exists for 64-bit systems. A kiosk on a 32-bit operating system, such as 32-bit Raspberry Pi OS or 32-bit Windows, can't run it. On a Raspberry Pi 3 or later, install the 64-bit Raspberry Pi OS, then build the kiosk again. On a Mac it needs macOS 13 or later.
-- Building the kiosk needs Node 26, for example `nvm install 26`, which the Docker image and the project's own checks use. Node 22 (22.22.2 or later) and Node 24 (24.15 or later) also work, for example on a Mac older than macOS 13.5, which Node 26 doesn't support.
-- On a Wayland desktop, such as Raspberry Pi OS since Bookworm, the kiosk now runs as a native Wayland app. X11 tools in its startup script, such as `unclutter` or `xdotool`, no longer reach its window. Start it with `--ozone-platform=x11` to keep the old behaviour.
-- The packaged kiosk now keeps its files in a single `resources/app.asar` archive instead of a `resources/app` folder. If you used to change files in that folder after building, make the change in the source instead and build again.
+- Electron 44 needs a 64-bit system, and on a Mac, macOS 13 or later. A kiosk on 32-bit Raspberry Pi OS or 32-bit Windows can't run it; on a Raspberry Pi 3 or later, install the 64-bit Raspberry Pi OS first.
+- Building needs Node 26 (`nvm install 26`). Node 22.22.2 or later and 24.15 or later also work, for example on a Mac older than macOS 13.5, which Node 26 doesn't support.
+- On a Wayland desktop, such as Raspberry Pi OS since Bookworm, the kiosk runs as a native Wayland app, so X11 tools in its startup script, such as `unclutter` or `xdotool`, no longer reach its window. Start it with `--ozone-platform=x11` to keep the old behaviour.
+- The packaged kiosk keeps its files in `resources/app.asar` instead of a `resources/app` folder. Make any change to them in the source and build again.
 
 ### Members need a browser from 2022 or later
 
-This release moves the portal to a newer version of its interface library, Quasar 2.34. It uses browser features that older versions lack, so the login page and the rest of the portal no longer work in:
-
-- Chrome or Edge older than version 93
-- Firefox older than version 92
-- Safari older than version 15.4, which includes iPhones and iPads that haven't been updated to iOS 15.4 or later
-
-Chrome, Edge and Firefox normally update themselves, and every device that runs iOS 15 can install 15.4 or later, so few members should notice. A member who can't log in after the upgrade should update their browser or device. In browsers older than Chrome 111, Firefox 113 or Safari 16.2, shadows look flat, but everything else works. Kiosks are not affected: they bring their own browser.
+The portal's interface library, Quasar, now uses browser features that older browsers lack, so the portal, including its login page, no longer works in Chrome or Edge before version 93, Firefox before 92, or Safari before 15.4 (iPhones and iPads not updated to iOS 15.4). Chrome, Edge and Firefox update themselves, and every device that runs iOS 15 can install 15.4, so few members should notice. A member who can't log in should update their browser or device. Before Chrome 111, Firefox 113 and Safari 16.2, shadows look flat, but everything else works. Kiosks bring their own browser.

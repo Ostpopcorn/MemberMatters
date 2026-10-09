@@ -15,16 +15,6 @@ The frontend can be built into a normal SPA web app and a desktop "kiosk" app.
 
 Ensure you have [nvm](https://github.com/nvm-sh/nvm) (node version manager) installed. Once you've installed nvm, you should install node 26 with `nvm install 26`.
 
-### Linux Tips (skip if not using Linux)
-
-If you're using Ubuntu, you may need:
-
-`sudo apt install libpng-dev`
-
-If using Fedora, you may need:
-
-`sudo dnf install libpng-devel`
-
 ## Install the dependencies
 
 ```bash
