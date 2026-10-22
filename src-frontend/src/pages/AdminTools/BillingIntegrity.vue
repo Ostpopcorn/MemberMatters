@@ -185,38 +185,47 @@
               {{ seenIn(props.row.occurrences) }}
             </div>
           </q-td>
-          <q-td key="actions" :props="props">
+          <q-td key="actions" :props="props" class="text-no-wrap">
             <q-btn
               v-if="props.row.stripeUrl"
               flat
+              round
               dense
               color="primary"
               icon="mdi-open-in-new"
-              label="Open in Stripe"
+              aria-label="Open in Stripe"
               type="a"
               :href="props.row.stripeUrl"
               target="_blank"
               rel="noopener"
               @click.stop
-            />
+            >
+              <q-tooltip>Open in Stripe</q-tooltip>
+            </q-btn>
             <template v-if="!props.row.resolvedAt">
               <q-btn
                 v-if="props.row.acknowledged"
                 flat
+                round
                 dense
                 icon="mdi-undo"
-                label="Withdraw"
+                aria-label="Withdraw the acknowledgement"
                 @click.stop="withdraw(props.row)"
-              />
+              >
+                <q-tooltip>Withdraw the acknowledgement</q-tooltip>
+              </q-btn>
               <q-btn
                 v-else
                 flat
+                round
                 dense
                 color="positive"
                 icon="mdi-check"
-                label="Acknowledge"
+                aria-label="Acknowledge"
                 @click.stop="openAcknowledge(props.row)"
-              />
+              >
+                <q-tooltip>Acknowledge</q-tooltip>
+              </q-btn>
             </template>
           </q-td>
         </q-tr>
