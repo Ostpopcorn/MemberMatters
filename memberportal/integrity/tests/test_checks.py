@@ -1,14 +1,20 @@
 """Each check against hand-written data: no database, no Stripe."""
 
+import dataclasses
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from integrity.checks import CHECKS, defer_unsettled, run_checks
 from integrity.data import (
+    EVENTS,
+    PRICES,
+    WEBHOOK_ENDPOINTS,
     CheckContext,
     LocalBilling,
     PlanInfo,
+    SkippedPart,
+    StripeEvent,
     StripeInvoice,
     StripePrice,
     StripeSnapshot,
@@ -386,3 +392,168 @@ class TestSettling:
 
         assert all_findings(ctx) == {}
         assert ctx.is_deferred(profile_id=1)
+
+
+class TestPlanPrice:
+    def test_matching_price(self):
+        assert found(context(), "plan_price") == []
+
+    def test_interval_case_doesnt_matter(self):
+        plan = dataclasses.replace(PLAN, interval="Month")
+
+        assert found(context(plans=[plan]), "plan_price") == []
+
+    def test_a_changed_amount(self):
+        [finding] = found(context(prices=[price(unit_amount=2500)]), "plan_price")
+
+        assert finding.severity == Severity.WARNING
+        assert finding.extra["differences"] == ["amount"]
+        assert finding.mm == "Monthly: 20.00 SEK every 1 month"
+        assert finding.stripe == "25.00 SEK every 1 month"
+
+    @pytest.mark.parametrize(
+        "visible,severity", [(True, Severity.CRITICAL), (False, Severity.WARNING)]
+    )
+    def test_a_missing_price(self, visible, severity):
+        plan = dataclasses.replace(PLAN, visible=visible)
+        ctx = context(plans=[plan], prices=[])
+        ctx.snapshot.missing_prices.add("price_monthly")
+
+        [finding] = found(ctx, "plan_price")
+
+        assert finding.severity == severity
+
+    def test_an_archived_price_on_a_visible_plan(self):
+        [finding] = found(context(prices=[price(active=False)]), "plan_price")
+
+        assert finding.severity == Severity.CRITICAL
+
+    def test_an_archived_price_on_a_hidden_plan_is_fine(self):
+        plan = dataclasses.replace(PLAN, visible=False)
+
+        assert (
+            found(context(plans=[plan], prices=[price(active=False)]), "plan_price")
+            == []
+        )
+
+
+class TestWebhookEndpoint:
+    def test_matches_without_the_trailing_slash(self):
+        endpoint = dataclasses.replace(ENDPOINT, url=WEBHOOK.rstrip("/"))
+
+        assert found(context(endpoints=[endpoint]), "webhook_endpoint") == []
+
+    def test_no_endpoint_for_this_site(self):
+        other = dataclasses.replace(ENDPOINT, url="https://old.example.org/hook/")
+
+        [finding] = found(context(endpoints=[other]), "webhook_endpoint")
+
+        assert finding.message == "No Stripe webhook endpoint for this site"
+        assert finding.severity == Severity.CRITICAL
+
+    def test_a_disabled_endpoint(self):
+        disabled = dataclasses.replace(ENDPOINT, status="disabled")
+
+        [finding] = found(context(endpoints=[disabled]), "webhook_endpoint")
+
+        assert finding.message == "Stripe webhook endpoint is disabled"
+
+    def test_missing_events(self):
+        endpoint = dataclasses.replace(
+            ENDPOINT, enabled_events=("invoice.paid", "invoice.payment_failed")
+        )
+
+        [finding] = found(context(endpoints=[endpoint]), "webhook_endpoint")
+
+        assert "customer.subscription.updated" in finding.stripe
+        assert "customer.subscription.deleted" in finding.stripe
+        assert "invoice.paid" not in finding.stripe
+
+
+class TestUndeliveredEvents:
+    def test_reports_undelivered_billing_events(self):
+        events = [
+            StripeEvent("evt_1", "invoice.paid", LONG_AGO, "cus_anna"),
+            StripeEvent("evt_2", "customer.subscription.deleted", LONG_AGO, "cus_erik"),
+        ]
+
+        [finding] = found(context(events=events), "undelivered_events")
+
+        assert finding.message == "2 billing event(s) not delivered"
+        assert [event["id"] for event in finding.extra["events"]] == ["evt_1", "evt_2"]
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(
+                StripeEvent("evt_1", "invoice.paid", RECENTLY, None), id="recent"
+            ),
+            pytest.param(
+                StripeEvent("evt_1", "charge.refunded", LONG_AGO, None),
+                id="not-billing",
+            ),
+        ],
+    )
+    def test_ignores(self, event):
+        assert found(context(events=[event]), "undelivered_events") == []
+
+
+class TestRunChecks:
+    def test_skips_checks_whose_part_is_missing(self):
+        ctx = context()
+        ctx.snapshot.skipped[PRICES] = SkippedPart("Stripe error: down")
+
+        results = run_checks(ctx, Source.LEGACY)
+
+        assert (Source.ACCOUNT, "plan_price") not in results.findings
+        assert results.skipped[(Source.ACCOUNT, "plan_price")].reason == (
+            "Stripe error: down"
+        )
+
+    def test_a_permission_skip_isnt_incomplete(self):
+        ctx = context()
+        ctx.snapshot.skipped[WEBHOOK_ENDPOINTS] = SkippedPart(
+            "no access", incomplete=False
+        )
+
+        results = run_checks(ctx, Source.LEGACY)
+
+        assert results.skipped[(Source.ACCOUNT, "webhook_endpoint")].incomplete is False
+
+    def test_a_check_that_raises_is_skipped(self):
+        errors = []
+
+        def explode(ctx):
+            raise RuntimeError("boom")
+            yield
+
+        checks = (dataclasses.replace(CHECKS[0], name="exploding", fn=explode),)
+        results = run_checks(
+            context(), Source.LEGACY, checks=checks, on_error=errors.append
+        )
+
+        assert results.skipped[(Source.LEGACY, "exploding")].incomplete
+        assert [str(error) for error in errors] == ["boom"]
+
+    def test_a_member_recheck_skips_account_wide_checks(self):
+        ctx = context(member_scope=True)
+        ctx.snapshot.skipped[EVENTS] = SkippedPart("not fetched")
+
+        results = run_checks(ctx, Source.LEGACY)
+
+        names = {name for _source, name in results.findings}
+        assert "orphan_subscription" not in names
+        assert "plan_price" not in names
+        assert "ended_in_stripe" in names
+        assert results.skipped == {}
+
+    def test_a_second_source_doesnt_repeat_account_checks(self):
+        results = run_checks(context(), "core", include_account=False)
+
+        assert {source for source, _name in results.findings} == {"core"}
+
+    def test_account_checks_are_keyed_to_the_account(self):
+        results = run_checks(context(), Source.LEGACY)
+
+        assert (Source.ACCOUNT, "webhook_endpoint") in results.findings
+        assert (Source.LEGACY, "ended_in_stripe") in results.findings

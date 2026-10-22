@@ -15,7 +15,14 @@ from typing import Callable
 from django.utils import timezone
 
 from .models import Severity, Source
-from .data import SUBSCRIPTIONS, Finding, SkippedPart
+from .data import (
+    EVENTS,
+    PRICES,
+    SUBSCRIPTIONS,
+    WEBHOOK_ENDPOINTS,
+    Finding,
+    SkippedPart,
+)
 
 # Subscription statuses after which Stripe never bills again.
 ENDED = ("canceled", "incomplete_expired")
@@ -33,6 +40,10 @@ def _day(moment):
     if moment is None:
         return "an unknown date"
     return timezone.localtime(moment).strftime("%d %b %Y").lstrip("0")
+
+
+def _money(cents, currency):
+    return f"{cents / 100:.2f} {(currency or '').upper()}".strip()
 
 
 def _status_text(local):
@@ -519,6 +530,194 @@ def orphan_subscription(ctx):
         )
 
 
+def plan_price(ctx):
+    for plan in ctx.plans:
+        if not plan.stripe_id:
+            continue
+        common = dict(
+            check="plan_price",
+            subject=f"plan:{plan.id}",
+            stripe_ref=plan.stripe_id,
+            mm=(
+                f"{plan.name}: {_money(plan.cost, plan.currency)} every "
+                f"{plan.interval_count} {plan.interval}"
+            ),
+        )
+
+        if plan.stripe_id in ctx.snapshot.missing_prices:
+            yield Finding(
+                severity=Severity.CRITICAL if plan.visible else Severity.WARNING,
+                message=f"Price for {plan.name} not found in Stripe",
+                stripe="No such price",
+                cause=(
+                    "The price was deleted, or belongs to another Stripe account or "
+                    "mode (test or live). Signups on this plan fail."
+                ),
+                action=(
+                    "Point the plan at a price that exists, under Admin Tools → "
+                    "Membership Plans."
+                ),
+                **common,
+            )
+            continue
+
+        price = ctx.snapshot.prices.get(plan.stripe_id)
+        if price is None:
+            continue
+
+        if not price.active:
+            # Existing subscriptions keep billing on an archived price, so a
+            # retired, hidden plan is fine. Only new signups break.
+            if plan.visible:
+                yield Finding(
+                    severity=Severity.CRITICAL,
+                    message=f"Price for {plan.name} is archived in Stripe",
+                    stripe="archived",
+                    cause="Stripe refuses new subscriptions on an archived price.",
+                    action=(
+                        "Unarchive the price in Stripe, or hide the plan under "
+                        "Admin Tools → Membership Plans."
+                    ),
+                    **common,
+                )
+            continue
+
+        differences = []
+        if price.unit_amount is not None and price.unit_amount != plan.cost:
+            differences.append("amount")
+        if (price.currency or "").lower() != (plan.currency or "").lower():
+            differences.append("currency")
+        if price.interval is None:
+            differences.append("not recurring")
+        elif (price.interval, price.interval_count) != (
+            (plan.interval or "").lower(),
+            plan.interval_count,
+        ):
+            differences.append("interval")
+        if not differences:
+            continue
+
+        if price.interval is None:
+            stripe_says = f"{_money(price.unit_amount or 0, price.currency)}, one-off"
+        else:
+            stripe_says = (
+                f"{_money(price.unit_amount or 0, price.currency)} every "
+                f"{price.interval_count} {price.interval}"
+            )
+        yield Finding(
+            severity=Severity.WARNING,
+            message=f"Price for {plan.name} differs from Stripe",
+            stripe=stripe_says,
+            cause=(
+                "The plan was edited here. Stripe prices can't change, so members "
+                "are still charged the Stripe price."
+            ),
+            action=(
+                "Create a new price in Stripe and point the plan at it, or set the "
+                "plan back to match Stripe."
+            ),
+            extra={"differences": differences},
+            **common,
+        )
+
+
+def _normalise_url(url):
+    return (url or "").strip().rstrip("/").lower()
+
+
+def webhook_endpoint(ctx):
+    expected = _normalise_url(ctx.webhook_url)
+    endpoints = ctx.snapshot.webhook_endpoints
+    matches = [e for e in endpoints if _normalise_url(e.url) == expected]
+    common = dict(
+        check="webhook_endpoint",
+        severity=Severity.CRITICAL,
+        subject="endpoint",
+        mm=f"expects events at {ctx.webhook_url}",
+    )
+
+    if not matches:
+        yield Finding(
+            message="No Stripe webhook endpoint for this site",
+            stripe=f"{len(endpoints)} endpoint(s), none for this URL",
+            cause=(
+                "Stripe isn't sending billing events here, so payments and "
+                "cancellations never reach MemberMatters. SITE_URL may also be wrong."
+            ),
+            action=(
+                f"Add an endpoint for {ctx.webhook_url} in the Stripe dashboard "
+                "under Developers → Webhooks, or correct SITE_URL."
+            ),
+            extra={"endpoints": [e.url for e in endpoints]},
+            **common,
+        )
+        return
+
+    enabled = [e for e in matches if e.status == "enabled"]
+    if not enabled:
+        yield Finding(
+            message="Stripe webhook endpoint is disabled",
+            stripe_ref=matches[0].id,
+            stripe=f"{matches[0].id} is {matches[0].status}",
+            cause="Stripe disables an endpoint that keeps failing, or someone did.",
+            action=(
+                "Fix what made deliveries fail, then enable the endpoint in the "
+                "Stripe dashboard under Developers → Webhooks."
+            ),
+            **common,
+        )
+        return
+
+    def sent(event_type):
+        return any(
+            "*" in e.enabled_events or event_type in e.enabled_events for e in enabled
+        )
+
+    missing = [event_type for event_type in ctx.handled_events if not sent(event_type)]
+    if missing:
+        yield Finding(
+            message="Stripe webhook endpoint is missing events",
+            stripe_ref=enabled[0].id,
+            stripe=f"doesn't send {', '.join(missing)}",
+            cause="These events weren't selected when the endpoint was set up.",
+            action=(
+                "Add them to the endpoint in the Stripe dashboard under Developers "
+                "→ Webhooks."
+            ),
+            **common,
+        )
+
+
+def undelivered_events(ctx):
+    cutoff = ctx.now - ctx.settle
+    events = [
+        event
+        for event in ctx.snapshot.undelivered_events
+        if event.type in ctx.handled_events
+        and (event.created is None or event.created <= cutoff)
+    ]
+    if not events:
+        return
+    yield Finding(
+        check="undelivered_events",
+        severity=Severity.WARNING,
+        subject="events",
+        message=f"{len(events)} billing event(s) not delivered",
+        stripe=f"{len(events)} undelivered in the last 7 days",
+        cause="Stripe couldn't deliver them here. It retries for up to 3 days.",
+        action=(
+            "Look at the failed deliveries in the Stripe dashboard under "
+            "Developers → Webhooks. Members they affect show up as their own issues."
+        ),
+        extra={
+            "events": [
+                {"id": event.id, "type": event.type, "customer": event.customer}
+                for event in events[:20]
+            ]
+        },
+    )
+
+
 @dataclasses.dataclass(frozen=True)
 class Check:
     name: str
@@ -554,6 +753,21 @@ CHECKS = (
         "orphan_subscription",
         orphan_subscription,
         (SUBSCRIPTIONS,),
+        full_only=True,
+    ),
+    Check("plan_price", plan_price, (PRICES,), per_source=False, full_only=True),
+    Check(
+        "webhook_endpoint",
+        webhook_endpoint,
+        (WEBHOOK_ENDPOINTS,),
+        per_source=False,
+        full_only=True,
+    ),
+    Check(
+        "undelivered_events",
+        undelivered_events,
+        (EVENTS,),
+        per_source=False,
         full_only=True,
     ),
 )
