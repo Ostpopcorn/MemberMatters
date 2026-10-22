@@ -244,45 +244,106 @@
 
       <template v-slot:item="props">
         <div class="q-pa-xs col-12 col-md-6">
-          <q-card flat bordered class="full-height column">
-            <q-card-section class="q-pb-sm">
-              <div class="row items-center q-gutter-x-sm">
-                <q-badge
-                  :color="severityColor(props.row.severity)"
-                  :text-color="textColorOn(severityColor(props.row.severity))"
-                >
-                  {{ severityLabel(props.row.severity) }}
-                </q-badge>
-                <router-link
-                  v-if="props.row.memberId"
-                  :to="{
-                    name: 'manageMember',
-                    params: { memberId: props.row.memberId },
-                  }"
-                >
-                  {{ props.row.memberName }}
-                </router-link>
-                <span v-else class="text-grey-7">Stripe account</span>
-              </div>
-              <div class="text-subtitle1 q-mt-xs">{{ props.row.message }}</div>
-            </q-card-section>
+          <q-card
+            flat
+            bordered
+            class="full-height column cursor-pointer"
+            role="button"
+            tabindex="0"
+            :aria-expanded="!!expandedCards[props.row.id]"
+            @click="toggleCard(props.row.id)"
+            @keyup.enter.self="toggleCard(props.row.id)"
+          >
+            <q-list dense class="col-grow q-py-xs">
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>Severity</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  <div class="row items-center no-wrap">
+                    <q-badge
+                      :color="severityColor(props.row.severity)"
+                      :text-color="
+                        textColorOn(severityColor(props.row.severity))
+                      "
+                    >
+                      {{ severityLabel(props.row.severity) }}
+                    </q-badge>
+                    <q-space />
+                    <q-icon
+                      :name="
+                        expandedCards[props.row.id]
+                          ? 'mdi-chevron-up'
+                          : 'mdi-chevron-down'
+                      "
+                      color="grey-7"
+                    />
+                  </div>
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>Member</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  <router-link
+                    v-if="props.row.memberId"
+                    :to="{
+                      name: 'manageMember',
+                      params: { memberId: props.row.memberId },
+                    }"
+                    @click.stop
+                  >
+                    {{ props.row.memberName }}
+                  </router-link>
+                  <span v-else class="text-grey-7">Stripe account</span>
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>Issue</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  {{ props.row.message }}
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>MemberMatters says</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  {{ props.row.mm || '—' }}
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>Stripe says</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  {{ props.row.stripe || '—' }}
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section style="flex: 0 0 9.5em">
+                  <q-item-label caption>First seen</q-item-label>
+                </q-item-section>
+                <q-item-section>
+                  {{ formatDate(props.row.firstSeen) }}
+                  <q-item-label caption>
+                    {{ seenIn(props.row.occurrences) }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
 
-            <q-card-section class="q-py-none col-grow">
-              <div>
-                <span class="text-grey-7">MemberMatters says:</span>
-                {{ props.row.mm || '—' }}
+            <q-slide-transition>
+              <div v-show="expandedCards[props.row.id]">
+                <q-separator />
+                <billing-issue-details :issue="props.row" class="q-pa-md" />
               </div>
-              <div class="q-mb-sm">
-                <span class="text-grey-7">Stripe says:</span>
-                {{ props.row.stripe || '—' }}
-              </div>
-              <billing-issue-details :issue="props.row" />
-              <div class="text-caption text-grey-7 q-mt-xs">
-                First seen {{ formatDate(props.row.firstSeen) }},
-                {{ seenIn(props.row.occurrences) }}
-              </div>
-            </q-card-section>
+            </q-slide-transition>
 
+            <q-separator />
             <q-card-actions align="right">
               <q-btn
                 v-if="props.row.stripeUrl"
@@ -295,6 +356,7 @@
                 :href="props.row.stripeUrl"
                 target="_blank"
                 rel="noopener"
+                @click.stop
               />
               <template v-if="!props.row.resolvedAt">
                 <q-btn
@@ -303,7 +365,7 @@
                   dense
                   icon="mdi-undo"
                   label="Withdraw"
-                  @click="withdraw(props.row)"
+                  @click.stop="withdraw(props.row)"
                 />
                 <q-btn
                   v-else
@@ -312,7 +374,7 @@
                   color="positive"
                   icon="mdi-check"
                   label="Acknowledge"
-                  @click="openAcknowledge(props.row)"
+                  @click.stop="openAcknowledge(props.row)"
                 />
               </template>
             </q-card-actions>
@@ -416,6 +478,8 @@ export default defineComponent({
       // Cards suit a phone; the table suits a wide screen. Either can be
       // picked with the toggle.
       view: this.$q.screen.lt.md ? 'cards' : 'table',
+      // Issue ids whose card shows its details.
+      expandedCards: {} as Record<number, boolean>,
       status: null as IntegrityStatus | null,
       issues: [] as IntegrityIssue[],
       loading: false,
@@ -565,6 +629,9 @@ export default defineComponent({
         .finally(() => {
           this.loading = false;
         });
+    },
+    toggleCard(id: number) {
+      this.expandedCards[id] = !this.expandedCards[id];
     },
     openAcknowledge(issue: IntegrityIssue) {
       this.selectedIssue = issue;
