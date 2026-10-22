@@ -323,6 +323,48 @@ def test_a_shared_subscription_id_flags_every_member_sharing_it():
     assert all(finding.severity == Severity.CRITICAL for finding in findings)
 
 
+class TestUntrackedSubscription:
+    def test_a_live_subscription_no_one_tracks(self):
+        ctx = context(
+            [local(subscription_id=None, status="inactive")], [sub(id="sub_new")]
+        )
+
+        [finding] = found(ctx, "untracked_subscription")
+
+        assert finding.severity == Severity.CRITICAL
+        assert finding.profile_id == 1
+        assert finding.stripe_ref == "sub_new"
+        assert finding.message == "Billed in Stripe, no subscription here"
+
+    def test_a_second_live_subscription(self):
+        ctx = context([local()], [sub(), sub(id="sub_second")])
+
+        [finding] = found(ctx, "untracked_subscription")
+
+        assert finding.message == "Second live subscription in Stripe"
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"status": "incomplete"}, id="incomplete"),
+            pytest.param({"status": "canceled"}, id="ended"),
+            pytest.param({"price_ids": ("price_memberbucks",)}, id="not-a-membership"),
+        ],
+    )
+    def test_ignores(self, overrides):
+        ctx = context([local()], [sub(), sub(id="sub_other", **overrides)])
+
+        assert found(ctx, "untracked_subscription") == []
+
+    def test_a_subscription_on_an_unknown_customer_is_an_orphan(self):
+        ctx = context([local()], [sub(), sub(id="sub_gone", customer="cus_gone")])
+
+        assert found(ctx, "untracked_subscription") == []
+        [finding] = found(ctx, "orphan_subscription")
+        assert finding.profile_id is None
+        assert finding.subject == "sub_gone"
+
+
 class TestSettling:
     def test_a_recent_stripe_change_is_left_for_the_next_run(self):
         ctx = context(

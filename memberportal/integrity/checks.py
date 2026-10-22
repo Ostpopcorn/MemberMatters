@@ -431,6 +431,94 @@ def inactive_but_billed(ctx):
         )
 
 
+def _untracked_live_subscriptions(ctx):
+    """Live membership subscriptions in Stripe that no member tracks.
+
+    An incomplete subscription is left out: it charges nothing and Stripe
+    expires it within a day, and a signup whose first payment needed
+    authentication leaves exactly that behind.
+    """
+    membership_prices = {plan.stripe_id for plan in ctx.plans if plan.stripe_id}
+    tracked = {local.subscription_id for local in ctx.local if local.subscription_id}
+
+    for subscription in ctx.snapshot.subscriptions.values():
+        if subscription.id in tracked:
+            continue
+        if subscription.status in ENDED or subscription.status == "incomplete":
+            continue
+        if not membership_prices & set(subscription.price_ids):
+            continue
+        if ctx.is_deferred(ref=subscription.id):
+            continue
+        yield subscription
+
+
+def untracked_subscription(ctx):
+    by_customer = {local.customer_id: local for local in ctx.local if local.customer_id}
+    for subscription in _untracked_live_subscriptions(ctx):
+        local = by_customer.get(subscription.customer)
+        if local is None or ctx.is_deferred(local.profile_id):
+            continue
+
+        tracked = ctx.snapshot.subscriptions.get(local.subscription_id or "")
+        if tracked is not None and tracked.status not in ENDED:
+            message = "Second live subscription in Stripe"
+            cause = (
+                "Two signups raced, or a subscription was created in the Stripe "
+                "dashboard. The member may be charged twice."
+            )
+        else:
+            message = "Billed in Stripe, no subscription here"
+            cause = (
+                "A subscription was created in the Stripe dashboard, or the signup "
+                "failed after Stripe created it. The member is charged but "
+                "MemberMatters doesn't know."
+            )
+        yield Finding(
+            check="untracked_subscription",
+            severity=Severity.CRITICAL,
+            subject=subscription.id,
+            message=message,
+            profile_id=local.profile_id,
+            stripe_ref=subscription.id,
+            mm=(
+                f"{_status_text(local)}, tracks {local.subscription_id}"
+                if local.subscription_id
+                else _status_text(local)
+            ),
+            stripe=f"{subscription.id} is {subscription.status}",
+            cause=cause,
+            action=(
+                "Cancel the extra subscription in Stripe and refund if needed, or "
+                "ask a developer to link it to the member."
+            ),
+        )
+
+
+def orphan_subscription(ctx):
+    customers = {local.customer_id for local in ctx.local if local.customer_id}
+    for subscription in _untracked_live_subscriptions(ctx):
+        if subscription.customer in customers:
+            continue
+        yield Finding(
+            check="orphan_subscription",
+            severity=Severity.CRITICAL,
+            subject=subscription.id,
+            message="Billed in Stripe for no member",
+            stripe_ref=subscription.id,
+            mm=f"no member has customer {subscription.customer}",
+            stripe=f"{subscription.id} is {subscription.status}",
+            cause=(
+                "The member was deleted, or their customer ID was changed, while "
+                "the subscription kept running."
+            ),
+            action=(
+                "Find the customer in Stripe. Cancel the subscription, or restore "
+                "the customer ID on the right member in the Django admin."
+            ),
+        )
+
+
 @dataclasses.dataclass(frozen=True)
 class Check:
     name: str
@@ -461,6 +549,13 @@ CHECKS = (
     Check("plan_mismatch", plan_mismatch, (SUBSCRIPTIONS,)),
     Check("billing_method_mismatch", billing_method_mismatch, (SUBSCRIPTIONS,)),
     Check("inactive_but_billed", inactive_but_billed, (SUBSCRIPTIONS,)),
+    Check("untracked_subscription", untracked_subscription, (SUBSCRIPTIONS,)),
+    Check(
+        "orphan_subscription",
+        orphan_subscription,
+        (SUBSCRIPTIONS,),
+        full_only=True,
+    ),
 )
 
 
