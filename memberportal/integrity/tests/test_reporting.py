@@ -1,4 +1,5 @@
-"""The weekly digest, the management command and the scheduled tasks."""
+"""The weekly digest, the management command, the scheduled tasks and the
+Prometheus gauges."""
 
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -6,8 +7,10 @@ from zoneinfo import ZoneInfo
 import pytest
 from django.core.management import CommandError, call_command
 from django.utils import timezone
+from prometheus_client import CollectorRegistry
 
 from integrity import emails, store, tasks
+from integrity.metrics import LAST_COMPLETE, OPEN_ISSUES, IntegrityCollector
 from integrity.models import IntegrityIssue, IntegrityRun, Severity, Source
 from tests.factories import PaymentPlanFactory, ProfileFactory
 
@@ -170,3 +173,33 @@ def test_delete_old_keeps_the_last_complete_run(db):
 
     assert IntegrityRun.objects.filter(pk=kept.pk).exists()
     assert not IntegrityRun.objects.filter(pk=dropped.pk).exists()
+
+
+def test_the_gauges_report_staleness_and_open_issues(db):
+    finished = timezone.now() - timedelta(hours=5)
+    IntegrityRun.objects.create(
+        trigger=IntegrityRun.Trigger.SCHEDULE,
+        status=IntegrityRun.Status.COMPLETE,
+        finished_at=finished,
+    )
+    issue(Severity.CRITICAL)
+    issue(Severity.CRITICAL)
+    issue(Severity.WARNING, acknowledged_at=timezone.now())
+    registry = CollectorRegistry()
+    registry.register(IntegrityCollector())
+
+    assert registry.get_sample_value(LAST_COMPLETE) == pytest.approx(
+        finished.timestamp()
+    )
+    assert (
+        registry.get_sample_value(
+            OPEN_ISSUES, {"severity": "critical", "source": "legacy"}
+        )
+        == 2
+    )
+    assert (
+        registry.get_sample_value(
+            OPEN_ISSUES, {"severity": "warning", "source": "legacy"}
+        )
+        is None
+    )
