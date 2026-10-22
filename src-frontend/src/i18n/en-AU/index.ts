@@ -28,7 +28,8 @@ export default {
     interlocks: 'Interlocks',
     devices: 'Devices',
     kiosks: 'Kiosks',
-    pendingInvoices: 'Pending Invoices',
+    paymentOverview: 'Payment Overview',
+    pendingInvoices: 'Payment Overview', // old link to the payment overview page
     signupPreview: 'Signup Preview',
     manageDashboard: 'Dashboard Cards',
 
@@ -867,10 +868,14 @@ export default {
     stripeError:
       "Something went wrong talking to our payment provider. Please try again in a moment, or contact us if it doesn't clear up.",
   },
+  paymentOverview: {
+    title: 'Payment Overview',
+    description: 'Outstanding membership payments, grouped by payment method.',
+  },
   pendingInvoices: {
-    title: 'Pending Invoices',
+    title: 'Stripe Subscription Invoices',
     description:
-      'Members with an outstanding invoice for their membership subscription. Use this panel to record payments received outside of Stripe (bank transfer, cash, etc.).',
+      'Members with an outstanding Stripe invoice for their membership subscription. Use Mark as Paid to record payments received outside of Stripe (bank transfer, cash, etc.).',
     invoiceDisabledWarning:
       'Invoice billing is currently disabled, so new members cannot sign up via invoice. Existing invoice subscriptions are still being billed by Stripe — use this page to record off-Stripe payments for those members.',
     noInvoices: 'No pending invoices.',
