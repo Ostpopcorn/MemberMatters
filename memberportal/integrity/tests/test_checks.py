@@ -204,6 +204,49 @@ MEMBER_CASES = [
         id="pending-and-unpaid",
     ),
     pytest.param(
+        "unpaid_but_active",
+        {},
+        {"status": "unpaid"},
+        Severity.WARNING,
+        id="unpaid",
+    ),
+    pytest.param("past_due", {}, {"status": "past_due"}, Severity.INFO, id="past-due"),
+    pytest.param(
+        "past_due",
+        {"status": "pending", "billing_method": "invoice"},
+        {"status": "past_due", "collection_method": "send_invoice"},
+        None,
+        id="overdue-first-invoice",
+    ),
+    pytest.param(
+        "paused_or_incomplete",
+        {},
+        {"status": "paused"},
+        Severity.WARNING,
+        id="paused",
+    ),
+    pytest.param(
+        "plan_mismatch",
+        {},
+        {"price_ids": ("price_yearly",)},
+        Severity.WARNING,
+        id="plan-changed-in-stripe",
+    ),
+    pytest.param(
+        "billing_method_mismatch",
+        {"billing_method": "invoice"},
+        {},
+        Severity.WARNING,
+        id="invoice-here-card-in-stripe",
+    ),
+    pytest.param(
+        "inactive_but_billed",
+        {"member_state": "inactive"},
+        {},
+        Severity.WARNING,
+        id="inactive-but-billed",
+    ),
+    pytest.param(
         "customer_mismatch",
         {},
         {"customer": "cus_erik"},
@@ -227,6 +270,12 @@ def test_member_checks(check, local_overrides, sub_overrides, severity):
         assert finding.profile_id == 1
         assert finding.subject == "profile:1"
         assert finding.message and finding.cause and finding.action
+
+
+def test_each_drift_trips_only_its_own_check():
+    ctx = context([local()], [sub(status="unpaid")])
+
+    assert list(all_findings(ctx)) == [(Source.LEGACY, "unpaid_but_active")]
 
 
 class TestMissingSubscription:

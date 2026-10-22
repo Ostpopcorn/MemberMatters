@@ -41,6 +41,10 @@ def _status_text(local):
     return local.status
 
 
+def _plan_names(ctx):
+    return {plan.stripe_id: plan.name for plan in ctx.plans if plan.stripe_id}
+
+
 def _tracked(ctx):
     """Each member tracking a subscription, with Stripe's copy of it (None if
     Stripe answered 404). Members whose subscription changed too recently to
@@ -268,6 +272,165 @@ def cancel_not_shown(ctx):
         )
 
 
+def unpaid_but_active(ctx):
+    for local, subscription in _tracked(ctx):
+        if subscription is None or subscription.status != "unpaid":
+            continue
+        if local.status not in ("active", "cancelling"):
+            continue
+        yield _finding(
+            "unpaid_but_active",
+            local,
+            Severity.WARNING,
+            f"Unpaid in Stripe, still {local.status} here",
+            mm=local.status,
+            stripe="unpaid: every payment retry failed",
+            cause=(
+                "Stripe kept the subscription as unpaid instead of cancelling it, "
+                "so no webhook ends the membership."
+            ),
+            action=(
+                "Cancel the membership on the member's Billing tab, and check what "
+                "Stripe does after the last retry under Billing → Revenue recovery."
+            ),
+        )
+
+
+def paused_or_incomplete(ctx):
+    for local, subscription in _tracked(ctx):
+        if subscription is None:
+            continue
+        if subscription.status not in ("paused", "incomplete"):
+            continue
+        if local.status not in HAS_SUBSCRIPTION:
+            continue
+        if subscription.status == "paused":
+            cause = (
+                "The subscription was paused in Stripe, so the member isn't "
+                "billed but keeps their membership here."
+            )
+            action = "Resume the subscription in Stripe, or cancel the membership."
+        else:
+            cause = (
+                "The first payment needs action from the member, such as "
+                "confirming their card."
+            )
+            action = (
+                "Ask the member to finish the payment, or cancel the subscription "
+                "in Stripe."
+            )
+        yield _finding(
+            "paused_or_incomplete",
+            local,
+            Severity.WARNING,
+            f"Subscription is {subscription.status} in Stripe",
+            mm=_status_text(local),
+            stripe=subscription.status,
+            cause=cause,
+            action=action,
+        )
+
+
+def past_due(ctx):
+    for local, subscription in _tracked(ctx):
+        if subscription is None or subscription.status != "past_due":
+            continue
+        if local.status not in ("active", "cancelling"):
+            continue
+        yield _finding(
+            "past_due",
+            local,
+            Severity.INFO,
+            "Payment failed, Stripe is retrying",
+            mm=local.status,
+            stripe="past_due",
+            cause=(
+                "The latest payment failed or is overdue. Stripe retries it and "
+                "cancels the subscription if every retry fails."
+            ),
+            action="Nothing to do unless the member asks for help.",
+        )
+
+
+def plan_mismatch(ctx):
+    names = _plan_names(ctx)
+    for local, subscription in _tracked(ctx):
+        if subscription is None or subscription.status in ENDED:
+            continue
+        if not local.price_id or not subscription.price_ids:
+            continue
+        if local.price_id in subscription.price_ids:
+            continue
+        stripe_plans = ", ".join(
+            names.get(price_id, price_id) for price_id in subscription.price_ids
+        )
+        yield _finding(
+            "plan_mismatch",
+            local,
+            Severity.WARNING,
+            "Plan differs from Stripe",
+            mm=names.get(local.price_id, local.price_id),
+            stripe=stripe_plans,
+            cause="The subscription's price was changed in the Stripe dashboard.",
+            action=(
+                "Change the price back in Stripe, or set the member's plan here to "
+                "what they pay, in the Django admin."
+            ),
+        )
+
+
+def billing_method_mismatch(ctx):
+    for local, subscription in _tracked(ctx):
+        if subscription is None or subscription.status in ENDED:
+            continue
+        expected = (
+            "send_invoice"
+            if local.billing_method == "invoice"
+            else "charge_automatically"
+        )
+        if not subscription.collection_method:
+            continue
+        if subscription.collection_method == expected:
+            continue
+        yield _finding(
+            "billing_method_mismatch",
+            local,
+            Severity.WARNING,
+            "Billing method differs from Stripe",
+            mm=f"pays by {local.billing_method}",
+            stripe=f"collection method {subscription.collection_method}",
+            cause="The collection method was changed in the Stripe dashboard.",
+            action=(
+                "Change it back in Stripe, or update the member's billing method in "
+                "the Django admin. It decides which reminders the member gets and "
+                "whether their invoices show under Pending Invoices."
+            ),
+        )
+
+
+def inactive_but_billed(ctx):
+    for local, subscription in _tracked(ctx):
+        if subscription is None or subscription.status != "active":
+            continue
+        if local.member_state != "inactive":
+            continue
+        if local.status not in ("active", "cancelling"):
+            continue
+        yield _finding(
+            "inactive_but_billed",
+            local,
+            Severity.WARNING,
+            "Inactive member is still billed",
+            mm=f"member inactive, subscription {local.status}",
+            stripe="active",
+            cause="The member was deactivated without cancelling their subscription.",
+            action=(
+                "Cancel the membership on the member's Billing tab if they shouldn't "
+                "be charged."
+            ),
+        )
+
+
 @dataclasses.dataclass(frozen=True)
 class Check:
     name: str
@@ -292,6 +455,12 @@ CHECKS = (
     Check("cancel_not_scheduled", cancel_not_scheduled, (SUBSCRIPTIONS,)),
     Check("paid_but_pending", paid_but_pending, (SUBSCRIPTIONS,)),
     Check("cancel_not_shown", cancel_not_shown, (SUBSCRIPTIONS,)),
+    Check("unpaid_but_active", unpaid_but_active, (SUBSCRIPTIONS,)),
+    Check("paused_or_incomplete", paused_or_incomplete, (SUBSCRIPTIONS,)),
+    Check("past_due", past_due, (SUBSCRIPTIONS,)),
+    Check("plan_mismatch", plan_mismatch, (SUBSCRIPTIONS,)),
+    Check("billing_method_mismatch", billing_method_mismatch, (SUBSCRIPTIONS,)),
+    Check("inactive_but_billed", inactive_but_billed, (SUBSCRIPTIONS,)),
 )
 
 
