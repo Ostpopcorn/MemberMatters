@@ -48,6 +48,17 @@ class TestDigest:
         assert mail["HtmlBody"].count("Unpaid in Stripe, still active here") == 2
         assert "1 acknowledged issue not listed" in mail["HtmlBody"]
 
+    def test_says_nothing_about_acknowledged_issues_when_there_are_none(
+        self, billing_on, outbox
+    ):
+        issue(Severity.WARNING)
+
+        emails.send_digest()
+
+        [mail] = admin_mail(outbox)
+        assert "acknowledged" not in mail["HtmlBody"]
+        assert "This week: 1 new, 0 resolved." in mail["HtmlBody"]
+
     @pytest.mark.parametrize(
         "overrides",
         [

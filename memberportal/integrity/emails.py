@@ -271,14 +271,14 @@ def send_digest(now=None):
             f"The last complete check ran on {_when(last_complete.started_at)}."
         )
 
-    summary = (
-        f"This week: {new_this_week} new, {resolved_this_week} resolved. "
-        f"{_plural(acknowledged, 'acknowledged issue')} not listed. {last_run_text}"
-    )
+    summary = [f"This week: {new_this_week} new, {resolved_this_week} resolved."]
+    if acknowledged:
+        summary.append(f"{_plural(acknowledged, 'acknowledged issue')} not listed.")
+    summary.append(last_run_text)
     _send(
         f"Weekly billing check: {_counts_text(counts)} open",
         intro="Membership subscriptions where MemberMatters and Stripe still disagree.",
         issues=listed,
-        summary=summary,
+        summary=" ".join(summary),
     )
     return True
