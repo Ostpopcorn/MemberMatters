@@ -1,14 +1,15 @@
-"""The weekly digest and the scheduled tasks."""
+"""The weekly digest, the management command and the scheduled tasks."""
 
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.core.management import CommandError, call_command
 from django.utils import timezone
 
 from integrity import emails, store, tasks
 from integrity.models import IntegrityIssue, IntegrityRun, Severity, Source
-from tests.factories import ProfileFactory
+from tests.factories import PaymentPlanFactory, ProfileFactory
 
 from .conftest import admin_mail
 
@@ -59,6 +60,58 @@ class TestDigest:
 
         assert emails.send_digest() is False
         assert admin_mail(outbox) == []
+
+
+class TestCommand:
+    def test_refuses_while_the_check_is_off(self, db):
+        with pytest.raises(CommandError, match="billing check is off"):
+            call_command("check_stripe_drift")
+
+    def test_a_dry_run_prints_findings_and_records_nothing(
+        self, billing_on, fake_stripe, capsys
+    ):
+        profile = ProfileFactory(
+            state="active",
+            subscription_status="active",
+            stripe_customer_id="cus_anna",
+            stripe_subscription_id="sub_anna",
+            membership_plan=PaymentPlanFactory(),
+        )
+        fake_stripe.add(
+            "sub_anna", "cus_anna", profile.membership_plan.stripe_id, status="unpaid"
+        )
+
+        call_command("check_stripe_drift", "--dry-run")
+
+        output = capsys.readouterr().out
+        assert "Billing check complete" in output
+        assert "[warning] unpaid_but_active" in output
+        assert IntegrityIssue.objects.count() == 0
+        assert IntegrityRun.objects.count() == 0
+
+    def test_records_a_command_run(self, billing_on, fake_stripe, outbox):
+        call_command("check_stripe_drift", "--no-email")
+
+        run = IntegrityRun.objects.get()
+        assert run.trigger == IntegrityRun.Trigger.COMMAND
+        assert admin_mail(outbox) == []
+
+    def test_checks_one_member(self, billing_on, fake_stripe):
+        profile = ProfileFactory()
+
+        call_command("check_stripe_drift", "--member", str(profile.user_id))
+
+        run = IntegrityRun.objects.get()
+        assert run.trigger == IntegrityRun.Trigger.MEMBER
+        assert run.profile == profile
+
+    def test_a_failed_run_exits_with_an_error(self, billing_on, fake_stripe):
+        import stripe
+
+        fake_stripe.errors["Subscription.list"] = stripe.error.APIError("down")
+
+        with pytest.raises(CommandError, match="failed"):
+            call_command("check_stripe_drift", "--no-email")
 
 
 class TestTasks:
