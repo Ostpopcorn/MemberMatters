@@ -8,10 +8,15 @@ only evidence it's fixed when the check actually looked.
 """
 
 import dataclasses
+from datetime import timedelta
 
 from django.db import transaction
 
 from .models import SEVERITY_RANK, IntegrityIssue, IntegrityRun
+
+# Resolved issues are diagnostic history, so keep them well past the run
+# interval.
+RETENTION = timedelta(days=90)
 
 
 @dataclasses.dataclass
@@ -123,7 +128,29 @@ def open_issues():
     return IntegrityIssue.objects.filter(resolved_at__isnull=True)
 
 
+def delete_old(now):
+    """Drop resolved issues and runs past the retention period, keeping the
+    latest complete run so staleness can always be measured."""
+    cutoff = now - RETENTION
+    IntegrityIssue.objects.filter(resolved_at__lt=cutoff).delete()
+
+    old_runs = IntegrityRun.objects.filter(started_at__lt=cutoff)
+    latest_complete = last_complete_run()
+    if latest_complete is not None:
+        old_runs = old_runs.exclude(pk=latest_complete.pk)
+    old_runs.delete()
+
+
 def full_runs():
     return IntegrityRun.objects.filter(profile__isnull=True).exclude(
         trigger=IntegrityRun.Trigger.MEMBER
+    )
+
+
+def last_complete_run():
+    return (
+        full_runs()
+        .filter(status=IntegrityRun.Status.COMPLETE)
+        .order_by("-finished_at")
+        .first()
     )

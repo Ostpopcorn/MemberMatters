@@ -9,10 +9,12 @@ gets ignored, so a run only emails about what's new:
 - a run that fails or is cut short: one email when the trouble starts, and one
   when a run completes again, not one every night.
 
-Acknowledged issues never cause an email.
+Everything else waits for the weekly digest. Acknowledged issues never cause
+an email.
 """
 
 import logging
+from datetime import timedelta
 
 from django.utils import timezone
 from sentry_sdk import capture_exception
@@ -20,8 +22,8 @@ from sentry_sdk import capture_exception
 from services.emails import send_email_to_admin
 
 from .links import member_url, page_url, stripe_dashboard_url
-from .models import IntegrityRun, Severity
-from .store import full_runs, open_issues
+from .models import IntegrityIssue, IntegrityRun, Severity
+from .store import full_runs, last_complete_run, open_issues
 
 logger = logging.getLogger("integrity")
 
@@ -241,3 +243,42 @@ def send_recovered(run):
             "runs failed or were cut short."
         ),
     )
+
+
+def send_digest(now=None):
+    """The weekly digest of open issues. Sends nothing unless a warning or
+    critical issue is open and unacknowledged. Returns whether it sent."""
+    now = now or timezone.now()
+    issues = list(open_issues().select_related("profile"))
+    needs_attention = [issue for issue in issues if not issue.is_acknowledged]
+    listed = [issue for issue in needs_attention if issue.severity != Severity.INFO]
+    if not listed:
+        return False
+
+    acknowledged = len(issues) - len(needs_attention)
+    counts = _counts(needs_attention)
+    week_ago = now - timedelta(days=7)
+    new_this_week = IntegrityIssue.objects.filter(first_seen__gte=week_ago).count()
+    resolved_this_week = IntegrityIssue.objects.filter(
+        resolved_at__gte=week_ago
+    ).count()
+
+    last_complete = last_complete_run()
+    if last_complete is None:
+        last_run_text = "No billing check has completed yet."
+    else:
+        last_run_text = (
+            f"The last complete check ran on {_when(last_complete.started_at)}."
+        )
+
+    summary = (
+        f"This week: {new_this_week} new, {resolved_this_week} resolved. "
+        f"{_plural(acknowledged, 'acknowledged issue')} not listed. {last_run_text}"
+    )
+    _send(
+        f"Weekly billing check: {_counts_text(counts)} open",
+        intro="Membership subscriptions where MemberMatters and Stripe still disagree.",
+        issues=listed,
+        summary=summary,
+    )
+    return True
