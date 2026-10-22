@@ -11,7 +11,7 @@ from sentry_sdk import capture_exception
 
 from profile.models import Profile
 
-from . import runner
+from . import runner, schedule
 from .links import stripe_dashboard_url, stripe_test_mode
 from .models import IntegrityIssue, IntegrityRun, Severity, Source
 from .sources import SOURCES
@@ -107,11 +107,20 @@ class IntegrityStatus(APIView):
             open_issues().exclude(acknowledged_at__isnull=True).count()
         )
 
+        celery_configured = bool(settings.CELERY_BROKER_URL)
         sources = [Source.ACCOUNT, *(source.name for source in SOURCES)]
         return Response(
             {
                 "enabled": enabled,
-                "celeryConfigured": bool(settings.CELERY_BROKER_URL),
+                "celeryConfigured": celery_configured,
+                "schedule": schedule.describe(),
+                # Nothing runs on schedule without Celery; a cron job running
+                # check_stripe_drift keeps its own times.
+                "nextRun": (
+                    schedule.next_daily_check()
+                    if enabled and celery_configured
+                    else None
+                ),
                 "running": full_runs()
                 .filter(status=IntegrityRun.Status.RUNNING)
                 .exists(),
@@ -235,7 +244,7 @@ class MemberIntegrityIssues(APIView):
     """
     get: A member's open billing integrity issues, acknowledged or not.
     post: Re-checks just this member against Stripe, then returns their open
-    issues. Costs two Stripe requests.
+    issues. Costs at most two Stripe requests.
     """
 
     permission_classes = (permissions.IsAdminUser,)

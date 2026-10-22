@@ -106,6 +106,24 @@ class TestStatus:
         assert body["lastRun"] is None
         assert body["stale"] is True
 
+    def test_reports_the_schedule_and_the_next_run(
+        self, admin_client, billing_on, settings
+    ):
+        body = admin_client.get(STATUS).json()
+
+        assert body["schedule"] == {
+            "dailyCheckAt": "03:15",
+            "weeklyDigestDay": "mon",
+            "weeklyDigestAt": "08:15",
+            "timeZone": settings.TIME_ZONE,
+        }
+        assert body["nextRun"].endswith("Z")
+
+    def test_has_no_next_run_without_celery(self, admin_client, billing_on, settings):
+        settings.CELERY_BROKER_URL = None
+
+        assert admin_client.get(STATUS).json()["nextRun"] is None
+
     def test_is_never_stale_while_the_check_is_off(self, admin_client):
         body = admin_client.get(STATUS).json()
 

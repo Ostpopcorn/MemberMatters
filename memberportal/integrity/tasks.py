@@ -1,7 +1,5 @@
 import logging
-from zoneinfo import ZoneInfo
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django_celery_beat.tzcrontab import TzAwareCrontab
@@ -10,23 +8,22 @@ from membermatters.celeryapp import app
 
 from . import emails, runner, store
 from .models import IntegrityRun
+from .schedule import DAILY_CHECK, WEEKLY_DIGEST, site_time_zone
 
 logger = logging.getLogger("celery:integrity")
 
 
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
-    # In the site's time zone rather than Celery's (UTC unless CELERY_TIMEZONE
-    # is set), so the check runs at night wherever the space is.
-    site_time = ZoneInfo(settings.TIME_ZONE)
+    site_time = site_time_zone()
     sender.add_periodic_task(
-        TzAwareCrontab(minute=15, hour=3, tz=site_time),
+        TzAwareCrontab(**DAILY_CHECK, tz=site_time),
         run_integrity_checks.s(),
         expires=3600,
         name="integrity_daily_checks",
     )
     sender.add_periodic_task(
-        TzAwareCrontab(minute=15, hour=8, day_of_week="mon", tz=site_time),
+        TzAwareCrontab(**WEEKLY_DIGEST, tz=site_time),
         send_integrity_digest.s(),
         expires=3600,
         name="integrity_weekly_digest",

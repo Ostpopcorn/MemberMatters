@@ -1,7 +1,7 @@
 """The weekly digest, the management command, the scheduled tasks and the
 Prometheus gauges."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -9,7 +9,7 @@ from django.core.management import CommandError, call_command
 from django.utils import timezone
 from prometheus_client import CollectorRegistry
 
-from integrity import emails, store, tasks
+from integrity import emails, schedule, store, tasks
 from integrity.metrics import LAST_COMPLETE, OPEN_ISSUES, IntegrityCollector
 from integrity.models import IntegrityIssue, IntegrityRun, Severity, Source
 from tests.factories import PaymentPlanFactory, ProfileFactory
@@ -153,6 +153,21 @@ class TestTasks:
         tasks.run_integrity_checks()
 
         assert fake_stripe.calls == []
+
+
+@pytest.mark.parametrize(
+    "hour,minute,day",
+    [(2, 0, 21), (3, 15, 22), (23, 0, 22)],
+    ids=["before-tonights-run", "at-the-run", "late-evening"],
+)
+def test_the_next_daily_check(settings, hour, minute, day):
+    site_time = ZoneInfo(settings.TIME_ZONE)
+
+    due = schedule.next_daily_check(
+        datetime(2026, 10, 21, hour, minute, tzinfo=site_time)
+    )
+
+    assert due == datetime(2026, 10, day, 3, 15, tzinfo=site_time)
 
 
 def test_delete_old_keeps_the_last_complete_run(db):
