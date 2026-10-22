@@ -1,7 +1,8 @@
 """Runs the integrity checks: fetch Stripe, read MemberMatters, compare, record.
 
-A run only reads. It writes IntegrityRun and IntegrityIssue rows, but never
-changes a member and never calls a Stripe write endpoint.
+A run only reads. It writes IntegrityRun and IntegrityIssue rows and may email
+EMAIL_ADMIN, but never changes a member, never calls a Stripe write endpoint
+and never emails a member.
 """
 
 import dataclasses
@@ -16,6 +17,7 @@ from sentry_sdk import capture_exception
 
 from api_admin_tools.models import PaymentPlan
 
+from . import emails
 from .checks import defer_unsettled, run_checks
 from .data import SUBSCRIPTIONS, CheckContext, PlanInfo
 from .models import IntegrityRun
@@ -90,6 +92,7 @@ def run(
     user=None,
     profile=None,
     dry_run=False,
+    notify=True,
     reader=None,
     sources=SOURCES,
 ):
@@ -97,7 +100,7 @@ def run(
 
     `profile` limits the run to one member: only their customer is fetched,
     account-wide checks are skipped and only their issues can resolve.
-    `dry_run` writes nothing.
+    `dry_run` writes nothing and sends nothing.
     """
     now = timezone.now()
     member_scope = profile is not None
@@ -128,6 +131,8 @@ def run(
     run.finished_at = timezone.now()
     if not dry_run:
         run.save()
+        if notify and run.is_full:
+            emails.after_run(run)
     return outcome
 
 

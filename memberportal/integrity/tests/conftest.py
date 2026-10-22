@@ -203,3 +203,7 @@ def billing_on(db):
         SITE_URL=SITE_URL,
     ):
         yield
+
+
+def admin_mail(outbox):
+    return [message for message in outbox if message["To"] == ADMIN_ADDRESS]

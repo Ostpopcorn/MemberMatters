@@ -1,4 +1,4 @@
-"""A whole run against a fake Stripe: what it records and resolves."""
+"""A whole run against a fake Stripe: what it records, resolves and emails."""
 
 import time
 from datetime import timedelta
@@ -11,9 +11,11 @@ from django.utils import timezone
 
 from integrity import runner
 from integrity.models import IntegrityIssue, IntegrityRun, Severity, Source
+from integrity.store import issue_key
 from profile.models import Profile
 from tests.factories import PaymentPlanFactory, ProfileFactory
 
+from .conftest import ADMIN_ADDRESS, admin_mail
 
 pytestmark = pytest.mark.django_db
 
@@ -296,6 +298,20 @@ class TestMemberRecheck:
         assert IntegrityIssue.objects.get(profile=anna).resolved_at is not None
         assert IntegrityIssue.objects.get(profile=erik).resolved_at is None
 
+    def test_sends_no_email(self, billing_on, fake_stripe, outbox):
+        profile = member()
+        fake_stripe.add(
+            "sub_anna",
+            "cus_anna",
+            profile.membership_plan.stripe_id,
+            status="canceled",
+            canceled_at=1_600_000_000,
+        )
+
+        runner.run(IntegrityRun.Trigger.MEMBER, profile=profile)
+
+        assert admin_mail(outbox) == []
+
 
 class TestReadOnly:
     """A run must never change what it checks. A repair would hide the bug
@@ -303,7 +319,7 @@ class TestReadOnly:
     membership and money."""
 
     def test_changes_no_member_and_writes_nothing_to_stripe(
-        self, billing_on, fake_stripe
+        self, billing_on, fake_stripe, outbox
     ):
         drifted = [
             member("sub_a", "cus_a"),
@@ -325,3 +341,115 @@ class TestReadOnly:
         assert after == before
         assert fake_stripe.writes == []
         assert len(open_checks()) >= 5
+        assert {message["To"] for message in outbox} == {ADMIN_ADDRESS}
+
+
+class TestEmails:
+    def test_the_first_run_sends_one_summary(self, billing_on, fake_stripe, outbox):
+        for n in range(3):
+            profile = member(f"sub_{n}", f"cus_{n}")
+            fake_stripe.add(
+                f"sub_{n}",
+                f"cus_{n}",
+                profile.membership_plan.stripe_id,
+                status="canceled",
+                canceled_at=1,
+            )
+
+        run()
+
+        [mail] = admin_mail(outbox)
+        assert mail["Subject"] == "First billing check: 3 critical"
+        assert (
+            IntegrityIssue.objects.filter(notified_severity=Severity.CRITICAL).count()
+            == 3
+        )
+
+    def test_the_first_run_says_so_when_all_is_well(self, in_sync, outbox):
+        run()
+
+        [mail] = admin_mail(outbox)
+        assert mail["Subject"] == "First billing check: no issues found"
+        assert "found nothing wrong" in mail["HtmlBody"]
+
+    def test_a_new_critical_issue_is_emailed_once(self, in_sync, fake_stripe, outbox):
+        run()
+        outbox.clear()
+        fake_stripe.subscriptions["sub_anna"].update(status="canceled", canceled_at=1)
+
+        run()
+        run()
+
+        [mail] = admin_mail(outbox)
+        assert mail["Subject"] == "Billing check: 1 new critical issue"
+        assert "Cancelled in Stripe, still active here" in mail["HtmlBody"]
+        assert "dashboard.stripe.com/test/subscriptions/sub_anna" in mail["HtmlBody"]
+        assert f"/manage/members/{in_sync.user_id}" in mail["HtmlBody"]
+
+    def test_a_new_warning_waits_for_the_digest(self, in_sync, fake_stripe, outbox):
+        run()
+        outbox.clear()
+        fake_stripe.subscriptions["sub_anna"]["status"] = "unpaid"
+
+        run()
+
+        assert admin_mail(outbox) == []
+
+    def test_an_acknowledged_critical_issue_is_not_emailed(
+        self, in_sync, fake_stripe, outbox
+    ):
+        run()
+        outbox.clear()
+        fake_stripe.subscriptions["sub_anna"].update(status="canceled", canceled_at=1)
+        IntegrityIssue.objects.create(
+            key=issue_key(Source.LEGACY, "ended_in_stripe", f"profile:{in_sync.pk}"),
+            check_name="ended_in_stripe",
+            severity=Severity.CRITICAL,
+            source=Source.LEGACY,
+            message="Cancelled in Stripe, still active here",
+            profile=in_sync,
+            acknowledged_at=timezone.now(),
+        )
+
+        run()
+
+        issue = IntegrityIssue.objects.get()
+        assert issue.resolved_at is None
+        assert issue.occurrences == 2
+        assert admin_mail(outbox) == []
+
+    def test_a_failing_streak_emails_at_its_start_and_end(
+        self, in_sync, fake_stripe, outbox
+    ):
+        run()
+        outbox.clear()
+        fake_stripe.errors["Subscription.list"] = stripe.error.AuthenticationError(
+            "bad key"
+        )
+
+        run()
+        run()
+        del fake_stripe.errors["Subscription.list"]
+        run()
+
+        assert [mail["Subject"] for mail in admin_mail(outbox)] == [
+            "Billing check failed",
+            "Billing check is working again",
+        ]
+        assert "Stripe refused the secret key" in admin_mail(outbox)[0]["HtmlBody"]
+
+    def test_issue_text_is_escaped(self, billing_on, fake_stripe, outbox):
+        profile = member(first_name="<b>Anna</b>")
+        fake_stripe.add(
+            "sub_anna",
+            "cus_anna",
+            profile.membership_plan.stripe_id,
+            status="canceled",
+            canceled_at=1,
+        )
+
+        run()
+
+        [mail] = admin_mail(outbox)
+        assert "<b>Anna</b>" not in mail["HtmlBody"]
+        assert "&lt;b&gt;Anna&lt;/b&gt;" in mail["HtmlBody"]
