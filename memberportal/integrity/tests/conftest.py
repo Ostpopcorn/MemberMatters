@@ -8,9 +8,11 @@ to fail the test outright: a run must only read.
 
 import pytest
 import stripe
+from constance.test import override_config
 
 from api_admin_tools.models import PaymentPlan
 
+ADMIN_ADDRESS = "admin@example.com"
 SITE_URL = "https://portal.example.org"
 WEBHOOK_URL = f"{SITE_URL}/api/billing/stripe-webhook/"
 
@@ -182,3 +184,22 @@ def fake_stripe(monkeypatch):
 
             monkeypatch.setattr(cls, name, write)
     return fake
+
+
+@pytest.fixture
+def billing_on(db):
+    """Turn on membership billing with a test key, so the check runs.
+
+    BILLING_AUDIT_MAX_RPS is raised so the throttle doesn't slow the suite;
+    the throttle itself is tested with a fake clock.
+    """
+    with override_config(
+        ENABLE_STRIPE=True,
+        ENABLE_STRIPE_MEMBERSHIP_PAYMENTS=True,
+        STRIPE_SECRET_KEY="sk_test_integrity",
+        BILLING_AUDIT_ENABLED=True,
+        BILLING_AUDIT_MAX_RPS=10_000,
+        EMAIL_ADMIN=ADMIN_ADDRESS,
+        SITE_URL=SITE_URL,
+    ):
+        yield
