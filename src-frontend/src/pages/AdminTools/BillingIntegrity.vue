@@ -26,6 +26,9 @@
                 {{ formatDate(status.lastRun.startedAt) }}
                 <q-badge
                   :color="runStatusColor(status.lastRun.status)"
+                  :text-color="
+                    textColorOn(runStatusColor(status.lastRun.status))
+                  "
                   class="q-ml-xs"
                 >
                   {{ runStatusLabel(status.lastRun.status) }}
@@ -70,7 +73,7 @@
           v-for="severity in severities"
           :key="severity"
           :color="severityColor(severity)"
-          text-color="white"
+          :text-color="textColorOn(severityColor(severity))"
         >
           {{ severityLabel(severity) }}: {{ status.counts[severity] }}
         </q-chip>
@@ -159,7 +162,10 @@
               :name="props.expand ? 'mdi-chevron-down' : 'mdi-chevron-right'"
               class="q-mr-xs"
             />
-            <q-badge :color="severityColor(props.row.severity)">
+            <q-badge
+              :color="severityColor(props.row.severity)"
+              :text-color="textColorOn(severityColor(props.row.severity))"
+            >
               {{ severityLabel(props.row.severity) }}
             </q-badge>
           </q-td>
@@ -241,7 +247,10 @@
           <q-card flat bordered class="full-height column">
             <q-card-section class="q-pb-sm">
               <div class="row items-center q-gutter-x-sm">
-                <q-badge :color="severityColor(props.row.severity)">
+                <q-badge
+                  :color="severityColor(props.row.severity)"
+                  :text-color="textColorOn(severityColor(props.row.severity))"
+                >
                   {{ severityLabel(props.row.severity) }}
                 </q-badge>
                 <router-link
@@ -374,6 +383,7 @@ import {
   severityColor,
   severityLabel,
   statusBanners,
+  textColorOn,
   StatusBanner,
 } from '../../utils/billingIntegrity';
 
@@ -524,6 +534,7 @@ export default defineComponent({
     seenIn,
     severityColor,
     severityLabel,
+    textColorOn,
     refresh() {
       this.fetchStatus();
       this.fetchIssues();
@@ -601,7 +612,6 @@ export default defineComponent({
         .post('/api/admin/billing/integrity/run/')
         .then(() => {
           this.$q.notify({
-            type: 'info',
             message:
               'The check has started. This page updates when it finishes.',
           });

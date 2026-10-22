@@ -10,6 +10,7 @@ import {
   seenIn,
   severityColor,
   severityLabel,
+  textColorOn,
   skippedReasons,
   statusBanners,
 } from './billingIntegrity';
@@ -250,5 +251,14 @@ describe('runFinished', () => {
 
   it('counts the first run ever', () => {
     expect(runFinished(null, status({ lastRun: run({ id: 1 }) }))).toBe(true);
+  });
+});
+
+describe('textColorOn', () => {
+  it('puts dark text on the light colors and white on the rest', () => {
+    expect(textColorOn('warning')).toBe('dark');
+    expect(textColorOn('info')).toBe('dark');
+    expect(textColorOn('negative')).toBe('white');
+    expect(textColorOn('positive')).toBe('white');
   });
 });

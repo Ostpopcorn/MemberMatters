@@ -33,6 +33,11 @@ export function severityColor(severity: Severity): string {
   return SEVERITY_COLORS[severity] ?? 'grey';
 }
 
+// White text is hard to read on Quasar's yellow warning and light blue info.
+export function textColorOn(color: string): string {
+  return color === 'warning' || color === 'info' ? 'dark' : 'white';
+}
+
 const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   running: 'Running',
   complete: 'Complete',
