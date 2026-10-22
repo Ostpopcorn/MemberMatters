@@ -85,60 +85,203 @@
       :columns="columns"
       row-key="id"
       :loading="loading"
-      no-data-label="No open issues."
+      :no-data-label="noIssuesLabel"
       :pagination="{ rowsPerPage: 25 }"
       flat
       bordered
     >
-      <template v-slot:body-cell-severity="props">
-        <q-td :props="props">
-          <q-badge :color="severityColor(props.row.severity)">
-            {{ severityLabel(props.row.severity) }}
-          </q-badge>
-        </q-td>
-      </template>
-
-      <template v-slot:body-cell-member="props">
-        <q-td :props="props">
-          <router-link
-            v-if="props.row.memberId"
-            :to="{
-              name: 'manageMember',
-              params: { memberId: props.row.memberId },
-            }"
-          >
-            {{ props.row.memberName }}
-          </router-link>
-          <span v-else class="text-grey-7">Stripe account</span>
-        </q-td>
-      </template>
-
-      <template v-slot:body-cell-firstSeen="props">
-        <q-td :props="props">
-          {{ formatDate(props.row.firstSeen) }}
-          <div class="text-caption text-grey-7">
-            {{ seenIn(props.row.occurrences) }}
-          </div>
-        </q-td>
-      </template>
-
-      <template v-slot:body-cell-actions="props">
-        <q-td :props="props">
-          <q-btn
-            v-if="props.row.stripeUrl"
-            flat
+      <template v-slot:top>
+        <div class="row q-gutter-sm items-center full-width">
+          <q-select
+            v-model="filters.status"
+            :options="statusOptions"
+            label="Show"
+            emit-value
+            map-options
+            outlined
             dense
-            color="primary"
-            icon="mdi-open-in-new"
-            label="Open in Stripe"
-            type="a"
-            :href="props.row.stripeUrl"
-            target="_blank"
-            rel="noopener"
+            style="min-width: 200px"
+            @update:model-value="fetchIssues"
           />
-        </q-td>
+          <q-select
+            v-model="filters.severity"
+            :options="severityOptions"
+            label="Severity"
+            emit-value
+            map-options
+            outlined
+            dense
+            style="min-width: 140px"
+            @update:model-value="fetchIssues"
+          />
+          <q-select
+            v-if="sourceOptions.length > 3"
+            v-model="filters.source"
+            :options="sourceOptions"
+            label="Source"
+            emit-value
+            map-options
+            outlined
+            dense
+            style="min-width: 160px"
+            @update:model-value="fetchIssues"
+          />
+          <q-space />
+          <q-btn
+            color="primary"
+            icon="mdi-play"
+            label="Run now"
+            :loading="runQueued"
+            :disable="!status?.enabled"
+            @click="runNow"
+          />
+        </div>
+      </template>
+
+      <template v-slot:body="props">
+        <q-tr
+          :props="props"
+          class="cursor-pointer"
+          @click="props.expand = !props.expand"
+        >
+          <q-td key="severity" :props="props">
+            <q-icon
+              :name="props.expand ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+              class="q-mr-xs"
+            />
+            <q-badge :color="severityColor(props.row.severity)">
+              {{ severityLabel(props.row.severity) }}
+            </q-badge>
+          </q-td>
+          <q-td key="member" :props="props">
+            <router-link
+              v-if="props.row.memberId"
+              :to="{
+                name: 'manageMember',
+                params: { memberId: props.row.memberId },
+              }"
+              @click.stop
+            >
+              {{ props.row.memberName }}
+            </router-link>
+            <span v-else class="text-grey-7">Stripe account</span>
+          </q-td>
+          <q-td key="message" :props="props">{{ props.row.message }}</q-td>
+          <q-td key="mm" :props="props">{{ props.row.mm || '—' }}</q-td>
+          <q-td key="stripe" :props="props">{{ props.row.stripe || '—' }}</q-td>
+          <q-td key="firstSeen" :props="props">
+            {{ formatDate(props.row.firstSeen) }}
+            <div class="text-caption text-grey-7">
+              {{ seenIn(props.row.occurrences) }}
+            </div>
+          </q-td>
+          <q-td key="actions" :props="props">
+            <q-btn
+              v-if="props.row.stripeUrl"
+              flat
+              dense
+              color="primary"
+              icon="mdi-open-in-new"
+              label="Open in Stripe"
+              type="a"
+              :href="props.row.stripeUrl"
+              target="_blank"
+              rel="noopener"
+              @click.stop
+            />
+            <template v-if="!props.row.resolvedAt">
+              <q-btn
+                v-if="props.row.acknowledged"
+                flat
+                dense
+                icon="mdi-undo"
+                label="Withdraw"
+                @click.stop="withdraw(props.row)"
+              />
+              <q-btn
+                v-else
+                flat
+                dense
+                color="positive"
+                icon="mdi-check"
+                label="Acknowledge"
+                @click.stop="openAcknowledge(props.row)"
+              />
+            </template>
+          </q-td>
+        </q-tr>
+        <q-tr v-show="props.expand" :props="props">
+          <q-td colspan="100%" style="white-space: normal">
+            <div class="q-pa-sm q-gutter-y-xs">
+              <div v-if="props.row.cause">
+                <strong>Likely cause:</strong> {{ props.row.cause }}
+              </div>
+              <div v-if="props.row.action">
+                <strong>Next step:</strong> {{ props.row.action }}
+              </div>
+              <div v-if="issueEvents(props.row).length">
+                <strong>Events:</strong>
+                <ul class="q-my-none">
+                  <li v-for="event in issueEvents(props.row)" :key="event.id">
+                    {{ event.type }} · {{ event.id }}
+                    <span v-if="event.customer">· {{ event.customer }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div v-if="props.row.acknowledgedAt" class="text-grey-7">
+                Acknowledged by {{ props.row.acknowledgedBy || '—' }} on
+                {{ formatDate(props.row.acknowledgedAt)
+                }}<span v-if="props.row.notes">: {{ props.row.notes }}</span>
+              </div>
+              <div v-if="props.row.resolvedAt" class="text-grey-7">
+                Resolved on {{ formatDate(props.row.resolvedAt) }}
+              </div>
+              <div class="text-caption text-grey-7">
+                Check: {{ props.row.check }}
+              </div>
+            </div>
+          </q-td>
+        </q-tr>
       </template>
     </q-table>
+
+    <q-dialog v-model="acknowledgeDialog">
+      <q-card style="min-width: 350px; max-width: 500px">
+        <q-card-section>
+          <div class="text-h6">Acknowledge issue</div>
+        </q-card-section>
+
+        <q-card-section v-if="selectedIssue" class="q-pt-none">
+          <div class="q-mb-sm">
+            <strong>{{ selectedIssue.memberName || 'Stripe account' }}</strong>
+            — {{ selectedIssue.message }}
+          </div>
+          <p class="text-caption text-grey-7 q-mb-md">
+            An acknowledged issue stays here until the check no longer finds it,
+            but doesn't cause any more emails. Say why, for the other admins.
+          </p>
+          <q-input
+            v-model="note"
+            type="textarea"
+            rows="3"
+            outlined
+            label="Note (optional)"
+            maxlength="1000"
+            counter
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup :disable="submitting" />
+          <q-btn
+            color="positive"
+            label="Acknowledge"
+            :loading="submitting"
+            @click="confirmAcknowledge"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -153,8 +296,11 @@ import type {
 } from 'types/billingIntegrity';
 import {
   SEVERITIES,
+  apiMessage,
   bannerText,
   compareIssues,
+  issueEvents,
+  runFinished,
   runStatusLabel,
   scheduleText,
   seenIn,
@@ -164,6 +310,10 @@ import {
   StatusBanner,
 } from '../../utils/billingIntegrity';
 
+// How often, and how many times, to look for the end of a queued run.
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLLS = 24;
+
 const RUN_STATUS_COLORS: Record<RunStatus, string> = {
   running: 'info',
   complete: 'positive',
@@ -172,6 +322,13 @@ const RUN_STATUS_COLORS: Record<RunStatus, string> = {
 };
 
 const FETCH_ERROR = "Couldn't load the billing check.";
+const UPDATE_ERROR = "Couldn't update the issue.";
+
+const NO_ISSUES: Record<string, string> = {
+  open: 'No open issues.',
+  acknowledged: 'No acknowledged issues.',
+  resolved: 'No issues resolved in the last 90 days.',
+};
 
 export default defineComponent({
   name: 'BillingIntegrity',
@@ -181,6 +338,13 @@ export default defineComponent({
       status: null as IntegrityStatus | null,
       issues: [] as IntegrityIssue[],
       loading: false,
+      filters: { status: 'open', severity: '', source: '' },
+      acknowledgeDialog: false,
+      selectedIssue: null as IntegrityIssue | null,
+      note: '',
+      submitting: false,
+      runQueued: false,
+      pollTimer: null as ReturnType<typeof setTimeout> | null,
     };
   },
   computed: {
@@ -189,6 +353,37 @@ export default defineComponent({
     },
     banners(): StatusBanner[] {
       return this.status ? statusBanners(this.status) : [];
+    },
+    statusOptions() {
+      return [
+        { label: 'Open', value: 'open' },
+        { label: 'Acknowledged', value: 'acknowledged' },
+        { label: 'Resolved in the last 90 days', value: 'resolved' },
+      ];
+    },
+    severityOptions() {
+      return [
+        { label: 'All', value: '' },
+        ...SEVERITIES.map((severity) => ({
+          label: severityLabel(severity),
+          value: severity,
+        })),
+      ];
+    },
+    // Offered only once a second local source exists, beside the Stripe
+    // account checks.
+    sourceOptions() {
+      const sources = this.status?.sources ?? [];
+      return [
+        { label: 'All', value: '' },
+        ...sources.map((source) => ({
+          label: source.label,
+          value: source.value,
+        })),
+      ];
+    },
+    noIssuesLabel(): string {
+      return NO_ISSUES[this.filters.status] ?? NO_ISSUES.open;
     },
     columns() {
       return [
@@ -242,8 +437,12 @@ export default defineComponent({
   mounted() {
     this.refresh();
   },
+  beforeUnmount() {
+    this.stopPolling();
+  },
   methods: {
     bannerText,
+    issueEvents,
     runStatusLabel,
     scheduleText,
     seenIn,
@@ -265,8 +464,11 @@ export default defineComponent({
     },
     fetchIssues() {
       this.loading = true;
+      const params = Object.fromEntries(
+        Object.entries(this.filters).filter(([, value]) => value)
+      );
       this.$axios
-        .get('/api/admin/billing/integrity/issues/')
+        .get('/api/admin/billing/integrity/issues/', { params })
         .then((response) => {
           this.issues = [...response.data].sort(compareIssues);
         })
@@ -276,6 +478,93 @@ export default defineComponent({
         .finally(() => {
           this.loading = false;
         });
+    },
+    openAcknowledge(issue: IntegrityIssue) {
+      this.selectedIssue = issue;
+      this.note = '';
+      this.acknowledgeDialog = true;
+    },
+    confirmAcknowledge() {
+      if (!this.selectedIssue) return;
+      this.submitting = true;
+      this.$axios
+        .post(
+          `/api/admin/billing/integrity/issues/${this.selectedIssue.id}/acknowledge/`,
+          { note: this.note }
+        )
+        .then(() => {
+          this.$q.notify({ type: 'positive', message: 'Issue acknowledged.' });
+          this.acknowledgeDialog = false;
+          this.refresh();
+        })
+        .catch(() => {
+          this.$q.notify({ type: 'negative', message: UPDATE_ERROR });
+        })
+        .finally(() => {
+          this.submitting = false;
+        });
+    },
+    withdraw(issue: IntegrityIssue) {
+      this.$axios
+        .delete(`/api/admin/billing/integrity/issues/${issue.id}/acknowledge/`)
+        .then(() => {
+          this.$q.notify({
+            type: 'positive',
+            message: 'Acknowledgement withdrawn.',
+          });
+          this.refresh();
+        })
+        .catch(() => {
+          this.$q.notify({ type: 'negative', message: UPDATE_ERROR });
+        });
+    },
+    runNow() {
+      const previousRunId = this.status?.lastRun?.id ?? null;
+      this.runQueued = true;
+      this.$axios
+        .post('/api/admin/billing/integrity/run/')
+        .then(() => {
+          this.$q.notify({
+            type: 'info',
+            message:
+              'The check has started. This page updates when it finishes.',
+          });
+          this.pollForRun(previousRunId, 0);
+        })
+        .catch((error) => {
+          this.$q.notify({
+            type: 'negative',
+            message: apiMessage(
+              error.response?.data?.message,
+              "Couldn't start the check."
+            ),
+          });
+          this.runQueued = false;
+        });
+    },
+    pollForRun(previousRunId: number | null, polls: number) {
+      this.pollTimer = setTimeout(() => {
+        this.$axios
+          .get('/api/admin/billing/integrity/')
+          .then((response) => {
+            this.status = response.data;
+            if (this.status && runFinished(previousRunId, this.status)) {
+              this.runQueued = false;
+              this.fetchIssues();
+            } else if (polls + 1 < MAX_POLLS) {
+              this.pollForRun(previousRunId, polls + 1);
+            } else {
+              this.runQueued = false;
+            }
+          })
+          .catch(() => {
+            this.runQueued = false;
+          });
+      }, POLL_INTERVAL_MS);
+    },
+    stopPolling() {
+      if (this.pollTimer) clearTimeout(this.pollTimer);
+      this.pollTimer = null;
     },
     runStatusColor(status: RunStatus): string {
       return RUN_STATUS_COLORS[status] ?? 'grey';

@@ -121,6 +121,38 @@ export function bannerText(
   }
 }
 
+// What the API's error codes mean.
+const API_MESSAGES: Record<string, string> = {
+  'billingIntegrity.disabled': CHECK_OFF,
+  'billingIntegrity.noCelery': NO_CELERY,
+  'billingIntegrity.alreadyRunning': 'A check is already running.',
+};
+
+export function apiMessage(code: unknown, fallback: string): string {
+  return (typeof code === 'string' && API_MESSAGES[code]) || fallback;
+}
+
+export interface UndeliveredEvent {
+  id: string;
+  type: string;
+  customer: string | null;
+}
+
+// The Stripe events an undelivered-events issue lists, if any.
+export function issueEvents(issue: IntegrityIssue): UndeliveredEvent[] {
+  const events = issue.extra?.events;
+  return Array.isArray(events) ? (events as UndeliveredEvent[]) : [];
+}
+
+// Whether a run queued after `previousRunId` has finished.
+export function runFinished(
+  previousRunId: number | null,
+  status: IntegrityStatus
+): boolean {
+  const run = status.lastRun;
+  return !!run && run.id !== previousRunId && run.status !== 'running';
+}
+
 // Why a run skipped checks, each reason once.
 export function skippedReasons(run: IntegrityRun | null): string {
   if (!run) return '';

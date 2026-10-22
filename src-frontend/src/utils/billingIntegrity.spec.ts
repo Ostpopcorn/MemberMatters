@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  apiMessage,
   bannerText,
   compareIssues,
+  issueEvents,
+  runFinished,
   runStatusLabel,
   scheduleText,
   seenIn,
@@ -195,5 +198,57 @@ describe('bannerText', () => {
     expect(bannerText('lastRunIncomplete', incomplete)).toBe(
       'The last check skipped some checks: down'
     );
+  });
+});
+
+describe('apiMessage', () => {
+  it('explains a known error code', () => {
+    expect(apiMessage('billingIntegrity.alreadyRunning', 'fallback')).toBe(
+      'A check is already running.'
+    );
+  });
+
+  it('falls back for anything else', () => {
+    expect(apiMessage(undefined, 'fallback')).toBe('fallback');
+    expect(apiMessage('billing.other', 'fallback')).toBe('fallback');
+  });
+});
+
+describe('issueEvents', () => {
+  it('lists the events an undelivered-events issue carries', () => {
+    const events = [
+      { id: 'evt_1', type: 'invoice.paid', customer: 'cus_1' },
+      { id: 'evt_2', type: 'customer.subscription.deleted', customer: null },
+    ];
+
+    expect(issueEvents(issue({ extra: { events } }))).toEqual(events);
+  });
+
+  it('is empty for other issues', () => {
+    expect(issueEvents(issue({ extra: { differences: ['amount'] } }))).toEqual(
+      []
+    );
+  });
+});
+
+describe('runFinished', () => {
+  it('waits until the queued run has started', () => {
+    expect(runFinished(1, status({ lastRun: run({ id: 1 }) }))).toBe(false);
+  });
+
+  it('waits while the queued run is running', () => {
+    expect(
+      runFinished(1, status({ lastRun: run({ id: 2, status: 'running' }) }))
+    ).toBe(false);
+  });
+
+  it('is done once a newer run has finished', () => {
+    expect(
+      runFinished(1, status({ lastRun: run({ id: 2, status: 'failed' }) }))
+    ).toBe(true);
+  });
+
+  it('counts the first run ever', () => {
+    expect(runFinished(null, status({ lastRun: run({ id: 1 }) }))).toBe(true);
   });
 });
