@@ -87,6 +87,7 @@
       :loading="loading"
       :no-data-label="noIssuesLabel"
       :pagination="{ rowsPerPage: 25 }"
+      :grid="view === 'cards'"
       flat
       bordered
     >
@@ -127,6 +128,15 @@
             @update:model-value="fetchIssues"
           />
           <q-space />
+          <q-btn-toggle
+            v-model="view"
+            :options="viewOptions"
+            no-caps
+            unelevated
+            toggle-color="primary"
+            color="grey-3"
+            text-color="dark"
+          />
           <q-btn
             color="primary"
             icon="mdi-play"
@@ -212,36 +222,84 @@
         </q-tr>
         <q-tr v-show="props.expand" :props="props">
           <q-td colspan="100%" style="white-space: normal">
-            <div class="q-pa-sm q-gutter-y-xs">
-              <div v-if="props.row.cause">
-                <strong>Likely cause:</strong> {{ props.row.cause }}
-              </div>
-              <div v-if="props.row.action">
-                <strong>Next step:</strong> {{ props.row.action }}
-              </div>
-              <div v-if="issueEvents(props.row).length">
-                <strong>Events:</strong>
-                <ul class="q-my-none">
-                  <li v-for="event in issueEvents(props.row)" :key="event.id">
-                    {{ event.type }} · {{ event.id }}
-                    <span v-if="event.customer">· {{ event.customer }}</span>
-                  </li>
-                </ul>
-              </div>
-              <div v-if="props.row.acknowledgedAt" class="text-grey-7">
-                Acknowledged by {{ props.row.acknowledgedBy || '—' }} on
-                {{ formatDate(props.row.acknowledgedAt)
-                }}<span v-if="props.row.notes">: {{ props.row.notes }}</span>
-              </div>
-              <div v-if="props.row.resolvedAt" class="text-grey-7">
-                Resolved on {{ formatDate(props.row.resolvedAt) }}
-              </div>
-              <div class="text-caption text-grey-7">
-                Check: {{ props.row.check }}
-              </div>
-            </div>
+            <billing-issue-details :issue="props.row" class="q-pa-sm" />
           </q-td>
         </q-tr>
+      </template>
+
+      <template v-slot:item="props">
+        <div class="q-pa-xs col-12 col-md-6">
+          <q-card flat bordered class="full-height column">
+            <q-card-section class="q-pb-sm">
+              <div class="row items-center q-gutter-x-sm">
+                <q-badge :color="severityColor(props.row.severity)">
+                  {{ severityLabel(props.row.severity) }}
+                </q-badge>
+                <router-link
+                  v-if="props.row.memberId"
+                  :to="{
+                    name: 'manageMember',
+                    params: { memberId: props.row.memberId },
+                  }"
+                >
+                  {{ props.row.memberName }}
+                </router-link>
+                <span v-else class="text-grey-7">Stripe account</span>
+              </div>
+              <div class="text-subtitle1 q-mt-xs">{{ props.row.message }}</div>
+            </q-card-section>
+
+            <q-card-section class="q-py-none col-grow">
+              <div>
+                <span class="text-grey-7">MemberMatters says:</span>
+                {{ props.row.mm || '—' }}
+              </div>
+              <div class="q-mb-sm">
+                <span class="text-grey-7">Stripe says:</span>
+                {{ props.row.stripe || '—' }}
+              </div>
+              <billing-issue-details :issue="props.row" />
+              <div class="text-caption text-grey-7 q-mt-xs">
+                First seen {{ formatDate(props.row.firstSeen) }},
+                {{ seenIn(props.row.occurrences) }}
+              </div>
+            </q-card-section>
+
+            <q-card-actions align="right">
+              <q-btn
+                v-if="props.row.stripeUrl"
+                flat
+                dense
+                color="primary"
+                icon="mdi-open-in-new"
+                label="Open in Stripe"
+                type="a"
+                :href="props.row.stripeUrl"
+                target="_blank"
+                rel="noopener"
+              />
+              <template v-if="!props.row.resolvedAt">
+                <q-btn
+                  v-if="props.row.acknowledged"
+                  flat
+                  dense
+                  icon="mdi-undo"
+                  label="Withdraw"
+                  @click="withdraw(props.row)"
+                />
+                <q-btn
+                  v-else
+                  flat
+                  dense
+                  color="positive"
+                  icon="mdi-check"
+                  label="Acknowledge"
+                  @click="openAcknowledge(props.row)"
+                />
+              </template>
+            </q-card-actions>
+          </q-card>
+        </div>
       </template>
     </q-table>
 
@@ -288,6 +346,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 import formatMixin from '@mixins/formatMixin';
+import BillingIssueDetails from '@components/AdminTools/BillingIssueDetails.vue';
 import type {
   IntegrityIssue,
   IntegrityStatus,
@@ -299,7 +358,6 @@ import {
   apiMessage,
   bannerText,
   compareIssues,
-  issueEvents,
   runFinished,
   runStatusLabel,
   scheduleText,
@@ -332,9 +390,13 @@ const NO_ISSUES: Record<string, string> = {
 
 export default defineComponent({
   name: 'BillingIntegrity',
+  components: { BillingIssueDetails },
   mixins: [formatMixin],
   data() {
     return {
+      // Cards suit a phone; the table suits a wide screen. Either can be
+      // picked with the toggle.
+      view: this.$q.screen.lt.md ? 'cards' : 'table',
       status: null as IntegrityStatus | null,
       issues: [] as IntegrityIssue[],
       loading: false,
@@ -380,6 +442,12 @@ export default defineComponent({
           label: source.label,
           value: source.value,
         })),
+      ];
+    },
+    viewOptions() {
+      return [
+        { label: 'Table', value: 'table', icon: 'mdi-table' },
+        { label: 'Cards', value: 'cards', icon: 'mdi-view-agenda-outline' },
       ];
     },
     noIssuesLabel(): string {
@@ -442,7 +510,6 @@ export default defineComponent({
   },
   methods: {
     bannerText,
-    issueEvents,
     runStatusLabel,
     scheduleText,
     seenIn,
