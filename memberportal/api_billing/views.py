@@ -312,6 +312,11 @@ class PaymentPlanSignup(StripeAPIView):
             subscription_params = {
                 "customer": request.user.profile.stripe_customer_id,
                 "items": [{"price": new_plan.stripe_id}],
+                # From 2025-09-30.clover Stripe creates subscriptions in
+                # flexible billing mode unless told otherwise. Subscriptions
+                # created before that are classic, so new ones are too, and
+                # every member is billed the same way.
+                "billing_mode": {"type": "classic"},
             }
             if billing_method == "invoice":
                 subscription_params["collection_method"] = "send_invoice"
