@@ -58,7 +58,7 @@ def ensure_stripe_customer(user):
                 if not customer.get("deleted"):
                     user.profile.stripe_customer_id = profile.stripe_customer_id
                     return True, None
-            except stripe.error.InvalidRequestError:
+            except stripe.InvalidRequestError:
                 profile.stripe_customer_id = None
                 profile.save(update_fields=["stripe_customer_id"])
 
@@ -78,7 +78,7 @@ def ensure_stripe_customer(user):
                 "stripe",
             )
             return True, None
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             capture_exception(e)
             user.log_event("Error while creating stripe customer.", "stripe", str(e))
             return False, "billing.stripeError"
@@ -114,7 +114,7 @@ class MemberBucksAddCard(StripeAPIView):
             intent = stripe.SetupIntent.create(
                 customer=request.user.profile.stripe_customer_id
             )
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             capture_exception(e)
             request.user.log_event(
                 "Stripe error while creating SetupIntent.", "stripe", str(e)
@@ -147,7 +147,7 @@ class MemberBucksAddCard(StripeAPIView):
                     profile.stripe_customer_id,
                     invoice_settings={"default_payment_method": payment_method_id},
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 request.user.log_event(
                     "Stripe error while attaching payment method.",
@@ -211,10 +211,10 @@ class MemberBucksAddCard(StripeAPIView):
             if profile.stripe_payment_method_id:
                 try:
                     stripe.PaymentMethod.detach(profile.stripe_payment_method_id)
-                except stripe.error.InvalidRequestError:
+                except stripe.InvalidRequestError:
                     # Already detached / unknown — fall through to DB cleanup.
                     pass
-                except stripe.error.StripeError as e:
+                except stripe.StripeError as e:
                     capture_exception(e)
                     request.user.log_event(
                         "Stripe error while detaching payment method.",
@@ -340,7 +340,7 @@ class PaymentPlanSignup(StripeAPIView):
                 )
                 try:
                     stripe.Invoice.finalize_invoice(latest_invoice_id)
-                except stripe.error.StripeError as e:
+                except stripe.StripeError as e:
                     capture_exception(e)
                     request.user.log_event(
                         "Failed to finalize invoice immediately; "
@@ -351,7 +351,7 @@ class PaymentPlanSignup(StripeAPIView):
 
             return subscription, None
 
-        except stripe.error.InvalidRequestError as e:
+        except stripe.InvalidRequestError as e:
             capture_exception(e)
             error = (e.json_body or {}).get("error") or {}
             error_code = error.get("code", "")
@@ -815,7 +815,7 @@ class SubscriptionInfo(StripeAPIView):
                     request.user.profile.stripe_subscription_id,
                     expand=["latest_invoice"],
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 # Degrade gracefully rather than 500 when Stripe is slow/down.
                 capture_exception(e)
                 return Response({"success": False, "unavailable": True})
@@ -885,7 +885,7 @@ def _cancel_failed_subscription(user, subscription_id):
     Stripe failure, alerts admin to delete it manually."""
     try:
         stripe.Subscription.delete(subscription_id, invoice_now=False, prorate=False)
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         capture_exception(e)
         user.log_event(
             f"Failed to cancel orphaned subscription {subscription_id}.",
@@ -1076,7 +1076,7 @@ class PaymentPlanResume(StripeAPIView):
                     locked_profile.stripe_subscription_id,
                     cancel_at_period_end=False,
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 request.user.log_event(
                     "Stripe error while resuming cancelling subscription.",
@@ -1237,7 +1237,7 @@ class PaymentPlanCancel(StripeAPIView):
                         for invoice in open_invoices.auto_paging_iter():
                             try:
                                 stripe.Invoice.void_invoice(invoice.id)
-                            except stripe.error.StripeError as e:
+                            except stripe.StripeError as e:
                                 capture_exception(e)
                                 user.log_event(
                                     f"Failed to void open invoice "
@@ -1248,7 +1248,7 @@ class PaymentPlanCancel(StripeAPIView):
                         stripe.Subscription.delete(
                             subscription_id, invoice_now=False, prorate=False
                         )
-                    except stripe.error.StripeError as e:
+                    except stripe.StripeError as e:
                         capture_exception(e)
                         user.log_event(
                             f"Failed to delete pending subscription "
@@ -1322,7 +1322,7 @@ class PaymentPlanCancel(StripeAPIView):
                     locked_profile.stripe_subscription_id,
                     cancel_at_period_end=True,
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 request.user.log_event(
                     "Stripe error while scheduling cancel-at-period-end.",

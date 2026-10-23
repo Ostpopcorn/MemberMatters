@@ -240,7 +240,7 @@ class MemberCancelMembership(StripeAPIView):
                     locked.stripe_subscription_id,
                     cancel_at_period_end=True,
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 failed = True
             else:
@@ -327,7 +327,7 @@ class MemberCancelMembership(StripeAPIView):
                     period_end_dt = datetime.fromtimestamp(
                         period_end_ts, tz=dt_timezone.utc
                     )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
 
             locked.membership_plan = None
@@ -403,12 +403,12 @@ class MemberCancelMembership(StripeAPIView):
                         for invoice in open_invoices.auto_paging_iter():
                             try:
                                 stripe.Invoice.void_invoice(invoice.id)
-                            except stripe.error.StripeError as e:
+                            except stripe.StripeError as e:
                                 capture_exception(e)
                         stripe.Subscription.delete(
                             subscription_id, invoice_now=False, prorate=False
                         )
-                    except stripe.error.StripeError as e:
+                    except stripe.StripeError as e:
                         capture_exception(e)
                         user.log_event(
                             f"Failed to delete subscription {subscription_id} "
@@ -1056,7 +1056,7 @@ class ManageMembershipTier(StripeAPIView):
 
             return Response(self.get_tier(tier))
 
-        except stripe.error.AuthenticationError:
+        except stripe.AuthenticationError:
             return Response(
                 {"success": False, "message": "error.stripeNotConfigured"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1240,7 +1240,7 @@ class MemberSubscriptionInfo(StripeAPIView):
                     # expand so invoice-billed members get a payable link
                     expand=["latest_invoice"],
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 result["subscriptionUnavailable"] = True
                 return Response(result)
@@ -1422,7 +1422,7 @@ class PendingInvoices(StripeAPIView):
                     status="open", collection_method="send_invoice", limit=100
                 ).auto_paging_iter()
             )
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             capture_exception(e)
             return Response(
                 {"success": False, "message": "Failed to load invoices from Stripe."},
@@ -1472,7 +1472,7 @@ class MarkInvoicePaid(StripeAPIView):
 
         try:
             invoice = stripe.Invoice.retrieve(invoice_id)
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             capture_exception(e)
             return Response(
                 {
@@ -1504,7 +1504,7 @@ class MarkInvoicePaid(StripeAPIView):
 
         try:
             stripe.Invoice.pay(invoice_id, paid_out_of_band=True)
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             capture_exception(e)
             return Response(
                 {
@@ -1525,7 +1525,7 @@ class MarkInvoicePaid(StripeAPIView):
                         "marked_paid_comment": comment[:500],
                     },
                 )
-            except stripe.error.StripeError as e:
+            except stripe.StripeError as e:
                 capture_exception(e)
                 request.user.log_event(
                     f"Failed to attach audit comment to Stripe invoice "
