@@ -30,7 +30,10 @@ from sentry_sdk import capture_message
 from access import models
 from access.models import DoorLog, InterlockLog
 from api_general.models import DashboardCard
-from api_billing.stripe_utils import invoice_subscription_id
+from api_billing.stripe_utils import (
+    invoice_subscription_id,
+    subscription_period_end,
+)
 from api_billing.views import (
     ensure_stripe_customer,
     _email_admin_cancel_failed,
@@ -322,7 +325,7 @@ class MemberCancelMembership(StripeAPIView):
             period_end_dt = None
             try:
                 stripe_sub = stripe.Subscription.retrieve(subscription_id)
-                period_end_ts = getattr(stripe_sub, "current_period_end", None)
+                period_end_ts = subscription_period_end(stripe_sub)
                 if period_end_ts:
                     period_end_dt = datetime.fromtimestamp(
                         period_end_ts, tz=dt_timezone.utc
@@ -1252,7 +1255,7 @@ class MemberSubscriptionInfo(StripeAPIView):
             result["subscription"] = {
                 "status": member.profile.subscription_status,
                 "billingCycleAnchor": from_unix(s.billing_cycle_anchor),
-                "currentPeriodEnd": from_unix(s.current_period_end),
+                "currentPeriodEnd": from_unix(subscription_period_end(s)),
                 "cancelAt": from_unix(s.cancel_at),
                 "cancelAtPeriodEnd": s.cancel_at_period_end,
                 "startDate": from_unix(s.start_date),

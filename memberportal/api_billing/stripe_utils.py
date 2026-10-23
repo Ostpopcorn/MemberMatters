@@ -27,6 +27,18 @@ def invoice_subscription_id(invoice_data):
     return invoice_data.get("subscription")
 
 
+def subscription_period_end(subscription_data):
+    # Stripe API 2025-03-31.basil moved current_period_end from the
+    # subscription to each of its items. A membership subscription has a
+    # single item, so its period is the subscription's. Older payloads still
+    # carry it on the subscription itself.
+    items = (subscription_data.get("items") or {}).get("data") or []
+    for item in items:
+        if item.get("current_period_end") is not None:
+            return item["current_period_end"]
+    return subscription_data.get("current_period_end")
+
+
 def invoice_billing_reason(invoice_data):
     return invoice_data.get("billing_reason")
 

@@ -10,6 +10,7 @@ from profile.models import (
 )
 from api_admin_tools.models import *
 from .models import ProcessedStripeEvent
+from .stripe_utils import subscription_period_end
 from .webhook_handlers import (
     HANDLERS,
     EventScope,
@@ -827,7 +828,7 @@ class SubscriptionInfo(StripeAPIView):
 
                 subscription = {
                     "billingCycleAnchor": from_unix(s.billing_cycle_anchor),
-                    "currentPeriodEnd": from_unix(s.current_period_end),
+                    "currentPeriodEnd": from_unix(subscription_period_end(s)),
                     "cancelAt": from_unix(s.cancel_at),
                     "cancelAtPeriodEnd": s.cancel_at_period_end,
                     "startDate": from_unix(s.start_date),

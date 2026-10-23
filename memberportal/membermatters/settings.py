@@ -457,7 +457,7 @@ CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
 # upgrade can't change the shape of Stripe's responses without anyone noticing.
 # Moving to a new version means checking the code against Stripe's changelog
 # for every version in between.
-STRIPE_API_VERSION = "2024-04-10"
+STRIPE_API_VERSION = "2025-09-30.clover"
 
 # Django constance configuration
 # Until 4.0 this backend treated a failed read as a missing setting, so the
