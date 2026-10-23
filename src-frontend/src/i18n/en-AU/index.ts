@@ -868,35 +868,4 @@ export default {
     stripeError:
       "Something went wrong talking to our payment provider. Please try again in a moment, or contact us if it doesn't clear up.",
   },
-  paymentOverview: {
-    title: 'Payment Overview',
-    testConnection: 'Test connection',
-    connectionTest: 'Connection test',
-    checksError: 'Could not load the checks.',
-    testError: 'The connection test could not be run.',
-  },
-  pendingInvoices: {
-    title: 'Stripe Subscription Invoices',
-    invoiceDisabledWarning:
-      'Invoice billing is currently disabled, so new members cannot sign up via invoice. Existing invoice subscriptions are still being billed by Stripe — use this page to record off-Stripe payments for those members.',
-    noInvoices: 'No pending invoices.',
-    columnMember: 'Member',
-    columnEmail: 'Email',
-    columnPlan: 'Plan',
-    columnAmount: 'Amount Due',
-    columnCreated: 'Created',
-    columnDue: 'Due',
-    columnActions: 'Actions',
-    viewInStripe: 'View in Stripe',
-    markPaid: 'Mark as Paid',
-    markPaidTitle: 'Mark Invoice as Paid',
-    markPaidHelp:
-      'This marks the invoice as paid out-of-band in Stripe (no card charge). The subscription will activate via the paid webhook. Add an optional note for the audit trail.',
-    commentLabel: 'Comment (optional)',
-    commentPlaceholder: 'e.g. Paid by bank transfer on 2026-04-10',
-    confirmMarkPaid: 'Mark as Paid',
-    markPaidSuccess: 'Invoice marked as paid.',
-    markPaidError: 'Failed to mark invoice as paid.',
-    fetchError: 'Failed to load pending invoices.',
-  },
 };

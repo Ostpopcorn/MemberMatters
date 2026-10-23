@@ -7,7 +7,7 @@
         unelevated
         color="primary"
         :icon="icons.sync"
-        :label="$t('paymentOverview.testConnection')"
+        label="Test connection"
         :loading="testing"
         :disable="!canTest"
         @click="runTest"
@@ -19,7 +19,7 @@
       <q-spinner size="2em" />
     </div>
     <q-banner v-else-if="loadError" class="text-negative">
-      {{ $t('paymentOverview.checksError') }}
+      Could not load the checks.
     </q-banner>
     <template v-else>
       <template v-for="section in sections" :key="section.key">
@@ -126,7 +126,7 @@ export default defineComponent({
       if (this.testChecks.length || this.testError) {
         sections.push({
           key: 'test',
-          title: this.$t('paymentOverview.connectionTest'),
+          title: 'Connection test',
           checks: this.testChecks,
           error: this.testError,
         });
@@ -166,7 +166,7 @@ export default defineComponent({
           this.testChecks = [];
           this.testError =
             error.response?.data?.detail ||
-            this.$t('paymentOverview.testError');
+            'The connection test could not be run.';
         })
         .finally(() => {
           this.testing = false;
