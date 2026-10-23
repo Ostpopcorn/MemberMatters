@@ -10,7 +10,7 @@ from profile.models import (
 )
 from api_admin_tools.models import *
 from .models import ProcessedStripeEvent
-from .stripe_utils import subscription_period_end
+from .stripe_utils import api_version_major, subscription_period_end
 from .webhook_handlers import (
     HANDLERS,
     EventScope,
@@ -38,7 +38,9 @@ from django.db import transaction, IntegrityError
 from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext
-from sentry_sdk import capture_exception
+from sentry_sdk import capture_exception, capture_message
+from django.conf import settings
+from django.core.cache import cache
 from membermatters.dates import from_unix
 
 logger = logging.getLogger("billing")
@@ -1392,6 +1394,63 @@ class PaymentPlanCancel(StripeAPIView):
         return Response({"success": False})
 
 
+# How long one admin alert covers a rejected API version. The cache is per
+# process, so a site running several workers can get one alert from each.
+API_VERSION_ALERT_SECONDS = 24 * 60 * 60
+
+
+def _reject_unsupported_api_version(event):
+    """A 400 response for an event in an API version MemberMatters doesn't
+    accept, or None to carry on.
+
+    Rejected rather than acknowledged, so the failure shows on the endpoint
+    in Stripe's dashboard and Stripe warns the account owner, instead of the
+    event disappearing as if it had been handled. Stripe also retries it for
+    up to three days, in case MemberMatters is updated to accept the version.
+    """
+    version = event.get("api_version")
+    if api_version_major(version) in settings.STRIPE_WEBHOOK_API_MAJORS:
+        return None
+
+    accepted = " and ".join(settings.STRIPE_WEBHOOK_API_MAJORS)
+    message = (
+        f"Rejected Stripe webhook {event['id']} ({event['type']}): it is in "
+        f"API version {version}, but MemberMatters only accepts the {accepted} "
+        "releases."
+    )
+    logger.error(message)
+    capture_message(message, level="error")
+
+    if cache.add(
+        f"stripe-webhook-api-version-alert:{version}", True, API_VERSION_ALERT_SECONDS
+    ):
+        subject = f"Action Required: Stripe webhooks rejected (API version {version})"
+        try:
+            send_email_to_admin(
+                subject=subject,
+                template_vars={
+                    "title": subject,
+                    "message": (
+                        f"Stripe sent a webhook in API version {version}, "
+                        "which MemberMatters doesn't accept. Until the webhook "
+                        "endpoint in Stripe is changed, payments, renewals and "
+                        "cancellations are not processed. MemberMatters accepts "
+                        f"the {accepted} releases. An endpoint's version can't "
+                        "be changed, so create a new endpoint in one of those "
+                        "versions, put its signing secret in "
+                        "STRIPE_WEBHOOK_SECRET and delete the old endpoint. "
+                        "Events from before the new endpoint existed aren't "
+                        "sent to it, so check the failed ones in the Stripe "
+                        "dashboard and update those members by hand."
+                    ),
+                },
+            )
+        except Exception as e:
+            capture_exception(e)
+
+    return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class StripeWebhook(StripeAPIView):
     """
     post: processes a Stripe webhook event.
@@ -1437,6 +1496,12 @@ class StripeWebhook(StripeAPIView):
         handler = HANDLERS.get(event_type)
         if handler is None:
             return Response()
+
+        # Only after the signature check, so a forged request can't set off
+        # the alerts below.
+        rejection = _reject_unsupported_api_version(event)
+        if rejection is not None:
+            return rejection
 
         # Atomic wraps dedup row + DB writes; on raise, rollback releases
         # the event id for Stripe's retry. External I/O (emails, SMS,

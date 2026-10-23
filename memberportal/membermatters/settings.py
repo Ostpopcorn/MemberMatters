@@ -459,6 +459,14 @@ CELERY_BROKER_URL = os.getenv("MM_REDIS_HOST")
 # for every version in between.
 STRIPE_API_VERSION = "2025-09-30.clover"
 
+# Stripe major API releases (the twice-yearly ones that can break things) that
+# webhook events are accepted in. Stripe keeps the monthly versions within a
+# major compatible with it, so 2025-10-29.clover counts as clover. Events in
+# any other version are rejected with an alert (api_billing/views.py). Keep
+# this to the major of STRIPE_API_VERSION plus at most one newer, so an
+# install can move its webhook endpoint ahead of the code.
+STRIPE_WEBHOOK_API_MAJORS = ["clover", "dahlia"]
+
 # Django constance configuration
 # Until 4.0 this backend treated a failed read as a missing setting, so the
 # portal stored the default over the real value (jazzband/django-constance#348).
