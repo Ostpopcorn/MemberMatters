@@ -15,6 +15,7 @@ from django.utils.translation import gettext
 import datetime
 from profile.models import User, Profile
 from profile.phone import to_e164
+from profile.profile_fields import HIDDEN, REQUIRED, REQUIRED_MODES, field_mode
 
 from rest_framework import status, permissions, generics, serializers
 from rest_framework.response import Response
@@ -39,6 +40,13 @@ def _parse_terms_acceptance_cards():
         return json.loads(config.TERMS_ACCEPTANCE_CARDS)
     except (ValueError, TypeError):
         return []
+
+
+def _member_can_edit_basic_details():
+    # Until the profile edit applies each field's setting, the name setting
+    # stands in for the old MEMBER_CAN_EDIT_BASIC_DETAILS switch, which covered
+    # name, phone and email together.
+    return field_mode("firstName") == REQUIRED
 
 
 class GetConfig(APIView):
@@ -73,18 +81,20 @@ class GetConfig(APIView):
                 "requireAccessCard": config.REQUIRE_ACCESS_CARD,
                 "memberCanEnterAccessCard": config.MEMBER_CAN_ENTER_ACCESS_CARD,
                 "postInductionUrl": config.POST_INDUCTION_URL,
-                "collectVehicleRegistrationPlate": config.COLLECT_VEHICLE_REGISTRATION_PLATE,
+                "collectVehicleRegistrationPlate": (
+                    field_mode("vehicleRegistrationPlate") != HIDDEN
+                ),
                 "requirePrivacyConsent": config.SIGNUP_REQUIRE_PRIVACY_CONSENT,
                 "privacyPolicyUrl": config.SIGNUP_PRIVACY_POLICY_URL,
                 "privacyPolicyText": config.SIGNUP_PRIVACY_POLICY_TEXT,
                 "termsAcceptanceCards": _parse_terms_acceptance_cards(),
-                "requireScreenName": config.REQUIRE_SCREEN_NAME,
+                "requireScreenName": field_mode("screenName") in REQUIRED_MODES,
                 "defaultPhoneRegion": config.PROFILE_DEFAULT_PHONE_REGION,
                 "enableMembershipApplicationEmail": config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL,
             },
             "profile": {
-                "canEditBasicDetails": config.MEMBER_CAN_EDIT_BASIC_DETAILS,
-                "canEditEmail": config.MEMBER_CAN_EDIT_EMAIL,
+                "canEditBasicDetails": _member_can_edit_basic_details(),
+                "canEditEmail": field_mode("email") == REQUIRED,
             },
             "enableWebcams": config.ENABLE_WEBCAMS,
             "siteBanner": config.SITE_BANNER,
@@ -527,8 +537,8 @@ class ProfileDetail(generics.GenericAPIView):
     def put(self, request):
         p = request.user.profile
         body = json.loads(request.body)
-        can_edit_basic = config.MEMBER_CAN_EDIT_BASIC_DETAILS
-        can_edit_email = can_edit_basic and config.MEMBER_CAN_EDIT_EMAIL
+        can_edit_basic = _member_can_edit_basic_details()
+        can_edit_email = can_edit_basic and field_mode("email") == REQUIRED
         # Empty string maps to NULL so unset handles don't collide on the
         # case-insensitive unique constraint.
         screen_name = (body.get("screenName") or "").strip() or None
@@ -809,8 +819,6 @@ PASSWORD_VALIDATION_ERROR_KEYS = {
     "password_compromised": "error.passwordCompromised",
 }
 
-REQUIRE_MOBILE = True  # TODO: migrate to a constance flag
-
 
 class RegisterSerializer(serializers.Serializer):
     # Every error message is an i18n key resolved by the frontend, not
@@ -902,11 +910,11 @@ class RegisterSerializer(serializers.Serializer):
         attrs["mobile"] = (attrs.get("mobile") or "").strip()
         attrs["vehicleRegistrationPlate"] = (
             (attrs.get("vehicleRegistrationPlate") or "").strip()
-            if config.COLLECT_VEHICLE_REGISTRATION_PLATE
+            if field_mode("vehicleRegistrationPlate") != HIDDEN
             else ""
         )
 
-        if REQUIRE_MOBILE and not attrs["mobile"]:
+        if field_mode("phone") in REQUIRED_MODES and not attrs["mobile"]:
             raise serializers.ValidationError({"mobile": "error.fieldRequired"})
 
         # Store the phone number in E.164 format.
@@ -918,7 +926,7 @@ class RegisterSerializer(serializers.Serializer):
             except ValueError:
                 raise serializers.ValidationError({"mobile": "validation.invalidPhone"})
 
-        if not attrs.get("screenName") and config.REQUIRE_SCREEN_NAME:
+        if not attrs.get("screenName") and field_mode("screenName") in REQUIRED_MODES:
             raise serializers.ValidationError(
                 {"screenName": "error.screenNameRequired"}
             )
