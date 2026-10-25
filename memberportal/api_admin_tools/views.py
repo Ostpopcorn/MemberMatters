@@ -50,6 +50,7 @@ from profile.models import (
     welcome_email_cards,
 )
 from profile.phone import to_e164
+from profile.profile_fields import setting_modes
 from services.sanitize import clean_html
 from services import sms
 from services.emails import send_email_to_admin
@@ -1389,6 +1390,15 @@ class ManageSettings(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         body = request.data
+
+        # Choice settings aren't checked by constance outside its admin form,
+        # so check the profile field ones here.
+        modes = setting_modes(setting_key)
+        if modes is not None and body.get("value") not in modes:
+            return Response(
+                {"message": "error.invalidValue"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             setting = ConstanceSetting.objects.get(key=setting_key)
