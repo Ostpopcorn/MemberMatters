@@ -91,8 +91,11 @@
         {{ $t('form.saved') }}
       </q-banner>
 
-      <q-banner v-if="errorMessageKey" class="bg-negative text-white q-mt-md">
-        {{ $t(errorMessageKey) }}
+      <q-banner
+        v-if="errorMessageKeys.length"
+        class="bg-negative text-white q-mt-md"
+      >
+        <div v-for="key in errorMessageKeys" :key="key">{{ $t(key) }}</div>
       </q-banner>
 
       <q-banner v-else-if="genericError" class="bg-negative text-white q-mt-md">
@@ -115,6 +118,7 @@
 import { mapGetters, mapActions } from 'vuex';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import formMixin from '../mixins/formMixin';
+import { errorKeys } from '../utils/profileErrors';
 
 export default {
   name: 'ProfileForm',
@@ -133,7 +137,7 @@ export default {
       saving: false,
       success: false,
       genericError: false,
-      errorMessageKey: null,
+      errorMessageKeys: [],
     };
   },
   computed: {
@@ -168,7 +172,7 @@ export default {
     onSubmit() {
       this.success = false;
       this.genericError = false;
-      this.errorMessageKey = null;
+      this.errorMessageKeys = [];
       this.saving = true;
 
       // Normalise to E.164 before posting; the backend re-validates.
@@ -186,13 +190,8 @@ export default {
           this.getProfile();
         })
         .catch((err) => {
-          const message = err?.response?.data?.message;
-          const status = err?.response?.status;
-          if ((status === 409 || status === 400) && message) {
-            this.errorMessageKey = message;
-          } else {
-            this.genericError = true;
-          }
+          this.errorMessageKeys = errorKeys(err?.response);
+          this.genericError = this.errorMessageKeys.length === 0;
         })
         .finally(() => {
           this.saving = false;
@@ -209,7 +208,7 @@ export default {
         if (!this.isDirty) return;
         this.success = false;
         this.genericError = false;
-        this.errorMessageKey = null;
+        this.errorMessageKeys = [];
       },
     },
   },

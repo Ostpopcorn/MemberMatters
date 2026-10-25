@@ -97,6 +97,9 @@ export default {
     mobileTooLong: 'Your mobile number must be 16 characters or fewer.',
     vehiclePlateTooLong:
       'Your vehicle registration plate must be 30 characters or fewer.',
+    fieldLocked:
+      'Some of your details can only be changed by an admin. Please contact us if you need to update them.',
+    invalidValue: "Sorry, one of the values entered isn't valid.",
     pageNotFound: 'Page not found',
     noValue: 'No Value',
     noData: 'No records found',

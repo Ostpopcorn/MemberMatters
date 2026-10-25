@@ -93,6 +93,9 @@ export default {
     screenNameTooLong: 'Ditt användarnamn får vara högst 30 tecken.',
     mobileTooLong: 'Ditt mobilnummer får vara högst 16 tecken.',
     vehiclePlateTooLong: 'Ditt registreringsnummer får vara högst 30 tecken.',
+    fieldLocked:
+      'Vissa av dina uppgifter kan bara ändras av en administratör. Kontakta oss om du behöver uppdatera dem.',
+    invalidValue: 'Ett av de angivna värdena är inte giltigt.',
     pageNotFound: 'Sidan kan inte hittas',
     noValue: 'Inget värde',
     noData: 'Ingen data hittas',

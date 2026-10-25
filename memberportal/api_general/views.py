@@ -14,14 +14,15 @@ from django.utils import timezone
 from django.utils.translation import gettext
 import datetime
 from profile.models import User, Profile
-from profile.phone import to_e164
 from profile.profile_changes import (
+    MEMBER,
     SIGNUP,
     ProfileConflict,
     ProfileFieldErrors,
     check_profile_changes,
     check_unique,
     columns,
+    save_profile_changes,
 )
 from profile.profile_fields import HIDDEN, REQUIRED, REQUIRED_MODES, field_mode
 
@@ -51,9 +52,9 @@ def _parse_terms_acceptance_cards():
 
 
 def _member_can_edit_basic_details():
-    # Until the profile edit applies each field's setting, the name setting
-    # stands in for the old MEMBER_CAN_EDIT_BASIC_DETAILS switch, which covered
-    # name, phone and email together.
+    # The profile form still reads the old MEMBER_CAN_EDIT_BASIC_DETAILS flag,
+    # which covered name, phone and email together, until it reads the field
+    # settings directly. The name setting stands in for it.
     return field_mode("firstName") == REQUIRED
 
 
@@ -543,96 +544,15 @@ class ProfileDetail(generics.GenericAPIView):
         return Response(response)
 
     def put(self, request):
-        p = request.user.profile
-        body = json.loads(request.body)
-        can_edit_basic = _member_can_edit_basic_details()
-        can_edit_email = can_edit_basic and field_mode("email") == REQUIRED
-        # Empty string maps to NULL so unset handles don't collide on the
-        # case-insensitive unique constraint.
-        screen_name = (body.get("screenName") or "").strip() or None
-        email = None
-
-        if can_edit_email:
-            email = (body.get("email") or "").lower()
-
-            # check if email is specified
-            if not email:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-
-            # check if email is already in use (case-insensitive, excluding self)
-            if (
-                User.objects.filter(email__iexact=email)
-                .exclude(pk=request.user.pk)
-                .exists()
-            ):
-                return Response(
-                    {"message": "error.accountAlreadyExists"},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-        # check if screen name is already in use (case-insensitive, excluding self)
-        if (
-            screen_name
-            and Profile.objects.filter(screen_name__iexact=screen_name)
-            .exclude(pk=p.pk)
-            .exists()
-        ):
-            return Response(
-                {"message": "error.screenNameAlreadyExists"},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        # Normalise the phone number to E.164 (only editable when
-        # can_edit_basic, so only validated then).
-        phone = ""
-        if can_edit_basic:
-            phone = (body.get("phone") or "").strip()
-            if phone:
-                try:
-                    phone = to_e164(phone, config.PROFILE_DEFAULT_PHONE_REGION)
-                except ValueError:
-                    return Response(
-                        {"message": "validation.invalidPhone"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
+        # Each field follows its PROFILE_FIELD_* setting: see
+        # profile/profile_changes.py for what a member may change.
         try:
-            with transaction.atomic():
-                p.screen_name = screen_name
-                p.vehicle_registration_plate = body.get("vehicleRegistrationPlate")
-                profile_fields = ["screen_name", "vehicle_registration_plate"]
-
-                if can_edit_basic:
-                    p.first_name = body.get("firstName")
-                    p.last_name = body.get("lastName")
-                    p.phone = phone
-                    profile_fields += ["first_name", "last_name", "phone"]
-                    if can_edit_email:
-                        request.user.email = email
-                        request.user.save(update_fields=["email"])
-
-                # update_fields restricts UPDATE to columns this view
-                # owns — concurrent writes elsewhere on the row (Stripe
-                # webhook, admin, access events) aren't reverted by a
-                # stale full-row save. Profile.save() rides `modified`
-                # along automatically.
-                p.save(update_fields=profile_fields)
-        except IntegrityError:
-            # Race with a concurrent register/update: pre-checks passed
-            # but a unique constraint tripped on insert. Re-check to
-            # identify which collision occurred.
-            if can_edit_email and (
-                User.objects.filter(email__iexact=email)
-                .exclude(pk=request.user.pk)
-                .exists()
-            ):
-                return Response(
-                    {"message": "error.accountAlreadyExists"},
-                    status=status.HTTP_409_CONFLICT,
-                )
+            save_profile_changes(request.user.profile, request.data, MEMBER)
+        except ProfileFieldErrors as error:
+            return Response(error.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ProfileConflict as conflict:
             return Response(
-                {"message": "error.screenNameAlreadyExists"},
-                status=status.HTTP_409_CONFLICT,
+                {"message": conflict.message}, status=status.HTTP_409_CONFLICT
             )
 
         return Response({"success": True})
