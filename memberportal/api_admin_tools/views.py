@@ -49,7 +49,12 @@ from profile.models import (
     UserEventLog,
     welcome_email_cards,
 )
-from profile.phone import to_e164
+from profile.profile_changes import (
+    ADMIN,
+    ProfileConflict,
+    ProfileFieldErrors,
+    save_profile_changes,
+)
 from profile.profile_fields import setting_modes
 from services.sanitize import clean_html
 from services import sms
@@ -944,76 +949,43 @@ class MemberProfile(APIView):
     permission_classes = (permissions.IsAdminUser,)
 
     def put(self, request, member_id):
-        if not member_id:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        body = json.loads(request.body)
         member = get_object_or_404(User, id=member_id)
+        body = request.data
 
+        # The access card isn't one of the profile fields yet: see the to-do
+        # in profile/profile_fields.py. It is only changed when it is sent.
         rfid = (body.get("rfidCard") or "").strip() or None
-        rfid_changed = member.profile.rfid != rfid
-
-        # Empty string maps to NULL so unset handles don't collide on the
-        # case-insensitive unique constraint.
-        screen_name = (body.get("screenName") or "").strip() or None
-        email = (body.get("email") or "").lower()
-
+        rfid_changed = "rfidCard" in body and member.profile.rfid != rfid
         if (
-            email
-            and User.objects.filter(email__iexact=email).exclude(pk=member.pk).exists()
+            rfid_changed
+            and rfid
+            and Profile.objects.filter(rfid=rfid).exclude(pk=member.profile.pk).exists()
         ):
             return Response(
-                {"message": "error.accountAlreadyExists"},
+                {"message": "accessCard.alreadyInUse"},
                 status=status.HTTP_409_CONFLICT,
             )
-
-        if (
-            screen_name
-            and Profile.objects.filter(screen_name__iexact=screen_name)
-            .exclude(pk=member.profile.pk)
-            .exists()
-        ):
-            return Response(
-                {"message": "error.screenNameAlreadyExists"},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        # Store the phone number in E.164 format.
-        phone = (body.get("phone") or "").strip()
-        if phone:
-            try:
-                phone = to_e164(phone, config.PROFILE_DEFAULT_PHONE_REGION)
-            except ValueError:
-                return Response(
-                    {"message": "validation.invalidPhone"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        member.email = email
-        member.profile.first_name = body.get("firstName")
-        member.profile.last_name = body.get("lastName")
-        member.profile.rfid = rfid
-        member.profile.phone = phone
-        member.profile.screen_name = screen_name
-        member.profile.vehicle_registration_plate = body.get("vehicleRegistrationPlate")
 
         try:
             with transaction.atomic():
-                member.save()
-                member.profile.save()
-        except IntegrityError:
-            if (
-                email
-                and User.objects.filter(email__iexact=email)
-                .exclude(pk=member.pk)
-                .exists()
-            ):
-                return Response(
-                    {"message": "error.accountAlreadyExists"},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                # Each field follows its PROFILE_FIELD_* setting: an admin can
+                # change any field that isn't hidden, but can't leave a
+                # required one blank.
+                save_profile_changes(member.profile, body, ADMIN)
+                if rfid_changed:
+                    member.profile.rfid = rfid
+                    member.profile.save(update_fields=["rfid"])
+        except ProfileFieldErrors as error:
+            return Response(error.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ProfileConflict as conflict:
             return Response(
-                {"message": "error.screenNameAlreadyExists"},
+                {"message": conflict.message}, status=status.HTTP_409_CONFLICT
+            )
+        except IntegrityError:
+            # The profile fields handle their own races, so only the access
+            # card can be taken between the check above and the write.
+            return Response(
+                {"message": "accessCard.alreadyInUse"},
                 status=status.HTTP_409_CONFLICT,
             )
 

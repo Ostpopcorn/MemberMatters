@@ -231,10 +231,10 @@
           </q-banner>
 
           <q-banner
-            v-if="errorMessageKey"
+            v-if="errorMessageKeys.length"
             class="bg-negative text-white q-mt-md"
           >
-            {{ $t(errorMessageKey) }}
+            <div v-for="key in errorMessageKeys" :key="key">{{ $t(key) }}</div>
           </q-banner>
 
           <q-banner
@@ -634,6 +634,7 @@ import formatMixin from '@mixins/formatMixin';
 import icons from '@icons';
 import { mapGetters } from 'vuex';
 import { MemberProfile } from 'types/member';
+import { errorKeys } from 'src/utils/profileErrors';
 import { defineComponent } from 'vue';
 import {
   parsePhoneNumberFromString,
@@ -677,7 +678,7 @@ export default defineComponent({
       saving: false,
       success: false,
       genericError: false,
-      errorMessageKey: null as string | null,
+      errorMessageKeys: [] as string[],
       smsSendLoading: false,
       smsModalIsOpen: false,
       smsBody: '',
@@ -713,7 +714,7 @@ export default defineComponent({
     onSubmit() {
       this.success = false;
       this.genericError = false;
-      this.errorMessageKey = null;
+      this.errorMessageKeys = [];
       this.saving = true;
 
       this.$axios
@@ -726,13 +727,8 @@ export default defineComponent({
           this.$emit('memberUpdated');
         })
         .catch((err) => {
-          const message = err?.response?.data?.message;
-          const status = err?.response?.status;
-          if ((status === 409 || status === 400) && message) {
-            this.errorMessageKey = message;
-          } else {
-            this.genericError = true;
-          }
+          this.errorMessageKeys = errorKeys(err?.response);
+          this.genericError = this.errorMessageKeys.length === 0;
         })
         .finally(() => {
           this.saving = false;
@@ -982,7 +978,7 @@ export default defineComponent({
         if (!this.isDirty) return;
         this.success = false;
         this.genericError = false;
-        this.errorMessageKey = null;
+        this.errorMessageKeys = [];
       },
     },
   },
