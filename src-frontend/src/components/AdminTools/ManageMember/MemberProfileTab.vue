@@ -720,7 +720,6 @@ export default defineComponent({
         .put(`/api/admin/members/${this.member.id}/profile/`, {
           ...this.profileForm,
           phone: this.toE164Phone(this.profileForm.phone),
-          excludeFromEmailExport: this.selectedMember.excludeFromEmailExport,
         })
         .then(() => {
           this.success = true;
@@ -882,25 +881,19 @@ export default defineComponent({
         });
     },
     optOutEmailExport() {
+      // Only the flag is sent, so unsaved edits in the profile form are
+      // neither saved nor needed for the toggle to work.
       this.$axios
-        .put(`/api/admin/members/${this.member.id}/profile/`, {
+        .post(`/api/admin/members/${this.member.id}/email-export/`, {
           excludeFromEmailExport: !this.selectedMember.excludeFromEmailExport,
-          ...this.profileForm,
-          phone: this.toE164Phone(this.profileForm.phone),
         })
         .then(() => {
           this.$emit('memberUpdated');
         })
-        .catch((err) => {
-          const message = err?.response?.data?.message;
-          const status = err?.response?.status;
-          const key =
-            (status === 409 || status === 400) && message
-              ? message
-              : 'error.requestFailed';
+        .catch(() => {
           this.$q.dialog({
             title: this.$t('error.error'),
-            message: this.$t(key),
+            message: this.$t('error.requestFailed'),
           });
         });
     },
