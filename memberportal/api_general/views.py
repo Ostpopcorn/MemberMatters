@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext
 import datetime
 from profile.models import User, Profile
+from api_billing.stripe_customer import update_stripe_customer_on_commit
 from profile.profile_changes import (
     MEMBER,
     SIGNUP,
@@ -564,13 +565,15 @@ class ProfileDetail(generics.GenericAPIView):
         # Each field follows its PROFILE_FIELD_* setting: see
         # profile/profile_changes.py for what a member may change.
         try:
-            save_profile_changes(request.user.profile, request.data, MEMBER)
+            changed = save_profile_changes(request.user.profile, request.data, MEMBER)
         except ProfileFieldErrors as error:
             return Response(error.errors, status=status.HTTP_400_BAD_REQUEST)
         except ProfileConflict as conflict:
             return Response(
                 {"message": conflict.message}, status=status.HTTP_409_CONFLICT
             )
+
+        update_stripe_customer_on_commit(request.user.profile, changed)
 
         return Response({"success": True})
 

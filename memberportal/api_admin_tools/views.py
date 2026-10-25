@@ -30,6 +30,7 @@ from sentry_sdk import capture_message
 from access import models
 from access.models import DoorLog, InterlockLog
 from api_general.models import DashboardCard
+from api_billing.stripe_customer import update_stripe_customer_on_commit
 from api_billing.stripe_utils import invoice_subscription_id
 from api_billing.views import (
     ensure_stripe_customer,
@@ -980,10 +981,11 @@ class MemberProfile(APIView):
                 # Each field follows its PROFILE_FIELD_* setting: an admin can
                 # change any field that isn't hidden, but can't leave a
                 # required one blank.
-                save_profile_changes(member.profile, body, ADMIN)
+                changed = save_profile_changes(member.profile, body, ADMIN)
                 if rfid_changed:
                     member.profile.rfid = rfid
                     member.profile.save(update_fields=["rfid"])
+                update_stripe_customer_on_commit(member.profile, changed)
         except ProfileFieldErrors as error:
             return Response(error.errors, status=status.HTTP_400_BAD_REQUEST)
         except ProfileConflict as conflict:
