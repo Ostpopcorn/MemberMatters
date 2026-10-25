@@ -101,9 +101,10 @@
             </q-item-section>
           </q-item>
 
-          <!-- Open the send sms modal. The SMS goes to the saved number. -->
+          <!-- Open the send sms modal. The SMS goes to the saved number, and
+               none is sent while the phone field is hidden. -->
           <q-item
-            v-if="features.sms.enable"
+            v-if="features.sms.enable && phoneShown"
             :disable="!selectedMember.phone"
             v-close-popup
             clickable
@@ -141,90 +142,18 @@
           <h5 class="q-my-sm">
             {{ $t('adminTools.mainProfile') }}
           </h5>
-          <q-input
-            v-model="profileForm.email"
-            outlined
-            type="email"
-            :label="requiredLabel($t('form.email'))"
-            lazy-rules
-            :rules="[
-              (val) => validateEmail(val) || $t('validation.invalidEmail'),
-            ]"
-          />
-
-          <q-input
-            v-model="profileForm.rfidCard"
-            outlined
-            bottom-slots
-            :label="$t('form.rfidCard')"
-          />
-
-          <q-input
-            v-model="profileForm.firstName"
-            outlined
-            :label="requiredLabel($t('form.firstName'))"
-            lazy-rules
-            :rules="[
-              (val) => validateNotEmpty(val) || $t('validation.cannotBeEmpty'),
-            ]"
-          />
-
-          <q-input
-            v-model="profileForm.lastName"
-            outlined
-            :label="requiredLabel($t('form.lastName'))"
-            lazy-rules
-            :rules="[
-              (val) => validateNotEmpty(val) || $t('validation.cannotBeEmpty'),
-            ]"
-          />
-
-          <q-input
-            v-model="profileForm.phone"
-            outlined
-            type="tel"
-            :label="requiredLabel($t('form.mobile'))"
-            lazy-rules
-            :rules="[
-              (val) => validateNotEmpty(val) || $t('validation.cannotBeEmpty'),
-              (val) =>
-                validatePhone(val, phoneRegion) ||
-                $t('validation.invalidPhone'),
-            ]"
-          />
-
-          <q-input
-            v-model="profileForm.screenName"
-            outlined
-            :label="
-              requiredLabel(
-                $t('form.screenName'),
-                features?.signup?.requireScreenName !== false
-              )
-            "
-            lazy-rules
-            :rules="
-              features?.signup?.requireScreenName !== false
-                ? [
-                    (val) =>
-                      validateNotEmpty(val) || $t('validation.cannotBeEmpty'),
-                  ]
-                : []
-            "
-          />
-
-          <q-input
-            v-if="
-              features?.signup?.collectVehicleRegistrationPlate ||
-              profileForm.vehicleRegistrationPlate
-            "
-            v-model="profileForm.vehicleRegistrationPlate"
-            :disable="!features?.signup?.collectVehicleRegistrationPlate"
-            outlined
-            :label="$t('form.vehicleRegistrationPlate')"
-            lazy-rules
-            :rules="[(val) => validateMax30(val) || $t('validation.max30')]"
-          />
+          <profile-fields v-model="profileForm" actor="admin" :stored="stored">
+            <!-- Not one of the profile fields yet: see the to-do in
+                 memberportal/profile/profile_fields.py. -->
+            <template #after-email>
+              <q-input
+                v-model="profileForm.rfidCard"
+                outlined
+                bottom-slots
+                :label="$t('form.rfidCard')"
+              />
+            </template>
+          </profile-fields>
 
           <q-banner v-if="success" class="bg-positive text-white q-mt-md">
             {{ $t('form.saved') }}
@@ -636,13 +565,12 @@ import { mapGetters } from 'vuex';
 import { MemberProfile } from 'types/member';
 import { errorKeys } from 'src/utils/profileErrors';
 import { defineComponent } from 'vue';
-import {
-  parsePhoneNumberFromString,
-  type CountryCode,
-} from 'libphonenumber-js';
+import ProfileFields from '@components/ProfileFields.vue';
+import { emptyProfileFields, fieldMode } from 'src/utils/profileFields';
 
 export default defineComponent({
   name: 'MemberProfileTab',
+  components: { ProfileFields },
   mixins: [formMixin, formatMixin],
   props: {
     member: {
@@ -665,15 +593,8 @@ export default defineComponent({
       },
       welcomeLoading: false,
       ensureStripeLoading: false,
-      profileForm: {
-        email: '',
-        rfidCard: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
-        screenName: '',
-        vehicleRegistrationPlate: '',
-      },
+      // The profile fields, plus the access card, which isn't one of them.
+      profileForm: { ...emptyProfileFields(), rfidCard: '' },
       initialFormSnapshot: '',
       saving: false,
       success: false,
@@ -688,27 +609,12 @@ export default defineComponent({
     this.loadInitialForm();
   },
   methods: {
-    // Normalise a phone number to E.164 using the region computed
-    // above; returns the original string if it can't be parsed (the
-    // backend will then reject it).
-    toE164Phone(value: string): string {
-      if (!value) return value;
-      return (
-        parsePhoneNumberFromString(
-          value,
-          this.phoneRegion as CountryCode
-        )?.format('E.164') ?? value
-      );
-    },
     loadInitialForm() {
-      this.profileForm.email = this.selectedMember.email ?? '';
-      this.profileForm.rfidCard = this.selectedMember.rfid ?? '';
-      this.profileForm.firstName = this.selectedMember.name?.first ?? '';
-      this.profileForm.lastName = this.selectedMember.name?.last ?? '';
-      this.profileForm.phone = this.selectedMember.phone ?? '';
-      this.profileForm.screenName = this.selectedMember.screenName ?? '';
-      this.profileForm.vehicleRegistrationPlate =
-        this.selectedMember.vehicleRegistrationPlate ?? '';
+      this.profileForm = {
+        ...this.stored,
+        address: { ...this.stored.address },
+        rfidCard: this.selectedMember.rfid ?? '',
+      };
       this.initialFormSnapshot = JSON.stringify(this.profileForm);
     },
     onSubmit() {
@@ -718,10 +624,9 @@ export default defineComponent({
       this.saving = true;
 
       this.$axios
-        .put(`/api/admin/members/${this.member.id}/profile/`, {
-          ...this.profileForm,
-          phone: this.toE164Phone(this.profileForm.phone),
-        })
+        // The backend stores the phone number in E.164 and keeps hidden
+        // fields as stored.
+        .put(`/api/admin/members/${this.member.id}/profile/`, this.profileForm)
         .then(() => {
           this.success = true;
           this.$emit('memberUpdated');
@@ -932,12 +837,24 @@ export default defineComponent({
   },
   computed: {
     ...mapGetters('config', ['siteLocaleCurrency', 'features']),
-    // Match backend: parse national-format with PROFILE_DEFAULT_PHONE_REGION.
-    phoneRegion(): string {
-      return (this as any).features?.signup?.defaultPhoneRegion || 'AU';
-    },
     selectedMember(): MemberProfile {
       return this.member as MemberProfile;
+    },
+    // The member's saved profile fields, as ProfileFields takes them.
+    stored() {
+      const member = this.selectedMember;
+      return {
+        email: member.email ?? '',
+        firstName: member.name?.first ?? '',
+        lastName: member.name?.last ?? '',
+        phone: member.phone ?? '',
+        screenName: member.screenName ?? '',
+        vehicleRegistrationPlate: member.vehicleRegistrationPlate ?? '',
+        address: { ...(member.address ?? {}) },
+      };
+    },
+    phoneShown(): boolean {
+      return fieldMode(this.features, 'phone') !== 'hidden';
     },
     // The state lock only guards against automated activation, so it is
     // offered exactly while a member is not active. A live subscription is
