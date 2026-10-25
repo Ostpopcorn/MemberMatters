@@ -62,6 +62,16 @@ def is_blank(value):
     return value is None or value == "" or value == {}
 
 
+def columns(values, model):
+    """{column: value} for the fields in `values` stored on `model`, "user" or
+    "profile"."""
+    return {
+        FIELDS_BY_KEY[key].column: value
+        for key, value in values.items()
+        if FIELDS_BY_KEY[key].model == model
+    }
+
+
 def stored_values(profile):
     """{field key: stored value} for every field, hidden ones included."""
     return {
