@@ -357,7 +357,7 @@ class Members(APIView):
             return {
                 "id": member.id,
                 "name": member.get_full_name(),
-                "screenName": member.screen_name,
+                "screenName": member.get_visible_screen_name(),
             }
 
         members = list(map(get_member, Profile.objects.filter(state="active")))

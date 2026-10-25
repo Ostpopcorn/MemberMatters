@@ -440,7 +440,10 @@ CONSTANCE_CONFIG = {
     ),
     "PROFILE_FIELD_SCREEN_NAME": (
         REQUIRED,
-        "How members' screen names (nicknames) are handled." + _FIELD_MODES_HELP,
+        "How members' screen names (nicknames) are handled. Where there is no "
+        "screen name to show, the first and last name are used instead, for "
+        "example as the username in Discourse and other services members sign "
+        "in to through the portal." + _FIELD_MODES_HELP,
         "profile_field_mode",
     ),
     "PROFILE_FIELD_VEHICLE_PLATE": (

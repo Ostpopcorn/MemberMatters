@@ -24,7 +24,13 @@ from profile.profile_changes import (
     columns,
     save_profile_changes,
 )
-from profile.profile_fields import HIDDEN, REQUIRED, REQUIRED_MODES, field_mode
+from profile.profile_fields import (
+    FIELDS,
+    HIDDEN,
+    REQUIRED,
+    REQUIRED_MODES,
+    field_mode,
+)
 
 from rest_framework import status, permissions, generics, serializers
 from rest_framework.response import Response
@@ -229,7 +235,7 @@ class Login(APIView):
                     "nonce": discourse_nonce,
                     "email": request.user.email,
                     "external_id": request.user.id,
-                    "username": request.user.profile.screen_name,
+                    "username": request.user.profile.get_display_name(),
                     "name": request.user.profile.get_full_name(),
                 }
                 payload = base64.b64encode(urlencode(payload).encode("utf-8"))
@@ -275,7 +281,7 @@ class Login(APIView):
                         "nonce": discourse_nonce,
                         "email": user.email,
                         "external_id": user.id,
-                        "username": user.profile.screen_name,
+                        "username": user.profile.get_display_name(),
                         "name": user.profile.get_full_name(),
                     }
                     payload = base64.b64encode(urlencode(payload).encode("utf-8"))
@@ -514,6 +520,7 @@ class ProfileDetail(generics.GenericAPIView):
             "signupStage": p.signup_stage,
             "adminDisabledAccess": p.admin_disabled_access,
             "vehicleRegistrationPlate": p.vehicle_registration_plate,
+            "address": p.address,
             "lastInduction": p.last_induction,
             "lastSeen": p.last_seen,
             "firstJoined": p.created,
@@ -540,6 +547,12 @@ class ProfileDetail(generics.GenericAPIView):
             },
             "permissions": {"staff": user.is_staff},
         }
+
+        # A member only sees the fields that aren't hidden, even where data
+        # stored before the field was hidden is kept.
+        for field in FIELDS:
+            if field_mode(field.key) == HIDDEN:
+                response.pop(field.key, None)
 
         return Response(response)
 
