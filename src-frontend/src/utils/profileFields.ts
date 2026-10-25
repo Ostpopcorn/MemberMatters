@@ -26,6 +26,29 @@ export type Address = Partial<
   Record<'line1' | 'line2' | 'postal_code' | 'city' | 'country', string>
 >;
 
+// The values the profile forms hold, keyed as the API names them.
+export interface ProfileFieldValues {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  screenName: string;
+  vehicleRegistrationPlate: string;
+  address: Address;
+}
+
+export function emptyProfileFields(): ProfileFieldValues {
+  return {
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    screenName: '',
+    vehicleRegistrationPlate: '',
+    address: {},
+  };
+}
+
 export interface AddressPart {
   key: keyof Address;
   required: boolean;

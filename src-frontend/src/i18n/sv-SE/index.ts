@@ -96,6 +96,9 @@ export default {
     fieldLocked:
       'Vissa av dina uppgifter kan bara ändras av en administratör. Kontakta oss om du behöver uppdatera dem.',
     invalidValue: 'Ett av de angivna värdena är inte giltigt.',
+    addressTooLong: 'En av adressraderna är för lång.',
+    addressIncomplete:
+      'Fyll i gatuadress, postnummer, ort och land, eller lämna adressen tom.',
     pageNotFound: 'Sidan kan inte hittas',
     noValue: 'Inget värde',
     noData: 'Ingen data hittas',
@@ -218,6 +221,8 @@ export default {
     cannotBeEmpty: 'Detta fält kan inte vara tomt.',
     futureDate: 'Datum måste vara idag eller i framtiden.',
     tooMany: 'Max är {number}.',
+    maxLength: 'Får vara högst {max} tecken.',
+    invalidCountry: 'Välj ett land i listan.',
   },
   tableHeading: {
     id: 'ID',
@@ -306,6 +311,17 @@ export default {
     vehicleRegistrationNote:
       'Fyll i ditt fordons registreringsnummer. Ange flera med mellanslag emellean. Vi använder detta för att hantera parkering.',
     excludeFromEmailExport: 'Uteslut från email exports',
+    address: 'Adress',
+    addressLine1: 'Gatuadress',
+    addressLine2: 'Adressrad 2',
+    postalCode: 'Postnummer',
+    city: 'Ort',
+    country: 'Land',
+    onlyAdminsEdit: 'Endast en administratör kan ändra detta.',
+    fillInOnce:
+      'Du kan fylla i detta en gång. Därefter kan endast en administratör ändra det.',
+    storedButHidden:
+      'Samlas inte längre in. Visas eftersom ett värde finns sparat.',
   },
   digitalId: {
     title: 'Digitalt ID',

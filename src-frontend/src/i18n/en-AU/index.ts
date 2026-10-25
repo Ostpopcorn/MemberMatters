@@ -100,6 +100,9 @@ export default {
     fieldLocked:
       'Some of your details can only be changed by an admin. Please contact us if you need to update them.',
     invalidValue: "Sorry, one of the values entered isn't valid.",
+    addressTooLong: 'One of the address lines is too long.',
+    addressIncomplete:
+      'Please fill in the street address, postal code, city and country, or leave the address blank.',
     pageNotFound: 'Page not found',
     noValue: 'No Value',
     noData: 'No records found',
@@ -225,6 +228,8 @@ export default {
     cannotBeEmpty: 'This field cannot be empty.',
     futureDate: 'Date must be today or in the future.',
     tooMany: 'Sorry, the maximum is {number}.',
+    maxLength: 'Must be {max} characters or fewer.',
+    invalidCountry: 'Please choose a country from the list.',
   },
   tableHeading: {
     id: 'ID',
@@ -317,6 +322,17 @@ export default {
     vehicleRegistrationNote:
       'Please enter your vehicle registration plate if you have any. Separate multiple with a space. We use this to help manage parking.',
     excludeFromEmailExport: 'Excluded from email exports',
+    address: 'Address',
+    addressLine1: 'Street address',
+    addressLine2: 'Address line 2',
+    postalCode: 'Postal code',
+    city: 'City',
+    country: 'Country',
+    onlyAdminsEdit: 'Only an admin can change this.',
+    fillInOnce:
+      'You can fill this in once. After that, only an admin can change it.',
+    storedButHidden:
+      "No longer collected. Shown because there's a value stored.",
   },
   digitalId: {
     title: 'Digital ID',
