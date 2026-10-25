@@ -13,48 +13,13 @@ def get_features(api_client):
     return response.json()["features"]
 
 
-class TestOldFlags:
-    """The flags the forms read until they use the field settings directly.
+def test_the_old_flags_are_gone(api_client):
+    # The forms read features.profileFields instead.
+    features = get_features(api_client)
 
-    They are worked out from the PROFILE_FIELD_* settings, so the frontend
-    keeps working unchanged while it still reads them.
-    """
-
-    def test_the_defaults_match_the_old_switches_defaults(self, api_client):
-        features = get_features(api_client)
-
-        assert features["signup"]["requireScreenName"] is True
-        assert features["signup"]["collectVehicleRegistrationPlate"] is False
-        assert features["profile"] == {
-            "canEditBasicDetails": True,
-            "canEditEmail": True,
-        }
-
-    @override_config(
-        PROFILE_FIELD_SCREEN_NAME="optional", PROFILE_FIELD_VEHICLE_PLATE="optional"
-    )
-    def test_an_optional_screen_name_and_a_collected_plate(self, api_client):
-        features = get_features(api_client)
-
-        assert features["signup"]["requireScreenName"] is False
-        assert features["signup"]["collectVehicleRegistrationPlate"] is True
-
-    @override_config(
-        PROFILE_FIELD_NAME="required_admin_edits",
-        PROFILE_FIELD_EMAIL="required_admin_edits",
-    )
-    def test_locked_details(self, api_client):
-        assert get_features(api_client)["profile"] == {
-            "canEditBasicDetails": False,
-            "canEditEmail": False,
-        }
-
-    @override_config(PROFILE_FIELD_EMAIL="required_admin_edits")
-    def test_only_the_email_locked(self, api_client):
-        assert get_features(api_client)["profile"] == {
-            "canEditBasicDetails": True,
-            "canEditEmail": False,
-        }
+    assert "requireScreenName" not in features["signup"]
+    assert "collectVehicleRegistrationPlate" not in features["signup"]
+    assert "profile" not in features
 
 
 class TestProfileFields:

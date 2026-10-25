@@ -28,8 +28,6 @@ from profile.profile_changes import (
 from profile.profile_fields import (
     FIELDS,
     HIDDEN,
-    REQUIRED,
-    REQUIRED_MODES,
     field_mode,
     profile_fields_config,
 )
@@ -57,13 +55,6 @@ def _parse_terms_acceptance_cards():
         return json.loads(config.TERMS_ACCEPTANCE_CARDS)
     except (ValueError, TypeError):
         return []
-
-
-def _member_can_edit_basic_details():
-    # The profile form still reads the old MEMBER_CAN_EDIT_BASIC_DETAILS flag,
-    # which covered name, phone and email together, until it reads the field
-    # settings directly. The name setting stands in for it.
-    return field_mode("firstName") == REQUIRED
 
 
 class GetConfig(APIView):
@@ -98,20 +89,12 @@ class GetConfig(APIView):
                 "requireAccessCard": config.REQUIRE_ACCESS_CARD,
                 "memberCanEnterAccessCard": config.MEMBER_CAN_ENTER_ACCESS_CARD,
                 "postInductionUrl": config.POST_INDUCTION_URL,
-                "collectVehicleRegistrationPlate": (
-                    field_mode("vehicleRegistrationPlate") != HIDDEN
-                ),
                 "requirePrivacyConsent": config.SIGNUP_REQUIRE_PRIVACY_CONSENT,
                 "privacyPolicyUrl": config.SIGNUP_PRIVACY_POLICY_URL,
                 "privacyPolicyText": config.SIGNUP_PRIVACY_POLICY_TEXT,
                 "termsAcceptanceCards": _parse_terms_acceptance_cards(),
-                "requireScreenName": field_mode("screenName") in REQUIRED_MODES,
                 "defaultPhoneRegion": config.PROFILE_DEFAULT_PHONE_REGION,
                 "enableMembershipApplicationEmail": config.ENABLE_MEMBERSHIP_APPLICATION_USER_EMAIL,
-            },
-            "profile": {
-                "canEditBasicDetails": _member_can_edit_basic_details(),
-                "canEditEmail": field_mode("email") == REQUIRED,
             },
             # Each profile field's PROFILE_FIELD_* value, and the parts of an
             # address. See profile/profile_fields.py.

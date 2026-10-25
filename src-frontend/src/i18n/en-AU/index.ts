@@ -72,7 +72,6 @@ export default {
       "Couldn't load the CAPTCHA — check your connection and try again.",
     accountAlreadyExists: 'Sorry, that email address has already been used.',
     screenNameAlreadyExists: 'Sorry, that screen name has already been used.',
-    screenNameRequired: 'Please enter a screen name.',
     registrationClosed: 'Registrations are currently closed.',
     downloadFailed: 'Failed to download the file.',
     requestFailed:
@@ -286,10 +285,6 @@ export default {
       'Edit any of the fields below and they will be automatically saved.',
     noResults: 'No Results',
     allFieldsRequired: 'All fields marked * are required.',
-    basicDetailsLocked:
-      'Your email, name, and phone number cannot be changed here. Please contact an admin if you need to update these.',
-    emailChangeContactAdmin:
-      'Your email address cannot be changed here. Please contact an admin if you need to update it.',
     featured: 'Featured?',
     email: 'Email',
     rfidCard: 'RFID Card',
