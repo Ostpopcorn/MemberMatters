@@ -1054,13 +1054,17 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     def get_full_name(self):
         return self.first_name + " " + self.last_name
 
-    def get_visible_screen_name(self):
+    def get_visible_screen_name(self, field_hidden=None):
         """The screen name, or None while the screen name field is hidden.
 
         For anywhere members or other services see it. Admin pages show the
-        stored value whatever the setting.
+        stored value whatever the setting. A caller listing many members
+        passes `field_hidden`, read once, as each read of the setting is a
+        database query.
         """
-        if field_mode("screenName") == HIDDEN:
+        if field_hidden is None:
+            field_hidden = field_mode("screenName") == HIDDEN
+        if field_hidden:
             return None
         return self.screen_name or None
 

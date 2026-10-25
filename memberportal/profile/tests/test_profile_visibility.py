@@ -122,3 +122,17 @@ class TestSignInClaims:
         claims = self.claims(ProfileFactory(phone="+61417000001"))
 
         assert claims["phone_number"] == "+61417000001"
+
+
+@override_config(PROFILE_FIELD_SCREEN_NAME="optional")
+def test_the_members_list_reads_the_setting_once(
+    authed_client, django_assert_max_num_queries
+):
+    for _ in range(5):
+        ProfileFactory(active=True)
+
+    with django_assert_max_num_queries(4) as queries:
+        authed_client.get("/api/tools/members/")
+
+    reads = [q for q in queries.captured_queries if "constance" in q["sql"]]
+    assert len(reads) == 1
