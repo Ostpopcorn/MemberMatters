@@ -101,10 +101,10 @@
             </q-item-section>
           </q-item>
 
-          <!-- Open the send sms modal -->
+          <!-- Open the send sms modal. The SMS goes to the saved number. -->
           <q-item
             v-if="features.sms.enable"
-            :disable="profileForm.phone"
+            :disable="!selectedMember.phone"
             v-close-popup
             clickable
             @click="openSmsModal"
