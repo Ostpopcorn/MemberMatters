@@ -435,7 +435,8 @@ CONSTANCE_CONFIG = {
     ),
     "PROFILE_FIELD_PHONE": (
         REQUIRED,
-        "How members' phone numbers are handled." + _FIELD_MODES_HELP,
+        "How members' phone numbers are handled. No SMS is sent while this is "
+        "hidden." + _FIELD_MODES_HELP,
         "profile_field_mode",
     ),
     "PROFILE_FIELD_SCREEN_NAME": (

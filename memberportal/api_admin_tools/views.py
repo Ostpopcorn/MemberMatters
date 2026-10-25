@@ -55,7 +55,7 @@ from profile.profile_changes import (
     ProfileFieldErrors,
     save_profile_changes,
 )
-from profile.profile_fields import setting_modes
+from profile.profile_fields import HIDDEN, field_mode, setting_modes
 from services.sanitize import clean_html
 from services import sms
 from services.emails import send_email_to_admin
@@ -865,6 +865,15 @@ class MemberSendSms(APIView):
             return Response(
                 {"success": False, "message": "SMS functionality not enabled."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if field_mode("phone") == HIDDEN:
+            return Response(
+                {
+                    "success": False,
+                    "message": "No SMS is sent while the phone field is hidden.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not member.profile.phone:
