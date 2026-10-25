@@ -272,6 +272,17 @@ def setting_modes(setting):
     return None
 
 
+def profile_fields_config():
+    """The field settings as the forms read them, for the site config."""
+    return {
+        "profileFields": {field.key: field_mode(field.key) for field in FIELDS},
+        "addressParts": [
+            {"key": part.key, "required": part.required, "maxLength": part.max_length}
+            for part in ADDRESS_PARTS
+        ],
+    }
+
+
 def field_mode(key):
     """The current setting for a field.
 

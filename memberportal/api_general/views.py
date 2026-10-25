@@ -30,6 +30,7 @@ from profile.profile_fields import (
     REQUIRED,
     REQUIRED_MODES,
     field_mode,
+    profile_fields_config,
 )
 
 from rest_framework import status, permissions, generics, serializers
@@ -111,6 +112,9 @@ class GetConfig(APIView):
                 "canEditBasicDetails": _member_can_edit_basic_details(),
                 "canEditEmail": field_mode("email") == REQUIRED,
             },
+            # Each profile field's PROFILE_FIELD_* value, and the parts of an
+            # address. See profile/profile_fields.py.
+            **profile_fields_config(),
             "enableWebcams": config.ENABLE_WEBCAMS,
             "siteBanner": config.SITE_BANNER,
             "enableSiteSignIn": config.ENABLE_PORTAL_SITE_SIGN_IN,
