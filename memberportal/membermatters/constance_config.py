@@ -448,6 +448,13 @@ CONSTANCE_CONFIG = {
         "How members' vehicle registration plates are handled." + _FIELD_MODES_HELP,
         "profile_field_mode",
     ),
+    "PROFILE_FIELD_ADDRESS": (
+        HIDDEN,
+        "How members' postal addresses are handled. An address has a street, an "
+        "optional second line, a postal code, a city and a country."
+        + _FIELD_MODES_HELP,
+        "profile_field_mode",
+    ),
     "PROFILE_DEFAULT_PHONE_REGION": (
         "AU",
         "Default region (ISO-3166 alpha-2 code, e.g. AU or SE) used to interpret phone numbers entered without an international +country-code prefix. Numbers are stored in E.164 format.",
@@ -638,6 +645,7 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "PROFILE_FIELD_PHONE",
                 "PROFILE_FIELD_SCREEN_NAME",
                 "PROFILE_FIELD_VEHICLE_PLATE",
+                "PROFILE_FIELD_ADDRESS",
                 "PROFILE_DEFAULT_PHONE_REGION",
             ),
         ),

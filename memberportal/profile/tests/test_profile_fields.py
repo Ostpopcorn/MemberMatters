@@ -12,6 +12,7 @@ from profile import profile_fields
 from profile.profile_fields import (
     FIELDS,
     FieldError,
+    clean_address,
     clean_email,
     clean_first_name,
     clean_phone,
@@ -130,3 +131,81 @@ class TestFieldMode:
     def test_a_value_only_other_fields_allow_falls_back_too(self):
         # Hidden is a real value, but the email can't be hidden.
         assert field_mode("email") == "required"
+
+
+class TestCleanAddress:
+    FULL = {
+        "line1": "Storgatan 1",
+        "line2": "c/o Andersson",
+        "postal_code": "123 45",
+        "city": "Stockholm",
+        "country": "SE",
+    }
+
+    def test_a_full_address_is_kept(self):
+        assert clean_address(dict(self.FULL)) == self.FULL
+
+    def test_parts_are_trimmed_and_blank_ones_dropped(self):
+        address = {**self.FULL, "line1": "  Storgatan 1 ", "line2": "  "}
+
+        cleaned = clean_address(address)
+
+        assert cleaned["line1"] == "Storgatan 1"
+        assert "line2" not in cleaned
+
+    def test_the_country_is_uppercased(self):
+        assert clean_address({**self.FULL, "country": "se"})["country"] == "SE"
+
+    @pytest.mark.parametrize("value", [None, "", {}, {"line1": "  "}])
+    def test_nothing_filled_in_is_no_address(self, value):
+        assert clean_address(value) == {}
+
+    @pytest.mark.parametrize("missing", ["line1", "postal_code", "city", "country"])
+    def test_an_address_needs_all_its_required_parts(self, missing):
+        address = {k: v for k, v in self.FULL.items() if k != missing}
+
+        assert error_key(clean_address, address) == "error.addressIncomplete"
+
+    def test_the_second_line_is_never_required(self):
+        address = {k: v for k, v in self.FULL.items() if k != "line2"}
+
+        assert clean_address(address) == address
+
+    @pytest.mark.parametrize("country", ["XX", "SWE", "Sweden"])
+    def test_an_unknown_country_is_refused(self, country):
+        address = {**self.FULL, "country": country}
+
+        assert error_key(clean_address, address) == "validation.invalidCountry"
+
+    def test_an_unknown_part_is_refused(self):
+        # Stripe has a state, but this portal doesn't collect one yet.
+        address = {**self.FULL, "state": "Stockholms län"}
+
+        assert error_key(clean_address, address) == "error.invalidValue"
+
+    @pytest.mark.parametrize("value", ["Storgatan 1", ["Storgatan 1"], 42])
+    def test_anything_but_an_object_is_refused(self, value):
+        assert error_key(clean_address, value) == "error.invalidValue"
+
+    def test_a_part_that_is_too_long_is_refused(self):
+        address = {**self.FULL, "city": "a" * 101}
+
+        assert error_key(clean_address, address) == "error.addressTooLong"
+
+    def test_a_part_that_is_not_text_is_refused(self):
+        address = {**self.FULL, "postal_code": 12345}
+
+        assert error_key(clean_address, address) == "error.invalidValue"
+
+
+def test_admins_see_the_stored_address(admin_client):
+    from django.urls import reverse
+
+    from tests.factories import ProfileFactory
+
+    profile = ProfileFactory(address=dict(TestCleanAddress.FULL))
+
+    response = admin_client.get(reverse("GetMembers"))
+
+    members = {member["id"]: member for member in response.json()}
+    assert members[profile.user.id]["address"] == TestCleanAddress.FULL

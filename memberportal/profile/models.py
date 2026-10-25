@@ -499,6 +499,9 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     phone = models.CharField(validators=[phone_regex], max_length=16, blank=True)
     state = models.CharField(max_length=11, default="noob", choices=STATES)
     vehicle_registration_plate = models.CharField(max_length=30, blank=True, null=True)
+    # {"line1", "line2", "postal_code", "city", "country"}, only the parts that
+    # are filled in; {} for none. See ADDRESS_PARTS in profile_fields.py.
+    address = models.JSONField("Address", default=dict, blank=True)
 
     membership_plan = models.ForeignKey(
         PaymentPlan,
@@ -1116,6 +1119,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             "phone": self.phone,
             "state": self.state,
             "vehicleRegistrationPlate": self.vehicle_registration_plate,
+            "address": self.address,
             "rfid": self.rfid,
             "memberBucks": {
                 "balance": self.memberbucks_balance,

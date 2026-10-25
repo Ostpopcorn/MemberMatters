@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 from typing import Callable
 
+import phonenumbers
 from constance import config
 from django.conf import settings
 
@@ -137,6 +138,60 @@ def clean_vehicle_plate(value):
 
 
 @dataclass(frozen=True)
+class AddressPart:
+    key: str
+    max_length: int
+    # Whether an address must have this part. An address is either left blank
+    # or has all its required parts.
+    required: bool
+
+
+# The parts of an address, named as in Stripe's address object so the stored
+# value can be compared with Stripe's as it is. Stripe also has "state", which
+# isn't used here yet; add it when a space needs it.
+ADDRESS_PARTS = (
+    AddressPart("line1", 200, required=True),
+    AddressPart("line2", 200, required=False),
+    AddressPart("postal_code", 20, required=True),
+    AddressPart("city", 100, required=True),
+    # A two-letter ISO 3166 code, as Stripe expects.
+    AddressPart("country", 2, required=True),
+)
+
+
+def clean_address(value):
+    """Store an address as a dict of its non-blank parts, or {} for none."""
+    if value is None or value == "":
+        return {}
+    if not isinstance(value, dict):
+        raise FieldError("error.invalidValue")
+
+    parts = {part.key: part for part in ADDRESS_PARTS}
+    if set(value) - set(parts):
+        raise FieldError("error.invalidValue")
+
+    address = {}
+    for part in ADDRESS_PARTS:
+        if part.key == "country":
+            # Checked against the list of countries rather than by length, so
+            # "SWE" reads as an unknown country, not as too long.
+            text = _text(value.get(part.key), 100, "validation.invalidCountry").upper()
+            if text and text not in phonenumbers.SUPPORTED_REGIONS:
+                raise FieldError("validation.invalidCountry")
+        else:
+            text = _text(value.get(part.key), part.max_length, "error.addressTooLong")
+        if text:
+            address[part.key] = text
+
+    if address and any(
+        part.required and part.key not in address for part in ADDRESS_PARTS
+    ):
+        raise FieldError("error.addressIncomplete")
+
+    return address
+
+
+@dataclass(frozen=True)
 class ProfileField:
     # Its name in the API, in the forms and in features.profileFields.
     key: str
@@ -189,6 +244,14 @@ FIELDS = (
         "profile",
         "vehicle_registration_plate",
         clean_vehicle_plate,
+    ),
+    ProfileField(
+        "address",
+        "PROFILE_FIELD_ADDRESS",
+        ALL_MODES,
+        "profile",
+        "address",
+        clean_address,
     ),
 )
 
