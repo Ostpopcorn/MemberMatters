@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     "api_billing",
     "api_metrics",
     "integrity",
+    "subscriptions",
     "corsheaders",
     "rest_framework",
     "rest_framework_api_key",
