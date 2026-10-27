@@ -1,11 +1,13 @@
 """A whole run against a fake Stripe: what it records, resolves and emails."""
 
+import threading
 import time
 from datetime import timedelta
 
 import pytest
 import stripe
 from constance.test import override_config
+from django.db import connection
 from django.forms.models import model_to_dict
 from django.utils import timezone
 
@@ -239,6 +241,25 @@ class TestRun:
         with pytest.raises(runner.AlreadyRunning):
             run()
 
+    def test_one_run_at_a_time_member_rechecks_included(self, in_sync):
+        recheck = IntegrityRun.objects.create(
+            trigger=IntegrityRun.Trigger.MEMBER, profile=in_sync
+        )
+
+        with pytest.raises(runner.AlreadyRunning):
+            run()
+        recheck.delete()
+        IntegrityRun.objects.create(trigger=IntegrityRun.Trigger.SCHEDULE)
+        with pytest.raises(runner.AlreadyRunning):
+            runner.run(IntegrityRun.Trigger.MEMBER, profile=in_sync)
+
+    def test_a_dry_run_doesnt_wait_for_a_running_run(self, in_sync, fake_stripe):
+        IntegrityRun.objects.create(trigger=IntegrityRun.Trigger.SCHEDULE)
+
+        outcome = runner.run(IntegrityRun.Trigger.COMMAND, dry_run=True)
+
+        assert outcome.run.status == IntegrityRun.Status.COMPLETE
+
     def test_a_run_that_died_is_marked_failed(self, in_sync):
         dead = IntegrityRun.objects.create(
             trigger=IntegrityRun.Trigger.SCHEDULE,
@@ -424,6 +445,48 @@ class TestAnIssueThatGrows:
         run()
 
         assert IntegrityIssue.objects.get().acknowledged_at is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_two_runs_starting_at_once_cant_both_start(monkeypatch):
+    if connection.vendor != "postgresql":
+        pytest.skip("needs two connections to one database: the Postgres leg")
+    holding, release = threading.Event(), threading.Event()
+    mark_dead_runs = runner.mark_dead_runs
+
+    def first_holds_the_lock(now):
+        mark_dead_runs(now)
+        if not holding.is_set():
+            holding.set()
+            release.wait(5)
+
+    monkeypatch.setattr(runner, "mark_dead_runs", first_holds_the_lock)
+    outcomes = []
+
+    def start():
+        try:
+            runner.start(
+                IntegrityRun(trigger=IntegrityRun.Trigger.SCHEDULE), timezone.now()
+            )
+            outcomes.append("started")
+        except runner.AlreadyRunning:
+            outcomes.append("refused")
+        finally:
+            connection.close()
+
+    first = threading.Thread(target=start)
+    first.start()
+    assert holding.wait(5)
+    second = threading.Thread(target=start)
+    second.start()
+    second.join(0.5)
+    assert second.is_alive(), "the second run didn't wait for the lock"
+    release.set()
+    first.join(5)
+    second.join(5)
+
+    assert sorted(outcomes) == ["refused", "started"]
+    assert IntegrityRun.objects.count() == 1
 
 
 class TestMemberRecheck:

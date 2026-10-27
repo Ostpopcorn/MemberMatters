@@ -264,7 +264,7 @@ It runs when `ENABLE_STRIPE_MEMBERSHIP_PAYMENTS` and `BILLING_AUDIT_ENABLED` are
 * plans whose Stripe price is missing, archived or differs from the plan;
 * a webhook endpoint for this site that is missing, disabled or lacks one of the four events listed under `STRIPE_WEBHOOK_SECRET`, and members' billing events Stripe couldn't deliver in the last 7 days. Stripe only says whether an event reached every webhook endpoint on the account, so a failed delivery to another endpoint counts too.
 
-Each issue shows what MemberMatters and Stripe each say, the likely cause and what to do next. A member's issues also show on their Billing tab, with a button to re-check just that member.
+Each issue shows what MemberMatters and Stripe each say, the likely cause and what to do next. A member's issues also show on their Billing tab, with a button to re-check just that member. Only one check runs at a time, so a re-check or "Run now" is refused while another check is running.
 
 **Email.** `EMAIL_ADMIN` gets one email when a run finds critical issues it hasn't reported before, a summary after the very first run, and one email when runs start failing and another when they work again. Every Monday at 08:15 a digest lists the open warnings and critical issues. Acknowledging an issue on the page stops the emails about it. Members are never emailed.
 

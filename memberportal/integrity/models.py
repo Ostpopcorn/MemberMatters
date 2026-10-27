@@ -84,6 +84,18 @@ class IntegrityRun(models.Model):
         return self.profile_id is None and self.trigger != self.Trigger.MEMBER
 
 
+class IntegrityLock(models.Model):
+    """One row, locked while a run starts, so that two runs starting at once
+    can't both find nothing running.
+
+    It's locked with an UPDATE rather than select_for_update(), which SQLite
+    ignores: an UPDATE takes the write lock there too.
+    """
+
+    id = models.PositiveSmallIntegerField(primary_key=True)
+    taken_at = models.DateTimeField(null=True, blank=True)
+
+
 class IntegrityIssue(models.Model):
     """Something a check found wrong, and still finds wrong.
 

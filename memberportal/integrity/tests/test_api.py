@@ -226,12 +226,17 @@ class TestRunNow:
     def test_refuses_while_the_check_is_off(self, admin_client):
         assert admin_client.post(RUN).status_code == 409
 
-    def test_refuses_while_a_run_is_running(self, admin_client, billing_on):
-        IntegrityRun.objects.create(trigger=IntegrityRun.Trigger.SCHEDULE)
+    @pytest.mark.parametrize(
+        "trigger", [IntegrityRun.Trigger.SCHEDULE, IntegrityRun.Trigger.MEMBER]
+    )
+    def test_refuses_while_a_run_is_running(self, admin_client, billing_on, trigger):
+        IntegrityRun.objects.create(trigger=trigger)
 
         response = admin_client.post(RUN)
 
+        assert response.status_code == 409
         assert response.json()["message"] == "billingIntegrity.alreadyRunning"
+        assert admin_client.get(STATUS).json()["running"] is True
 
 
 class TestMember:
@@ -262,6 +267,15 @@ class TestMember:
         assert body["run"]["status"] == IntegrityRun.Status.COMPLETE
         assert body["run"]["stripeRequests"] == 1
         assert [row["check"] for row in body["issues"]] == ["unpaid_but_active"]
+
+    def test_recheck_waits_for_a_running_run(self, admin_client, billing_on):
+        profile = ProfileFactory()
+        IntegrityRun.objects.create(trigger=IntegrityRun.Trigger.SCHEDULE)
+
+        response = admin_client.post(member_path(profile))
+
+        assert response.status_code == 409
+        assert response.json()["message"] == "billingIntegrity.alreadyRunning"
 
     def test_recheck_needs_the_check_on(self, admin_client):
         profile = ProfileFactory()

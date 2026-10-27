@@ -78,6 +78,13 @@ def serialize_issue(issue):
     }
 
 
+def _already_running():
+    return Response(
+        {"success": False, "message": "billingIntegrity.alreadyRunning"},
+        status=status.HTTP_409_CONFLICT,
+    )
+
+
 def _issues():
     return IntegrityIssue.objects.select_related(
         "profile", "acknowledged_by__profile"
@@ -122,9 +129,8 @@ class IntegrityStatus(APIView):
                     if enabled and celery_configured
                     else None
                 ),
-                "running": full_runs()
-                .filter(status=IntegrityRun.Status.RUNNING)
-                .exists(),
+                # Any run, member re-checks included: none can start meanwhile.
+                "running": runner.is_running(),
                 "lastRun": serialize_run(full_runs().order_by("-started_at").first()),
                 "lastCompleteRun": serialize_run(last_complete),
                 "stale": stale,
@@ -222,11 +228,8 @@ class IntegrityRunNow(APIView):
                 {"success": False, "message": "billingIntegrity.noCelery"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        if full_runs().filter(status=IntegrityRun.Status.RUNNING).exists():
-            return Response(
-                {"success": False, "message": "billingIntegrity.alreadyRunning"},
-                status=status.HTTP_409_CONFLICT,
-            )
+        if runner.is_running():
+            return _already_running()
 
         try:
             run_integrity_checks.delay(
@@ -271,7 +274,10 @@ class MemberIntegrityIssues(APIView):
                 {"success": False, "message": "billingIntegrity.disabled"},
                 status=status.HTTP_409_CONFLICT,
             )
-        outcome = runner.run(
-            IntegrityRun.Trigger.MEMBER, user=request.user, profile=profile
-        )
+        try:
+            outcome = runner.run(
+                IntegrityRun.Trigger.MEMBER, user=request.user, profile=profile
+            )
+        except runner.AlreadyRunning:
+            return _already_running()
         return self._response(profile, outcome.run)

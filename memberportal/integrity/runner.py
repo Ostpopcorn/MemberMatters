@@ -11,6 +11,7 @@ from datetime import timedelta
 
 import stripe
 from constance import config
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 from sentry_sdk import capture_exception
@@ -20,7 +21,7 @@ from api_admin_tools.models import PaymentPlan
 from . import emails
 from .checks import defer_unsettled, run_checks
 from .data import SUBSCRIPTIONS, CheckContext, PlanInfo
-from .models import IntegrityRun, Severity
+from .models import IntegrityLock, IntegrityRun, Severity
 from .snapshot import (
     HANDLED_EVENTS,
     build_snapshot,
@@ -29,7 +30,7 @@ from .snapshot import (
     parse_subscription,
 )
 from .sources import SOURCES
-from .store import full_runs, open_issues, record_results
+from .store import open_issues, record_results
 from .stripe_reader import StripeBudgetExceeded, StripeReader
 
 logger = logging.getLogger("integrity")
@@ -43,7 +44,7 @@ RUN_TIMEOUT = timedelta(hours=2)
 
 
 class AlreadyRunning(Exception):
-    """Another full run is in progress."""
+    """Another run is in progress."""
 
 
 def is_enabled():
@@ -83,6 +84,27 @@ def mark_dead_runs(now):
         finished_at=now,
         error="The run never finished. Its worker probably stopped.",
     )
+
+
+def is_running():
+    return IntegrityRun.objects.filter(status=IntegrityRun.Status.RUNNING).exists()
+
+
+def start(run, now):
+    """Save `run` as running, or raise AlreadyRunning if another run is.
+
+    One run at a time, member re-checks included: two runs recording the
+    same issue at once would both try to create it.
+    """
+    IntegrityLock.objects.get_or_create(pk=1)
+    with transaction.atomic():
+        # Taken before anything is read, so a run starting at the same moment
+        # waits here until this one is saved, and then sees it.
+        IntegrityLock.objects.filter(pk=1).update(taken_at=now)
+        mark_dead_runs(now)
+        if is_running():
+            raise AlreadyRunning()
+        run.save()
 
 
 def confirm_criticals(ctx, results, source, reader):
@@ -192,21 +214,11 @@ def run(
     `dry_run` writes nothing and sends nothing.
     """
     now = timezone.now()
-    member_scope = profile is not None
-
-    if not dry_run:
-        mark_dead_runs(now)
-        if (
-            not member_scope
-            and full_runs().filter(status=IntegrityRun.Status.RUNNING).exists()
-        ):
-            raise AlreadyRunning()
-
     run = IntegrityRun(
         trigger=trigger, triggered_by=user, profile=profile, started_at=now
     )
     if not dry_run:
-        run.save()
+        start(run, now)
 
     outcome = RunOutcome(run=run)
     try:

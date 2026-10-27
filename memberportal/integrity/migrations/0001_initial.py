@@ -158,4 +158,14 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
+        migrations.CreateModel(
+            name="IntegrityLock",
+            fields=[
+                (
+                    "id",
+                    models.PositiveSmallIntegerField(primary_key=True, serialize=False),
+                ),
+                ("taken_at", models.DateTimeField(blank=True, null=True)),
+            ],
+        ),
     ]
