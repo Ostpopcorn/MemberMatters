@@ -5,6 +5,9 @@ observes it updates it; a run whose check ran and no longer observes it marks
 it resolved. A check that was skipped, and a member or subscription that was
 deferred, leave their issues exactly as they were: not seeing something is
 only evidence it's fixed when the check actually looked.
+
+An open issue that comes to cover something new (Finding.refs) is treated as
+unread again: it loses its acknowledgement and is emailed about afresh.
 """
 
 import dataclasses
@@ -33,13 +36,16 @@ def issue_key(source, check, subject):
 
 
 def _details(finding):
-    return {
+    details = {
         "mm": finding.mm,
         "stripe": finding.stripe,
         "cause": finding.cause,
         "action": finding.action,
         **finding.extra,
     }
+    if finding.refs:
+        details["refs"] = sorted(finding.refs)
+    return details
 
 
 def _upsert(source, check, finding, now, result):
@@ -62,6 +68,7 @@ def _upsert(source, check, finding, now, result):
         return
 
     previous_severity = issue.severity
+    previous_refs = set((issue.details or {}).get("refs", ()))
     reopened = issue.resolved_at is not None
     for field, value in values.items():
         setattr(issue, field, value)
@@ -76,6 +83,11 @@ def _upsert(source, check, finding, now, result):
         issue.acknowledged_at = None
     else:
         issue.occurrences += 1
+        if set(finding.refs) - previous_refs:
+            # It covers something nobody has looked at yet.
+            issue.notified_severity = ""
+            issue.acknowledged_by = None
+            issue.acknowledged_at = None
     issue.save()
 
     if reopened:

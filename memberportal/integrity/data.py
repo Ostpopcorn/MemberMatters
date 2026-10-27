@@ -168,6 +168,10 @@ class Finding:
     cause: str = ""
     action: str = ""
     extra: dict = dataclasses.field(default_factory=dict, compare=False)
+    # Ids of what the finding covers when that can grow, such as undelivered
+    # events. An open issue that comes to cover one it didn't before asks for
+    # attention again: its acknowledgement and email record are cleared.
+    refs: tuple = ()
 
 
 @dataclasses.dataclass

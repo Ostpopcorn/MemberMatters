@@ -629,15 +629,17 @@ def webhook_endpoint(ctx):
     expected = _normalise_url(ctx.webhook_url)
     endpoints = ctx.snapshot.webhook_endpoints
     matches = [e for e in endpoints if _normalise_url(e.url) == expected]
+    # Each problem is an issue of its own, so a new one isn't hidden by an
+    # older one that was already emailed about or acknowledged.
     common = dict(
         check="webhook_endpoint",
         severity=Severity.CRITICAL,
-        subject="endpoint",
         mm=f"expects events at {ctx.webhook_url}",
     )
 
     if not matches:
         yield Finding(
+            subject="endpoint:missing",
             message="No Stripe webhook endpoint for this site",
             stripe=f"{len(endpoints)} endpoint(s), none for this URL",
             cause=(
@@ -656,6 +658,7 @@ def webhook_endpoint(ctx):
     enabled = [e for e in matches if e.status == "enabled"]
     if not enabled:
         yield Finding(
+            subject="endpoint:disabled",
             message="Stripe webhook endpoint is disabled",
             stripe_ref=matches[0].id,
             stripe=f"{matches[0].id} is {matches[0].status}",
@@ -676,6 +679,7 @@ def webhook_endpoint(ctx):
     missing = [event_type for event_type in ctx.handled_events if not sent(event_type)]
     if missing:
         yield Finding(
+            subject="endpoint:events",
             message="Stripe webhook endpoint is missing events",
             stripe_ref=enabled[0].id,
             stripe=f"doesn't send {', '.join(missing)}",
@@ -684,6 +688,7 @@ def webhook_endpoint(ctx):
                 "Add them to the endpoint in the Stripe dashboard under Developers "
                 "→ Webhooks."
             ),
+            refs=tuple(missing),
             **common,
         )
 
@@ -715,6 +720,7 @@ def undelivered_events(ctx):
                 for event in events[:20]
             ]
         },
+        refs=tuple(event.id for event in events),
     )
 
 

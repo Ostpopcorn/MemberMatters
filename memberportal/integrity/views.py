@@ -22,7 +22,8 @@ STALE_AFTER = timedelta(hours=36)
 
 MAX_ISSUES = 500
 
-_SHOWN_DETAILS = ("mm", "stripe", "cause", "action")
+# Details sent as fields of their own, or only kept for the store.
+_NOT_EXTRA = ("mm", "stripe", "cause", "action", "refs")
 
 
 def serialize_run(run):
@@ -57,7 +58,7 @@ def serialize_issue(issue):
         "stripe": details.get("stripe", ""),
         "cause": details.get("cause", ""),
         "action": details.get("action", ""),
-        "extra": {k: v for k, v in details.items() if k not in _SHOWN_DETAILS},
+        "extra": {k: v for k, v in details.items() if k not in _NOT_EXTRA},
         "memberId": profile.user_id if profile else None,
         "memberName": profile.get_full_name() if profile else None,
         "stripeRef": issue.stripe_ref,

@@ -268,6 +268,57 @@ class TestRun:
         assert results.findings[(Source.LEGACY, "unpaid_but_active")]
 
 
+def undelivered(event_id, customer="cus_anna"):
+    return {
+        "id": event_id,
+        "object": "event",
+        "type": "invoice.paid",
+        "created": 1_600_000_000,
+        "data": {"object": {"id": f"in_{event_id}", "customer": customer}},
+    }
+
+
+class TestAnIssueThatGrows:
+    """An acknowledged issue covering several things (undelivered events) asks
+    for attention again when it comes to cover a new one."""
+
+    @pytest.fixture
+    def acknowledged_event(self, in_sync, fake_stripe):
+        fake_stripe.events = [undelivered("evt_1")]
+        run()
+        IntegrityIssue.objects.update(acknowledged_at=timezone.now())
+
+    def test_stays_acknowledged_while_it_covers_the_same(
+        self, acknowledged_event, fake_stripe
+    ):
+        run()
+
+        assert IntegrityIssue.objects.get().acknowledged_at is not None
+
+    def test_a_new_event_clears_the_acknowledgement(
+        self, acknowledged_event, fake_stripe
+    ):
+        fake_stripe.events = [undelivered("evt_1"), undelivered("evt_2")]
+
+        run()
+
+        issue = IntegrityIssue.objects.get()
+        assert issue.acknowledged_at is None
+        assert issue.occurrences == 2
+
+    def test_an_event_that_drops_out_changes_nothing(
+        self, acknowledged_event, fake_stripe
+    ):
+        fake_stripe.events = [undelivered("evt_1"), undelivered("evt_2")]
+        run()
+        IntegrityIssue.objects.update(acknowledged_at=timezone.now())
+        fake_stripe.events = [undelivered("evt_2")]
+
+        run()
+
+        assert IntegrityIssue.objects.get().acknowledged_at is not None
+
+
 class TestMemberRecheck:
     def test_fetches_only_that_members_customer(self, billing_on, fake_stripe):
         profile = member()
@@ -417,6 +468,22 @@ class TestEmails:
         assert issue.resolved_at is None
         assert issue.occurrences == 2
         assert admin_mail(outbox) == []
+
+    def test_a_disabled_endpoint_is_emailed_after_missing_events(
+        self, in_sync, fake_stripe, outbox
+    ):
+        run()
+        fake_stripe.endpoints[0]["enabled_events"] = ["invoice.paid"]
+        run()
+        IntegrityIssue.objects.update(acknowledged_at=timezone.now())
+        outbox.clear()
+        fake_stripe.endpoints[0]["status"] = "disabled"
+
+        run()
+
+        [mail] = admin_mail(outbox)
+        assert "Stripe webhook endpoint is disabled" in mail["HtmlBody"]
+        assert open_checks() == ["webhook_endpoint"]
 
     def test_a_failing_streak_emails_at_its_start_and_end(
         self, in_sync, fake_stripe, outbox

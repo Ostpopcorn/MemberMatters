@@ -468,6 +468,23 @@ class TestWebhookEndpoint:
         assert "customer.subscription.updated" in finding.stripe
         assert "customer.subscription.deleted" in finding.stripe
         assert "invoice.paid" not in finding.stripe
+        assert set(finding.refs) == {
+            "customer.subscription.updated",
+            "customer.subscription.deleted",
+        }
+
+    def test_each_problem_is_an_issue_of_its_own(self):
+        other = dataclasses.replace(ENDPOINT, url="https://old.example.org/hook/")
+        disabled = dataclasses.replace(ENDPOINT, status="disabled")
+        partial = dataclasses.replace(ENDPOINT, enabled_events=("invoice.paid",))
+
+        subjects = {
+            finding.subject
+            for endpoints in ([other], [disabled], [partial])
+            for finding in found(context(endpoints=endpoints), "webhook_endpoint")
+        }
+
+        assert len(subjects) == 3
 
 
 class TestUndeliveredEvents:
@@ -481,6 +498,7 @@ class TestUndeliveredEvents:
 
         assert finding.message == "2 billing event(s) not delivered"
         assert [event["id"] for event in finding.extra["events"]] == ["evt_1", "evt_2"]
+        assert finding.refs == ("evt_1", "evt_2")
 
     @pytest.mark.parametrize(
         "event",
