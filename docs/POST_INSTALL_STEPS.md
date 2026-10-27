@@ -262,7 +262,8 @@ It runs when `ENABLE_STRIPE_MEMBERSHIP_PAYMENTS` and `BILLING_AUDIT_ENABLED` are
 * subscriptions that ended, were cancelled or changed in Stripe without MemberMatters hearing about it, usually because a webhook was missed;
 * live subscriptions in Stripe that no member tracks, which may bill someone twice or for nothing;
 * plans whose Stripe price is missing, archived or differs from the plan;
-* a webhook endpoint for this site that is missing, disabled or lacks one of the four events listed under `STRIPE_WEBHOOK_SECRET`, and billing events Stripe couldn't deliver in the last 7 days.
+* a webhook endpoint for this site that is missing, disabled or lacks one of the four events listed under `STRIPE_WEBHOOK_SECRET`, and billing events Stripe couldn't deliver in the last 7 days;
+* members whose row in the subscription table disagrees with the billing fields on their profile, which should only happen after going back to an older version (see [Upgrading](/docs/UPGRADING.md)).
 
 Each issue shows what MemberMatters and Stripe each say, the likely cause and what to do next. A member's issues also show on their Billing tab, with a button to re-check just that member.
 
