@@ -5,6 +5,7 @@ import {
   compareIssues,
   issueEvents,
   runFinished,
+  runNowBlocker,
   runStatusLabel,
   scheduleText,
   seenIn,
@@ -251,6 +252,22 @@ describe('runFinished', () => {
 
   it('counts the first run ever', () => {
     expect(runFinished(null, status({ lastRun: run({ id: 1 }) }))).toBe(true);
+  });
+});
+
+describe('runNowBlocker', () => {
+  it('lets a check start', () => {
+    expect(runNowBlocker(status())).toBe('');
+  });
+
+  it('says why a check can not start', () => {
+    expect(runNowBlocker(status({ enabled: false }))).toMatch(/is off/);
+    expect(runNowBlocker(status({ celeryConfigured: false }))).toMatch(
+      /Celery isn't configured/
+    );
+    expect(runNowBlocker(status({ running: true }))).toBe(
+      'A check is already running.'
+    );
   });
 });
 

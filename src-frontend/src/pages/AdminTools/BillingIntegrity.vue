@@ -140,14 +140,18 @@
             color="grey-3"
             text-color="dark"
           />
-          <q-btn
-            color="primary"
-            icon="mdi-play"
-            label="Run now"
-            :loading="runQueued"
-            :disable="!status?.enabled"
-            @click="runNow"
-          />
+          <!-- The tooltip sits on a wrapper: a disabled button gets no hover. -->
+          <div>
+            <q-btn
+              color="primary"
+              icon="mdi-play"
+              label="Run now"
+              :loading="runQueued"
+              :disable="!status || !!runBlocker"
+              @click="runNow"
+            />
+            <q-tooltip v-if="runBlocker">{{ runBlocker }}</q-tooltip>
+          </div>
         </div>
       </template>
 
@@ -439,6 +443,7 @@ import {
   bannerText,
   compareIssues,
   runFinished,
+  runNowBlocker,
   runStatusLabel,
   scheduleText,
   seenIn,
@@ -490,6 +495,8 @@ export default defineComponent({
       submitting: false,
       runQueued: false,
       pollTimer: null as ReturnType<typeof setTimeout> | null,
+      // Set on leaving the page, so a poll answered afterwards stops there.
+      leaving: false,
     };
   },
   computed: {
@@ -498,6 +505,9 @@ export default defineComponent({
     },
     banners(): StatusBanner[] {
       return this.status ? statusBanners(this.status) : [];
+    },
+    runBlocker(): string {
+      return this.status ? runNowBlocker(this.status) : '';
     },
     statusOptions() {
       return [
@@ -589,6 +599,7 @@ export default defineComponent({
     this.refresh();
   },
   beforeUnmount() {
+    this.leaving = true;
     this.stopPolling();
   },
   methods: {
@@ -696,6 +707,7 @@ export default defineComponent({
         });
     },
     pollForRun(previousRunId: number | null, polls: number) {
+      if (this.leaving) return;
       this.pollTimer = setTimeout(() => {
         this.$axios
           .get('/api/admin/billing/integrity/')

@@ -1,5 +1,5 @@
-// The Billing Integrity admin screens are in English only, like the other
-// new admin pages; only the menu entry is translated.
+// Admin pages are in English only, to keep the number of translation strings
+// down; only the menu entry is translated.
 
 import type {
   IntegrityIssue,
@@ -126,12 +126,23 @@ export function bannerText(
   }
 }
 
+export const ALREADY_RUNNING = 'A check is already running.';
+
 // What the API's error codes mean.
 const API_MESSAGES: Record<string, string> = {
   'billingIntegrity.disabled': CHECK_OFF,
   'billingIntegrity.noCelery': NO_CELERY,
-  'billingIntegrity.alreadyRunning': 'A check is already running.',
+  'billingIntegrity.alreadyRunning': ALREADY_RUNNING,
 };
+
+// Why "Run now" can't start a check, or '' if it can. The server refuses the
+// same cases.
+export function runNowBlocker(status: IntegrityStatus): string {
+  if (!status.enabled) return CHECK_OFF;
+  if (!status.celeryConfigured) return NO_CELERY;
+  if (status.running) return ALREADY_RUNNING;
+  return '';
+}
 
 export function apiMessage(code: unknown, fallback: string): string {
   return (typeof code === 'string' && API_MESSAGES[code]) || fallback;

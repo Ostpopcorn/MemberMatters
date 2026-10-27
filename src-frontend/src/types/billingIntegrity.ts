@@ -61,6 +61,7 @@ export interface IntegritySchedule {
 export interface IntegrityStatus {
   enabled: boolean;
   celeryConfigured: boolean;
+  // Any run, member re-checks included: no other can start meanwhile.
   running: boolean;
   schedule: IntegritySchedule;
   nextRun: string | null;
