@@ -32,6 +32,7 @@ def subscribed(status="active", subscription_id="sub_1", **fields):
         membership_plan=plan,
         stripe_subscription_id=subscription_id,
         subscription_status=status,
+        adopt_billing_columns=False,
         **fields,
     )
 
@@ -188,6 +189,7 @@ class TestAdoption:
             membership_plan=plan,
             stripe_subscription_id=subscription_id,
             subscription_status=status,
+            adopt_billing_columns=False,
         )
         before = columns(member)
 

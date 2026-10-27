@@ -19,6 +19,7 @@ code before this table left them.
 
 import logging
 
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import Subscription
@@ -63,6 +64,17 @@ def has_billing_columns(profile):
         bool(profile.stripe_subscription_id)
         or profile.subscription_status != "inactive"
         or profile.membership_plan_id is not None
+    )
+
+
+def has_billing_columns_q():
+    """Members with billing columns or a current subscription: everyone whose
+    rows and columns could disagree."""
+    return (
+        (Q(stripe_subscription_id__isnull=False) & ~Q(stripe_subscription_id=""))
+        | ~Q(subscription_status="inactive")
+        | Q(membership_plan__isnull=False)
+        | Q(current_subscription__isnull=False)
     )
 
 
