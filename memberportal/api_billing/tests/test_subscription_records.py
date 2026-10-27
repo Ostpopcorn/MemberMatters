@@ -1,6 +1,6 @@
 """Plan changes write a Subscription row as well as the Profile columns: a
-member signing up, resuming or cancelling, and an admin cancelling, by each
-path."""
+member signing up, resuming or cancelling, an admin cancelling, and Stripe's
+webhooks, by each path."""
 
 from types import SimpleNamespace
 
@@ -11,7 +11,7 @@ from profile.models import Profile
 from subscriptions.models import Subscription
 from tests.factories import PaymentPlanFactory, ProfileFactory
 
-from .conftest import SUBSCRIPTION_ID
+from .conftest import CUSTOMER_ID, SUBSCRIPTION_ID, build_event, build_invoice
 
 pytestmark = pytest.mark.django_db
 
@@ -135,6 +135,34 @@ def test_an_admin_cancelling_immediately_ends_it(api_client, stripe_api):
     response = admin_cancels(api_client, profile, "immediately")
 
     assert response.data["success"] is True
+    assert current(profile) is None
+    subscription.refresh_from_db()
+    assert subscription.state == Subscription.State.CANCELLED
+
+
+def test_a_payment_repairs_a_drifted_status(post_webhook, stripe_event):
+    profile = member(subscription_status="inactive", stripe_customer_id=CUSTOMER_ID)
+    stripe_event(event=build_event("invoice.paid", build_invoice()))
+
+    post_webhook()
+
+    repaired = current(profile)
+    assert repaired.legacy_status == "active"
+    assert repaired.state == Subscription.State.ACTIVE
+
+
+def test_a_deleted_subscription_ends_it(post_webhook, stripe_event, stripe_api):
+    profile = member(subscription_status="active", stripe_customer_id=CUSTOMER_ID)
+    subscription = current(profile)
+    stripe_event(
+        event=build_event(
+            "customer.subscription.deleted",
+            {"id": SUBSCRIPTION_ID, "customer": CUSTOMER_ID},
+        )
+    )
+
+    post_webhook()
+
     assert current(profile) is None
     subscription.refresh_from_db()
     assert subscription.state == Subscription.State.CANCELLED
