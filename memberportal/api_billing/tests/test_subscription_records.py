@@ -1,5 +1,6 @@
-"""The member's own plan changes write a Subscription row as well as the Profile
-columns: signing up, resuming and cancelling, by each path."""
+"""Plan changes write a Subscription row as well as the Profile columns: a
+member signing up, resuming or cancelling, and an admin cancelling, by each
+path."""
 
 from types import SimpleNamespace
 
@@ -105,3 +106,35 @@ def test_cancelling_an_active_plan_marks_it_cancelling(api_client, stripe_modifi
 
     assert response.data["success"] is True
     assert current(profile).state == Subscription.State.CANCELLING
+
+
+def admin_cancels(api_client, profile, timing):
+    api_client.force_authenticate(user=ProfileFactory(user__staff_user=True).user)
+    return api_client.post(
+        f"/api/admin/members/{profile.user.id}/cancel-membership/",
+        {"timing": timing},
+        format="json",
+    )
+
+
+def test_an_admin_cancelling_at_period_end_marks_it_cancelling(
+    api_client, stripe_modifies
+):
+    profile = member(subscription_status="active")
+
+    response = admin_cancels(api_client, profile, "at_period_end")
+
+    assert response.data["success"] is True
+    assert current(profile).state == Subscription.State.CANCELLING
+
+
+def test_an_admin_cancelling_immediately_ends_it(api_client, stripe_api):
+    profile = member(subscription_status="active")
+    subscription = current(profile)
+
+    response = admin_cancels(api_client, profile, "immediately")
+
+    assert response.data["success"] is True
+    assert current(profile) is None
+    subscription.refresh_from_db()
+    assert subscription.state == Subscription.State.CANCELLED
