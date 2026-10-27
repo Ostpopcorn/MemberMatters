@@ -14,6 +14,8 @@ from typing import Callable
 
 from django.utils import timezone
 
+from subscriptions.models import Subscription
+
 from .models import Severity, Source
 from .data import (
     EVENTS,
@@ -770,6 +772,113 @@ CHECKS = (
         per_source=False,
         full_only=True,
     ),
+)
+
+
+# The columns the Subscription table is mirrored into, as LocalBilling fields.
+MIRRORED = (
+    ("subscription_id", "subscription ID"),
+    ("status", "status"),
+    ("price_id", "plan"),
+)
+
+
+def _billing_text(local):
+    return (
+        f"{_status_text(local)}, subscription {local.subscription_id or '(none)'}, "
+        f"price {local.price_id or '(none)'}"
+    )
+
+
+def mirror_mismatch(ctx):
+    for local in ctx.local:
+        mirror = local.mirror
+        if mirror is None:
+            continue
+        differing = [
+            label
+            for field, label in MIRRORED
+            if getattr(local, field) != getattr(mirror, field)
+        ]
+        if not differing:
+            continue
+        yield _finding(
+            "mirror_mismatch",
+            local,
+            Severity.CRITICAL,
+            "Subscription table disagrees with the billing columns",
+            subscription_pk=local.subscription_pk,
+            stripe_ref=local.subscription_id or mirror.subscription_id or "",
+            mm=(f"Table: {_billing_text(local)}. Columns: {_billing_text(mirror)}"),
+            cause=(
+                "The billing columns were written past the subscription writer: "
+                "by code from before the Subscription table, after a rollback, or "
+                "in the database directly."
+            ),
+            action=(
+                "Run manage.py adopt_billing_columns, which brings the table in "
+                "line with the columns. If the issue comes back, report it as a "
+                "bug."
+            ),
+            extra={"differs": differing},
+        )
+
+
+def several_live_subscriptions(ctx):
+    for local in ctx.local:
+        if local.live_subscriptions < 2:
+            continue
+        yield _finding(
+            "several_live_subscriptions",
+            local,
+            Severity.CRITICAL,
+            f"{local.live_subscriptions} live subscriptions in the table",
+            subscription_pk=local.subscription_pk,
+            mm=f"{local.live_subscriptions} subscriptions not cancelled",
+            cause=(
+                "A subscription was started without the one before it being "
+                "closed, which is a bug in the subscription writer."
+            ),
+            action=(
+                "Report it as a bug. The billing columns, which the portal acts "
+                "on, follow only the current subscription."
+            ),
+        )
+
+
+def current_subscription_cancelled(ctx):
+    for local in ctx.local:
+        if local.subscription_state != Subscription.State.CANCELLED:
+            continue
+        yield _finding(
+            "current_subscription_cancelled",
+            local,
+            Severity.WARNING,
+            "Inactive, but a plan or subscription ID is still set",
+            subscription_pk=local.subscription_pk,
+            mm=(
+                f"inactive, subscription {local.subscription_id or '(none)'}, "
+                f"price {local.price_id or '(none)'}"
+            ),
+            cause=(
+                "The member's status is inactive while their plan or subscription "
+                "ID is still set, left by an interrupted change or an edit by "
+                "hand. The Subscription table copied it as it was."
+            ),
+            action=(
+                "Look the member up in Stripe. If they have no subscription, "
+                "clear their plan and subscription ID in the Django admin."
+            ),
+        )
+
+
+# Run against the Subscription table while the portal acts on the Profile
+# columns. They compare the table with the columns and with itself, so they
+# read no Stripe data.
+SUBSCRIPTION_TABLE_CHECKS = (
+    Check("mirror_mismatch", mirror_mismatch),
+    Check("several_live_subscriptions", several_live_subscriptions),
+    Check("current_subscription_cancelled", current_subscription_cancelled),
 )
 
 

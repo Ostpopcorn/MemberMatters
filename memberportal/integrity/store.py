@@ -51,6 +51,7 @@ def _upsert(source, check, finding, now, result):
         "message": finding.message[:255],
         "details": _details(finding),
         "profile_id": finding.profile_id,
+        "subscription_id": finding.subscription_pk,
         "stripe_ref": finding.stripe_ref,
         "last_seen": now,
     }

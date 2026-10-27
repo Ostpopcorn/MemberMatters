@@ -188,7 +188,11 @@ def _execute(outcome, now, profile, dry_run, reader, sources):
         )
         defer_unsettled(ctx)
         results = run_checks(
-            ctx, source.name, include_account=index == 0, on_error=capture_exception
+            ctx,
+            source.name,
+            checks=source.checks,
+            include_account=index == 0,
+            on_error=capture_exception,
         )
         outcome.checked.append((source.name, ctx, results))
         run.members_checked = max(run.members_checked, len(local))

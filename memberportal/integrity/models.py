@@ -21,6 +21,7 @@ class Source(models.TextChoices):
 
     ACCOUNT = "account", "Stripe account"
     LEGACY = "legacy", "Current system"
+    SUBSCRIPTIONS = "subscriptions", "Subscription table"
 
 
 class IntegrityRun(models.Model):
@@ -105,6 +106,13 @@ class IntegrityIssue(models.Model):
     source = models.CharField(max_length=20, choices=Source.choices)
     profile = models.ForeignKey(
         "profile.Profile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="integrity_issues",
+    )
+    subscription = models.ForeignKey(
+        "subscriptions.Subscription",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

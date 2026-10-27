@@ -14,8 +14,8 @@ class LocalBilling:
     """One member's subscription as a local source records it.
 
     `status` uses the vocabulary of Profile.subscription_status: inactive,
-    active, cancelling or pending. A later source for the refactored
-    subscription tables maps onto the same values, so the checks don't change.
+    active, cancelling or pending. The source for the Subscription table maps
+    onto the same values, so the checks don't change.
     """
 
     profile_id: int
@@ -27,6 +27,13 @@ class LocalBilling:
     billing_method: str
     member_state: str
     state_locked: bool = False
+    # Set only by the source for the Subscription table: the member's current
+    # row, how many of their rows are live, and what the Profile columns
+    # mirroring it say, read in the same query.
+    subscription_pk: Optional[int] = None
+    subscription_state: Optional[str] = None
+    live_subscriptions: int = 0
+    mirror: Optional["LocalBilling"] = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -160,6 +167,8 @@ class Finding:
     subject: str
     message: str
     profile_id: Optional[int] = None
+    # The Subscription row it is about, if any.
+    subscription_pk: Optional[int] = None
     stripe_ref: str = ""
     # What MemberMatters says and what Stripe says, in a few words each.
     mm: str = ""

@@ -264,8 +264,8 @@ class TestRun:
         assert IntegrityRun.objects.count() == 0
         assert IntegrityIssue.objects.count() == 0
         assert outbox == []
-        [(_source, _ctx, results)] = outcome.checked
-        assert results.findings[(Source.LEGACY, "unpaid_but_active")]
+        results = {source: results for source, _ctx, results in outcome.checked}
+        assert results[Source.LEGACY].findings[(Source.LEGACY, "unpaid_but_active")]
 
 
 class TestMemberRecheck:
