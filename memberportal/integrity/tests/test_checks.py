@@ -493,8 +493,9 @@ class TestUndeliveredEvents:
             StripeEvent("evt_1", "invoice.paid", LONG_AGO, "cus_anna"),
             StripeEvent("evt_2", "customer.subscription.deleted", LONG_AGO, "cus_erik"),
         ]
+        members = [local(), local(profile_id=2, customer_id="cus_erik")]
 
-        [finding] = found(context(events=events), "undelivered_events")
+        [finding] = found(context(members, events=events), "undelivered_events")
 
         assert finding.message == "2 billing event(s) not delivered"
         assert [event["id"] for event in finding.extra["events"]] == ["evt_1", "evt_2"]
@@ -504,11 +505,20 @@ class TestUndeliveredEvents:
         "event",
         [
             pytest.param(
-                StripeEvent("evt_1", "invoice.paid", RECENTLY, None), id="recent"
+                StripeEvent("evt_1", "invoice.paid", RECENTLY, "cus_anna"),
+                id="recent",
             ),
             pytest.param(
-                StripeEvent("evt_1", "charge.refunded", LONG_AGO, None),
+                StripeEvent("evt_1", "charge.refunded", LONG_AGO, "cus_anna"),
                 id="not-billing",
+            ),
+            pytest.param(
+                StripeEvent("evt_1", "invoice.paid", LONG_AGO, "cus_webshop"),
+                id="not-a-member",
+            ),
+            pytest.param(
+                StripeEvent("evt_1", "invoice.paid", LONG_AGO, None),
+                id="no-customer",
             ),
         ],
     )

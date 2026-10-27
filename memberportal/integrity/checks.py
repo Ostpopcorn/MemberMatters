@@ -694,11 +694,19 @@ def webhook_endpoint(ctx):
 
 
 def undelivered_events(ctx):
+    """Billing events about members that Stripe couldn't deliver.
+
+    Stripe only says whether an event reached every endpoint on the account,
+    not which one failed, so events about anyone else are left out: they are
+    most likely another integration's.
+    """
     cutoff = ctx.now - ctx.settle
+    customers = {local.customer_id for local in ctx.local if local.customer_id}
     events = [
         event
         for event in ctx.snapshot.undelivered_events
         if event.type in ctx.handled_events
+        and event.customer in customers
         and (event.created is None or event.created <= cutoff)
     ]
     if not events:
@@ -709,7 +717,11 @@ def undelivered_events(ctx):
         subject="events",
         message=f"{len(events)} billing event(s) not delivered",
         stripe=f"{len(events)} undelivered in the last 7 days",
-        cause="Stripe couldn't deliver them here. It retries for up to 3 days.",
+        cause=(
+            "Stripe couldn't deliver them to at least one of the account's "
+            "webhook endpoints, which may not be this site's. It retries for up "
+            "to 3 days."
+        ),
         action=(
             "Look at the failed deliveries in the Stripe dashboard under "
             "Developers → Webhooks. Members they affect show up as their own issues."
