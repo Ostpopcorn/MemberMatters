@@ -9,9 +9,6 @@ class Severity(models.TextChoices):
     CRITICAL = "critical", "Critical"
 
 
-SEVERITY_RANK = {Severity.INFO: 0, Severity.WARNING: 1, Severity.CRITICAL: 2}
-
-
 class Source(models.TextChoices):
     """Which local record of a subscription a finding compares with Stripe.
 

@@ -232,7 +232,9 @@ def paid_but_pending(ctx):
         invoice = subscription.latest_invoice
         if invoice is None or invoice.status != "paid":
             continue
-        if local.state_locked:
+        # As the invoice.paid webhook decides: a lock only holds the payment
+        # of a member who isn't active yet.
+        if local.state_locked and local.member_state != "active":
             severity = Severity.INFO
             cause = (
                 "The member is locked, so the payment is held until an admin "

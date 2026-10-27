@@ -197,10 +197,22 @@ MEMBER_CASES = [
     ),
     pytest.param(
         "paid_but_pending",
-        {"status": "pending", "billing_method": "invoice", "state_locked": True},
+        {
+            "status": "pending",
+            "billing_method": "invoice",
+            "member_state": "noob",
+            "state_locked": True,
+        },
         {"collection_method": "send_invoice"},
         Severity.INFO,
         id="paid-but-pending-while-locked",
+    ),
+    pytest.param(
+        "paid_but_pending",
+        {"status": "pending", "billing_method": "invoice", "state_locked": True},
+        {"collection_method": "send_invoice"},
+        Severity.CRITICAL,
+        id="paid-but-pending-locked-but-active",
     ),
     pytest.param(
         "paid_but_pending",

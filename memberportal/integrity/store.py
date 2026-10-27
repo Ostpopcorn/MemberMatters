@@ -15,7 +15,7 @@ from datetime import timedelta
 
 from django.db import transaction
 
-from .models import SEVERITY_RANK, IntegrityIssue, IntegrityRun
+from .models import IntegrityIssue, IntegrityRun
 
 # Resolved issues are diagnostic history, so keep them well past the run
 # interval.
@@ -26,8 +26,6 @@ RETENTION = timedelta(days=90)
 class RecordResult:
     # Issues seen for the first time, or again after being resolved.
     new: list = dataclasses.field(default_factory=list)
-    # Open issues whose severity went up.
-    escalated: list = dataclasses.field(default_factory=list)
     resolved: list = dataclasses.field(default_factory=list)
 
 
@@ -67,7 +65,6 @@ def _upsert(source, check, finding, now, result):
         result.new.append(issue)
         return
 
-    previous_severity = issue.severity
     previous_refs = set((issue.details or {}).get("refs", ()))
     reopened = issue.resolved_at is not None
     for field, value in values.items():
@@ -92,8 +89,6 @@ def _upsert(source, check, finding, now, result):
 
     if reopened:
         result.new.append(issue)
-    elif SEVERITY_RANK[issue.severity] > SEVERITY_RANK[previous_severity]:
-        result.escalated.append(issue)
 
 
 def record_results(
