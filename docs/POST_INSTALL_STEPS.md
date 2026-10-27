@@ -268,7 +268,7 @@ Each issue shows what MemberMatters and Stripe each say, the likely cause and wh
 
 **Email.** `EMAIL_ADMIN` gets one email when a run finds critical issues it hasn't reported before, a summary after the very first run, and one email when runs start failing and another when they work again. Every Monday at 08:15 a digest lists the open warnings and critical issues. Acknowledging an issue on the page stops the emails about it. Members are never emailed.
 
-**Stripe requests.** A run lists subscriptions 100 at a time, so it makes about one request per 100 members plus one per plan. It makes at most `BILLING_AUDIT_MAX_RPS` requests a second, backs off when Stripe asks it to, and stops at 1,000.
+**Stripe requests.** A run lists subscriptions 100 at a time, so it makes about one request per 100 members plus one per plan. Before recording a critical issue it fetches that member's subscription once more, so a change made while it ran isn't reported as one. It makes at most `BILLING_AUDIT_MAX_RPS` requests a second, backs off when Stripe asks it to, and stops at 1,000.
 
 **Without Celery.** The check runs on the Celery worker and beat. If you don't run them, run it daily from cron instead, for example at 03:15:
 

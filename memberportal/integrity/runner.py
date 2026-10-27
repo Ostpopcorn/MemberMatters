@@ -20,11 +20,17 @@ from api_admin_tools.models import PaymentPlan
 from . import emails
 from .checks import defer_unsettled, run_checks
 from .data import SUBSCRIPTIONS, CheckContext, PlanInfo
-from .models import IntegrityRun
-from .snapshot import HANDLED_EVENTS, build_snapshot
+from .models import IntegrityRun, Severity
+from .snapshot import (
+    HANDLED_EVENTS,
+    build_snapshot,
+    describe_error,
+    is_missing,
+    parse_subscription,
+)
 from .sources import SOURCES
 from .store import full_runs, open_issues, record_results
-from .stripe_reader import StripeReader
+from .stripe_reader import StripeBudgetExceeded, StripeReader
 
 logger = logging.getLogger("integrity")
 
@@ -77,6 +83,89 @@ def mark_dead_runs(now):
         finished_at=now,
         error="The run never finished. Its worker probably stopped.",
     )
+
+
+def confirm_criticals(ctx, results, source, reader):
+    """Read both sides again for each critical finding before it's recorded.
+
+    The members are read after Stripe, so a webhook that lands mid-run shows
+    on both sides. A change made after Stripe was read shows on the member's
+    side only, though: a member who cancels mid-run looks like "cancelling
+    here, renews in Stripe". A critical finding is emailed about at once, so
+    the subscriptions it concerns are fetched again and its member reloaded.
+    If anything changed, or couldn't be fetched, the member and subscriptions
+    are deferred to the next run: their findings are dropped and their issues
+    left as they are.
+
+    Returns why some findings couldn't be confirmed, if any couldn't.
+    """
+    critical = [
+        finding
+        for findings in results.findings.values()
+        for finding in findings
+        if finding.severity == Severity.CRITICAL
+    ]
+    seen = {local.profile_id: local for local in ctx.local}
+    profile_ids = sorted({f.profile_id for f in critical if f.profile_id is not None})
+    reloaded = {}
+    if profile_ids:
+        reloaded = {local.profile_id: local for local in source.load(profile_ids)}
+
+    fetched = {}
+    errors = []
+
+    def unchanged_in_stripe(subscription_id):
+        if subscription_id not in fetched:
+            try:
+                data = reader.call(
+                    stripe.Subscription.retrieve,
+                    subscription_id,
+                    expand=["latest_invoice"],
+                )
+                fetched[subscription_id] = parse_subscription(data)
+            except (StripeBudgetExceeded, stripe.error.StripeError) as error:
+                if is_missing(error):
+                    fetched[subscription_id] = None
+                else:
+                    errors.append(
+                        f"couldn't confirm {subscription_id}: {describe_error(error)}"
+                    )
+                    fetched[subscription_id] = error
+        fresh = fetched[subscription_id]
+        if isinstance(fresh, Exception):
+            return False
+        return fresh == ctx.snapshot.subscriptions.get(subscription_id)
+
+    deferred_profiles = set()
+    deferred_refs = set()
+    for finding in critical:
+        subscription_ids = set()
+        if finding.stripe_ref.startswith("sub_"):
+            subscription_ids.add(finding.stripe_ref)
+        member = seen.get(finding.profile_id)
+        if member is not None and member.subscription_id:
+            subscription_ids.add(member.subscription_id)
+
+        confirmed = all(unchanged_in_stripe(ref) for ref in sorted(subscription_ids))
+        if member is not None and reloaded.get(member.profile_id) != member:
+            confirmed = False
+        if confirmed:
+            continue
+        if member is not None:
+            deferred_profiles.add(member.profile_id)
+        deferred_refs |= subscription_ids
+
+    if deferred_profiles or deferred_refs:
+        ctx.deferred_profiles |= deferred_profiles
+        ctx.deferred_refs |= deferred_refs
+        for key, findings in results.findings.items():
+            results.findings[key] = [
+                finding
+                for finding in findings
+                if finding.profile_id not in deferred_profiles
+                and finding.stripe_ref not in deferred_refs
+            ]
+    return errors
 
 
 @dataclasses.dataclass
@@ -190,6 +279,10 @@ def _execute(outcome, now, profile, dry_run, reader, sources):
         results = run_checks(
             ctx, source.name, include_account=index == 0, on_error=capture_exception
         )
+        if not member_scope:
+            for reason in confirm_criticals(ctx, results, source, reader):
+                incomplete = True
+                skipped.append({"check": "", "source": source.name, "reason": reason})
         outcome.checked.append((source.name, ctx, results))
         run.members_checked = max(run.members_checked, len(local))
 
@@ -211,6 +304,8 @@ def _execute(outcome, now, profile, dry_run, reader, sources):
             run.new_issues += len(recorded.new)
             run.resolved_issues += len(recorded.resolved)
 
+    # Again, now that the confirmations are counted too.
+    run.stripe_requests = reader.requests
     run.skipped_checks = skipped
     if not dry_run:
         issues = open_issues()

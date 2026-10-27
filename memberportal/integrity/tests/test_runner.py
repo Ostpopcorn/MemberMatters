@@ -97,8 +97,10 @@ class TestRun:
 
         run()
 
+        # Once for the snapshot, and once more to confirm the critical issue.
         assert [call[1] for call in fake_stripe.calls_to("Subscription.retrieve")] == [
-            ("sub_anna",)
+            ("sub_anna",),
+            ("sub_anna",),
         ]
         assert open_checks() == ["ended_in_stripe"]
 
@@ -266,6 +268,111 @@ class TestRun:
         assert outbox == []
         [(_source, _ctx, results)] = outcome.checked
         assert results.findings[(Source.LEGACY, "unpaid_but_active")]
+
+
+@pytest.fixture
+def after_listing(fake_stripe, monkeypatch):
+    """Runs a change right after Stripe lists the subscriptions, as if it
+    happened while the run was reading Stripe."""
+    changes = []
+    listing = fake_stripe.subscription_list
+
+    def list_then_change(**params):
+        page = listing(**params)
+        while changes:
+            changes.pop()()
+        return page
+
+    monkeypatch.setattr(stripe.Subscription, "list", list_then_change)
+    return changes.append
+
+
+class TestConfirmation:
+    """A critical finding is read again before it's recorded, so a change made
+    while the run read Stripe isn't reported as drift."""
+
+    def test_a_member_who_cancels_mid_run_isnt_reported(
+        self, in_sync, fake_stripe, after_listing, outbox
+    ):
+        def cancel():
+            fake_stripe.subscriptions["sub_anna"].update(
+                cancel_at_period_end=True, canceled_at=int(time.time())
+            )
+            Profile.objects.filter(pk=in_sync.pk).update(
+                subscription_status="cancelling"
+            )
+
+        after_listing(cancel)
+
+        result = run()
+
+        assert open_checks() == []
+        assert result.status == IntegrityRun.Status.COMPLETE
+
+    def test_a_subscription_that_ends_mid_run_isnt_reported(
+        self, in_sync, fake_stripe, after_listing
+    ):
+        def end():
+            fake_stripe.subscriptions["sub_anna"].update(
+                status="canceled", ended_at=int(time.time())
+            )
+            Profile.objects.filter(pk=in_sync.pk).update(
+                subscription_status="inactive",
+                stripe_subscription_id=None,
+                membership_plan=None,
+            )
+
+        after_listing(end)
+
+        run()
+
+        assert open_checks() == []
+
+    def test_leaves_the_members_open_issues_as_they_are(
+        self, in_sync, fake_stripe, after_listing
+    ):
+        fake_stripe.subscriptions["sub_anna"]["status"] = "unpaid"
+        run()
+
+        def end():
+            fake_stripe.subscriptions["sub_anna"]["status"] = "canceled"
+            Profile.objects.filter(pk=in_sync.pk).update(
+                subscription_status="cancelling"
+            )
+
+        after_listing(end)
+
+        run()
+
+        issue = IntegrityIssue.objects.get()
+        assert issue.check_name == "unpaid_but_active"
+        assert issue.resolved_at is None
+        assert issue.occurrences == 1
+
+    def test_a_real_critical_issue_is_recorded(self, billing_on, fake_stripe):
+        profile = member(subscription_status="cancelling")
+        fake_stripe.add("sub_anna", "cus_anna", profile.membership_plan.stripe_id)
+
+        result = run()
+
+        assert open_checks() == ["cancel_not_scheduled"]
+        assert [call[1] for call in fake_stripe.calls_to("Subscription.retrieve")] == [
+            ("sub_anna",)
+        ]
+        assert result.stripe_requests == len(fake_stripe.calls)
+
+    def test_one_that_cant_be_confirmed_waits_for_the_next_run(
+        self, billing_on, fake_stripe
+    ):
+        profile = member(subscription_status="cancelling")
+        fake_stripe.add("sub_anna", "cus_anna", profile.membership_plan.stripe_id)
+        fake_stripe.errors["Subscription.retrieve"] = stripe.error.APIError("down")
+
+        result = run()
+
+        assert open_checks() == []
+        assert result.status == IntegrityRun.Status.INCOMPLETE
+        assert "couldn't confirm sub_anna" in result.skipped_checks[0]["reason"]
 
 
 def undelivered(event_id, customer="cus_anna"):

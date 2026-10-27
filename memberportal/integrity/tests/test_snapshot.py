@@ -90,10 +90,15 @@ class TestBuildSnapshot:
             fast_reader(max_requests=1), ["sub_1"], ["price_1"], NOW
         )
 
-        assert snapshot.has(SUBSCRIPTIONS)
+        assert snapshot.has(PRICES)
         assert snapshot.budget_exhausted
-        for part in (PRICES, WEBHOOK_ENDPOINTS, EVENTS):
+        for part in (WEBHOOK_ENDPOINTS, EVENTS, SUBSCRIPTIONS):
             assert snapshot.skipped[part].incomplete
+
+    def test_reads_subscriptions_last(self, fake_stripe):
+        build_snapshot(fast_reader(), [], ["price_1"], NOW)
+
+        assert fake_stripe.calls[-1][0] == "Subscription.list"
 
     def test_asks_only_for_recent_undelivered_billing_events(self, fake_stripe):
         build_snapshot(fast_reader(), [], [], NOW)

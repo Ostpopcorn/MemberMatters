@@ -111,7 +111,7 @@ def parse_event(data):
     )
 
 
-def _is_missing(error):
+def is_missing(error):
     return (
         isinstance(error, stripe.error.InvalidRequestError)
         and getattr(error, "code", None) == "resource_missing"
@@ -182,7 +182,7 @@ def build_snapshot(
                     expand=["latest_invoice"],
                 )
             except stripe.error.InvalidRequestError as error:
-                if _is_missing(error):
+                if is_missing(error):
                     snapshot.missing_subscriptions.add(subscription_id)
                 else:
                     snapshot.fetch_errors.append(
@@ -191,16 +191,12 @@ def build_snapshot(
                 continue
             snapshot.subscriptions[subscription_id] = parse_subscription(data)
 
-    _fetch_part(snapshot, SUBSCRIPTIONS, fetch_subscriptions)
-    if not full:
-        return snapshot
-
     def fetch_prices():
         for price_id in sorted(set(price_ids)):
             try:
                 data = reader.call(stripe.Price.retrieve, price_id)
             except stripe.error.InvalidRequestError as error:
-                if not _is_missing(error):
+                if not is_missing(error):
                     raise
                 snapshot.missing_prices.add(price_id)
                 continue
@@ -224,7 +220,11 @@ def build_snapshot(
             )
         ]
 
-    _fetch_part(snapshot, PRICES, fetch_prices)
-    _fetch_part(snapshot, WEBHOOK_ENDPOINTS, fetch_webhook_endpoints, optional=True)
-    _fetch_part(snapshot, EVENTS, fetch_events, optional=True)
+    if full:
+        _fetch_part(snapshot, PRICES, fetch_prices)
+        _fetch_part(snapshot, WEBHOOK_ENDPOINTS, fetch_webhook_endpoints, optional=True)
+        _fetch_part(snapshot, EVENTS, fetch_events, optional=True)
+    # Subscriptions last: the members are read right after the snapshot, and
+    # the sooner after Stripe's side, the less can change in between.
+    _fetch_part(snapshot, SUBSCRIPTIONS, fetch_subscriptions)
     return snapshot
