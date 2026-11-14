@@ -150,11 +150,9 @@
             class="text-caption text-grey-7 q-mt-xs"
           >
             Not shown with the current settings:
-            <span v-for="(state, i) in section.skipped" :key="i">
-              {{ state.label }} ({{ state.reason }}){{
-                i < section.skipped.length - 1 ? ' · ' : ''
-              }}
-            </span>
+            <div v-for="group in section.skipped" :key="group.reason">
+              Because {{ group.reason }}: {{ group.labels.join(' · ') }}
+            </div>
           </div>
         </section>
       </q-tab-panel>
@@ -227,6 +225,18 @@ const SECTIONS: { id: SignupSection; title: string; where: string }[] = [
   },
 ];
 
+// Skipped states grouped by why, so one reason reads once.
+function byReason(states: SkippedSignupState[]) {
+  const groups = new Map<string, string[]>();
+  for (const state of states) {
+    groups.set(state.reason, [
+      ...(groups.get(state.reason) || []),
+      state.label,
+    ]);
+  }
+  return [...groups].map(([reason, labels]) => ({ reason, labels }));
+}
+
 export default defineComponent({
   name: 'SignupPreview',
   components: { TermsAcceptanceCard, WelcomeEmailFrame },
@@ -257,7 +267,7 @@ export default defineComponent({
       title: string;
       where: string;
       rows: SignupRow[];
-      skipped: SkippedSignupState[];
+      skipped: { reason: string; labels: string[] }[];
     }[] {
       const { rows, skipped } = signupStates({
         features: this.features,
@@ -278,7 +288,9 @@ export default defineComponent({
           ...section,
           where,
           rows: sectionRows,
-          skipped: skipped.filter((state) => state.section === section.id),
+          skipped: byReason(
+            skipped.filter((state) => state.section === section.id)
+          ),
         };
       });
     },
