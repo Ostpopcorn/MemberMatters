@@ -234,6 +234,15 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         featureEnabledFlag: 'enableStatsPage',
         component: () => import('pages/Stats.vue'),
       },
+      {
+        icon: icons.email,
+        to: '/tools/welcome-email',
+        name: 'welcomeEmail',
+        loggedIn: true,
+        allowedStates: ['active'],
+        featureEnabledFlag: 'enableWelcomeEmailPage',
+        component: () => import('pages/WelcomeEmail.vue'),
+      },
     ],
   },
   {

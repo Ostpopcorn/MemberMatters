@@ -39,6 +39,7 @@ export default {
     recentSwipes: 'Recent Swipes',
     stats: 'Stats & Metrics',
     lastSeen: 'Last Seen',
+    welcomeEmail: 'Welcome Email',
     membership: 'Membership',
     billing: 'Billing Method',
     profile: 'Profile',
@@ -893,5 +894,10 @@ export default {
     markPaidSuccess: 'Invoice marked as paid.',
     markPaidError: 'Failed to mark invoice as paid.',
     fetchError: 'Failed to load pending invoices.',
+  },
+  welcomeEmail: {
+    description:
+      'The welcome email new members get when their membership starts, with useful information for getting started.',
+    loadError: "Couldn't load the welcome email. Please try again later.",
   },
 };

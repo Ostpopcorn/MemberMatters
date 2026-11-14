@@ -39,6 +39,7 @@ export default {
     recentSwipes: 'Senaste Swipes',
     stats: 'Stats & Nyckeltal',
     lastSeen: 'Senast aktiv',
+    welcomeEmail: 'Välkomstmejl',
     membership: 'Medlemskap',
     billing: 'Betalmetod',
     profile: 'Profil',
@@ -878,5 +879,10 @@ export default {
     markPaidSuccess: 'Fakturan markerades som betald.',
     markPaidError: 'Kunde inte markera fakturan som betald.',
     fetchError: 'Kunde inte ladda väntande fakturor.',
+  },
+  welcomeEmail: {
+    description:
+      'Välkomstmejlet som nya medlemmar får när medlemskapet börjar, med användbar information för att komma igång.',
+    loadError: 'Det gick inte att ladda välkomstmejlet. Försök igen senare.',
   },
 };
