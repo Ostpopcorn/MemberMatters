@@ -46,6 +46,11 @@
   (`SIGNUP_REQUIRE_PRIVACY_CONSENT`, `TERMS_ACCEPTANCE_CARDS`, `terms_accepted_at`).
 - `FORCE_SIGNUP_COMPLETION` redirects unfinished members; new admin **Signup
   Progress** and **Signup Preview** screens.
+- **Signup Preview** has three tabs: the signup flow, listing every state a
+  member can be in and what they see in it, built from the site's settings,
+  membership plans and texts; the terms cards; and the welcome email.
+- **Welcome Email** page under Member Tools shows active members the welcome
+  email again (`ENABLE_WELCOME_EMAIL_PAGE`, on by default).
 
 ## Admin ManageMember overhaul
 
