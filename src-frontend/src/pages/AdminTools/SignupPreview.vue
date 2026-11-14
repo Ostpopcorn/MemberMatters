@@ -14,10 +14,9 @@
       <!-- Welcome email -->
       <div class="text-h6 q-mt-lg q-mb-sm">Welcome email</div>
       <q-card flat bordered>
-        <iframe
-          :srcdoc="welcomeEmailHtml"
+        <welcome-email-frame
+          :html="welcomeEmailHtml"
           title="Welcome email preview"
-          style="width: 100%; height: 700px; border: 0"
         />
       </q-card>
 
@@ -46,10 +45,11 @@
 import { defineComponent } from 'vue';
 import { api } from 'boot/axios';
 import TermsAcceptanceCard from '@components/Billing/TermsAcceptanceCard.vue';
+import WelcomeEmailFrame from '@components/WelcomeEmailFrame.vue';
 
 export default defineComponent({
   name: 'SignupPreview',
-  components: { TermsAcceptanceCard },
+  components: { TermsAcceptanceCard, WelcomeEmailFrame },
   data() {
     return {
       loading: true,
