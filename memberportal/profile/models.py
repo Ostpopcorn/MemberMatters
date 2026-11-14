@@ -9,6 +9,7 @@ from django.contrib.auth.models import (
 )
 from django.core.validators import RegexValidator
 from django.conf import settings
+from django.template.loader import render_to_string
 from constance import config
 from api_general.models import DashboardCard, SiteSession
 from api_admin_tools.models import PaymentPlan
@@ -131,6 +132,15 @@ def welcome_email_cards():
     except (ValueError, TypeError):
         return []
     return cards if isinstance(cards, list) else []
+
+
+def render_welcome_email(user=None):
+    """The welcome email's HTML, as Profile.email_welcome() sends it."""
+    with member_email_translation(user):
+        return render_to_string(
+            "email_welcome.html",
+            {"email": {"cards": welcome_email_cards()}, "config": config},
+        )
 
 
 class UserManager(BaseUserManager):

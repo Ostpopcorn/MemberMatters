@@ -15,7 +15,6 @@ from django.db.models import F, Sum, Value, CharField, Count, Max
 from django.db.models.functions import Concat
 from django.db.utils import OperationalError
 from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext
 from rest_framework import permissions
@@ -50,7 +49,7 @@ from profile.models import (
     CancelTriggeredBy,
     User,
     UserEventLog,
-    welcome_email_cards,
+    render_welcome_email,
 )
 from profile.phone import to_e164
 from services.sanitize import clean_html
@@ -1562,12 +1561,7 @@ class SignupPreview(APIView):
     permission_classes = (permissions.IsAdminUser,)
 
     def get(self, request):
-        # Rendered in the member email language, as members receive it.
-        with member_email_translation():
-            welcome_email_html = render_to_string(
-                "email_welcome.html",
-                {"email": {"cards": welcome_email_cards()}, "config": config},
-            )
+        welcome_email_html = render_welcome_email()
 
         try:
             terms_cards = json.loads(config.TERMS_ACCEPTANCE_CARDS)
