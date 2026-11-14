@@ -1,10 +1,11 @@
-"""The cards in the welcome email and its admin preview."""
+"""The welcome email: its cards, its admin preview and the members' page."""
 
 import json
 
 import pytest
 from constance.test import override_config
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from api_general.models import DashboardCard
 from profile.models import welcome_email_cards
@@ -117,3 +118,36 @@ def test_the_signup_preview_matches_the_email(admin_client, dashboard_cards, val
 
     assert response.status_code == 200
     assert ("Discord" in response.json()["welcomeEmailHtml"]) is (value == "")
+
+
+def client_for(profile):
+    client = APIClient()
+    client.force_authenticate(user=profile.user)
+    return client
+
+
+@pytest.mark.parametrize(
+    "state, page_enabled, allowed",
+    [
+        ("active", True, True),
+        ("noob", True, False),
+        ("inactive", True, False),
+        ("active", False, False),
+    ],
+)
+def test_only_active_members_see_the_welcome_email_page(state, page_enabled, allowed):
+    client = client_for(ProfileFactory(state=state))
+
+    with override_config(ENABLE_WELCOME_EMAIL_PAGE=page_enabled):
+        response = client.get(reverse("WelcomeEmail"))
+
+    assert response.status_code == (200 if allowed else 403)
+
+
+def test_the_welcome_email_page_shows_the_email_as_sent(outbox, dashboard_cards):
+    member = ProfileFactory(active=True)
+    member.user.email_welcome()
+
+    response = client_for(member).get(reverse("WelcomeEmail"))
+
+    assert response.json()["welcomeEmailHtml"] == outbox[-1]["HtmlBody"]

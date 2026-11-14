@@ -7,4 +7,5 @@ urlpatterns = [
     path("api/tools/issue/", views.IssueDetail.as_view(), name="IssueDetail"),
     path("api/tools/meetings/", views.MeetingList.as_view(), name="MeetingList"),
     path("api/tools/members/", views.Members.as_view(), name="api_members"),
+    path("api/tools/welcome-email/", views.WelcomeEmail.as_view(), name="WelcomeEmail"),
 ]

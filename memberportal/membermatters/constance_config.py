@@ -98,6 +98,10 @@ CONSTANCE_CONFIG = {
         "",
         'A JSON array of cards shown in the welcome email. Each card: {"title": "...", "description": "<p>...</p>", "url": "https://...", "btn_text": "..."}. Leave blank (the default) to use the dashboard\'s Member Resources cards, which are edited in Admin Tools -> Dashboard Cards. Set it to [] for no cards.',
     ),
+    "ENABLE_WELCOME_EMAIL_PAGE": (
+        True,
+        "Show active members their welcome email under Member Tools, so they can find it again.",
+    ),
     "TERMS_ACCEPTANCE_CARDS": (
         "[]",
         'A JSON array of cards shown as a required Terms & Conditions step during signup. Each card: {"icon": "mdi-...", "title": "...", "body_html": "<p>...</p>", "checkbox_text": "..."}. The step is skipped when the array is empty.',
@@ -565,6 +569,7 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "ENABLE_DOOR_BUMP_API",
                 "ENABLE_LAST_SEEN_PAGE",
                 "ENABLE_RECENT_SWIPES_PAGE",
+                "ENABLE_WELCOME_EMAIL_PAGE",
             ),
         ),
         (

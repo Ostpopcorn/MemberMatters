@@ -1,5 +1,5 @@
 from access.models import DoorLog, InterlockLog
-from profile.models import Profile
+from profile.models import Profile, render_welcome_email
 from api_meeting.models import Meeting
 from constance import config
 from services.emails import send_email_to_admin
@@ -364,3 +364,21 @@ class Members(APIView):
         shuffle(members)
 
         return Response(members)
+
+
+class WelcomeEmail(APIView):
+    """
+    get: The welcome email as active members receive it, so they can find it
+    again. Admins can always see it, as the frontend route guard lets them.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        if not request.user.is_staff and (
+            not config.ENABLE_WELCOME_EMAIL_PAGE
+            or request.user.profile.state != "active"
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        return Response({"welcomeEmailHtml": render_welcome_email(request.user)})

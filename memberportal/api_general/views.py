@@ -96,6 +96,7 @@ class GetConfig(APIView):
                 "footer": config.SMS_FOOTER,
             },
             "enableStatsPage": config.ENABLE_STATS_PAGE,
+            "enableWelcomeEmailPage": config.ENABLE_WELCOME_EMAIL_PAGE,
             "enableLastSeenPage": config.ENABLE_LAST_SEEN_PAGE or user_is_admin,
             "enableRecentSwipesPage": config.ENABLE_RECENT_SWIPES_PAGE or user_is_admin,
             "enableReportIssue": config.ENABLE_REPORT_ISSUE,
